@@ -174,29 +174,38 @@ export function buildCastle(THREE, options = {}) {
     });
   }
 
-  // ---------- Felssockel (unregelmäßig, ragt teils aus dem Boden) ----------
-  box(46, 1.2, 40, 0.5, -1.2, 3, M.stoneDark);
-  box(14, 0.7, 5, -10, 0, 21.5, M.stoneDark);
-  box(5, 0.9, 12, -23.5, 0, 0, M.stoneDark);
-  box(4, 0.6, 12, 24.5, 0, 12, M.stoneDark);
-  box(16, 0.8, 10, -3, 0, -20, M.stoneDark);
+  // ---------- Felssockel: ein unregelmäßiger Umriss unter allen Gebäuden, 0,4 m über dem Boden ----------
+  {
+    const outline = [
+      [-24, -6], [-21, -13], [-12, -19], [-6, -24.5], [4, -24.5], [8, -19], [14, -18], [15, -12],
+      [23, -10], [28, 0], [27.5, 13], [26, 21.5], [17, 23.8], [8, 23.5], [-2, 23.3], [-12, 23.8],
+      [-18, 23], [-24, 17], [-24.5, 4],
+    ];
+    const shape = new THREE.Shape();
+    outline.forEach(([x, z], i) => (i === 0 ? shape.moveTo(x, z) : shape.lineTo(x, z)));
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: 2, bevelEnabled: false });
+    geo.rotateX(Math.PI / 2); // Umriss in die x-z-Ebene, Tiefe nach unten
+    const rock = new THREE.Mesh(geo, M.stoneDark);
+    rock.position.y = 0.4;
+    group.add(rock);
+  }
 
   // ---------- Palas (Haupthaus) im Norden: langer Bau mit steilem Dach und Zwerchgiebeln ----------
   box(24, 13, 9, -4, 0, -6, M.stone);
   col.box(-4, -6, 24, 9, 13);
   gable(24, 9, 11, 0.5, -4, 13, -6, true, M.slate);
   // Zwerchgiebel zur Hofseite, unterschiedlich hoch
-  box(6, 15, 3, -11, 0, 0, M.stoneLight);
-  gable(6, 3, 9, 0.3, -11, 15, 0, false, M.slate);
-  box(6, 13, 3, 4.5, 0, 0, M.stoneLight);
-  gable(6, 3, 7, 0.3, 4.5, 13, 0, false, M.copper);
-  col.box(-11, 0, 6, 3, 15);
-  col.box(4.5, 0, 6, 3, 13);
-  windowRow(-11, 1.5, '+z', 2, 2.4, 4);
-  windowRow(-11, 1.5, '+z', 2, 2.4, 9);
-  windowRow(-11, 1.5, '+z', 1, 1, 13.4, 0.9, 1.6);
-  windowRow(4.5, 1.5, '+z', 2, 2.4, 4);
-  windowRow(4.5, 1.5, '+z', 2, 2.4, 9);
+  box(6, 15, 3, -12, 0, 0, M.stoneLight);
+  gable(6, 3, 9, 0.3, -12, 15, 0, false, M.slate);
+  box(6, 13, 3, 5, 0, 0, M.stoneLight);
+  gable(6, 3, 7, 0.3, 5, 13, 0, false, M.copper);
+  col.box(-12, 0, 6, 3, 15);
+  col.box(5, 0, 6, 3, 13);
+  windowRow(-12, 1.5, '+z', 2, 2.4, 4);
+  windowRow(-12, 1.5, '+z', 2, 2.4, 9);
+  windowRow(-12, 1.5, '+z', 1, 1, 13.4, 0.9, 1.6);
+  windowRow(5, 1.5, '+z', 2, 2.4, 4);
+  windowRow(5, 1.5, '+z', 2, 2.4, 9);
   windowRow(-3, -10.5, '-z', 5, 3.6, 4);
   windowRow(-3, -10.5, '-z', 5, 3.6, 9);
   for (const x of [-12, -6, 0]) dormer(x, 15, -9.1, '-z');
@@ -208,32 +217,36 @@ export function buildCastle(THREE, options = {}) {
   add(corbel, 8.2, 4.4, -1.4);
   roundTower(8.2, -1.4, 1.7, 9, 6.5, M.copper, M.stoneLight, 6);
 
-  // ---------- Mittelturm im Hof vor dem Palas: achteckig, zwei Stufen, steile Haube ----------
+  // ---------- Hauptturm im Hof vor dem Palas: achteckig, zwei Stufen, steile Haube ----------
   {
     const cx = -3.5;
-    const cz = 3;
+    const cz = 3.5; // Nordfläche liegt bündig an der Palasfront (z = -1.5)
     const oct = (geo) => {
       geo.rotateY(Math.PI / 8); // Fläche statt Kante zeigt nach +z
       return geo;
     };
-    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(3.6, 3.9, 22, 8)), M.stone), cx, 11, cz);
-    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(4.6, 3.6, 1.2, 8)), M.stoneDark), cx, 22.6, cz);
-    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(3.0, 3.0, 8, 8)), M.stoneLight), cx, 27.2, cz);
-    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(3.9, 3.0, 1, 8)), M.stoneDark), cx, 31.7, cz);
-    add(new THREE.Mesh(oct(new THREE.ConeGeometry(4.0, 17, 8)), M.copper), cx, 32.2 + 8.5, cz);
-    add(new THREE.Mesh(new THREE.ConeGeometry(0.22, 4, 6), M.dark), cx, 32.2 + 17 + 1.6, cz);
+    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(5.0, 5.4, 24, 8)), M.stone), cx, 12, cz);
+    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(6.3, 5.0, 1.2, 8)), M.stoneDark), cx, 24.6, cz);
+    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(4.2, 4.2, 10, 8)), M.stoneLight), cx, 30.2, cz);
+    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(5.3, 4.2, 1, 8)), M.stoneDark), cx, 35.7, cz);
+    add(new THREE.Mesh(oct(new THREE.ConeGeometry(5.4, 20, 8)), M.copper), cx, 36.2 + 10, cz);
+    add(new THREE.Mesh(new THREE.ConeGeometry(0.25, 4, 6), M.dark), cx, 36.2 + 20 + 1.6, cz);
     // vier Erkertürmchen auf dem unteren Kragen
-    for (const [dx, dz] of [[-3.3, -3.3], [3.3, -3.3], [-3.3, 3.3], [3.3, 3.3]]) {
-      add(new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 4, 8), M.stoneLight), cx + dx, 23.2 + 2, cz + dz);
-      add(new THREE.Mesh(new THREE.ConeGeometry(1.1, 3.6, 8), M.slate), cx + dx, 27.2 + 1.8, cz + dz);
+    for (const [dx, dz] of [[-3.8, -3.8], [3.8, -3.8], [-3.8, 3.8], [3.8, 3.8]]) {
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 4.5, 8), M.stoneLight), cx + dx, 25.2 + 2.25, cz + dz);
+      add(new THREE.Mesh(new THREE.ConeGeometry(1.25, 4, 8), M.slate), cx + dx, 29.7 + 2, cz + dz);
     }
-    col.circle(cx, cz, 3.9, 32);
-    windowRow(cx, cz + 3.45, '+z', 1, 1, 9, 0.9, 2);
-    windowRow(cx, cz + 3.4, '+z', 1, 1, 15, 0.9, 2);
-    windowRow(cx, cz + 3.35, '+z', 1, 1, 20, 0.9, 2);
-    windowRow(cx, cz + 2.82, '+z', 1, 1, 26.5, 0.8, 2.4);
-    windowRow(cx + 3.45, cz, '+x', 1, 1, 12, 0.9, 2);
-    windowRow(cx - 3.45, cz, '-x', 1, 1, 12, 0.9, 2);
+    col.circle(cx, cz, 5.4, 36);
+    // Tür und Fenster an den Flächen (Radius nimmt nach oben leicht ab, Fläche = 0,924 x Radius)
+    box(2.4, 4.2, 0.3, cx, 0, cz + 5.0, M.dark);
+    windowRow(cx, cz + 4.85, '+z', 1, 1, 9, 1.0, 2.2);
+    windowRow(cx, cz + 4.75, '+z', 1, 1, 15, 1.0, 2.2);
+    windowRow(cx, cz + 4.7, '+z', 1, 1, 20.5, 1.0, 2.2);
+    windowRow(cx, cz + 3.88, '+z', 1, 1, 29, 0.9, 2.6);
+    windowRow(cx + 4.8, cz, '+x', 1, 1, 12, 1.0, 2.2);
+    windowRow(cx - 4.8, cz, '-x', 1, 1, 12, 1.0, 2.2);
+    windowRow(cx + 3.88, cz, '+x', 1, 1, 29, 0.9, 2.6);
+    windowRow(cx - 3.88, cz, '-x', 1, 1, 29, 0.9, 2.6);
   }
 
   // ---------- Hoher Rundturm am Westende (Neuschwanstein-Art) ----------
@@ -339,8 +352,8 @@ export function buildCastle(THREE, options = {}) {
 
   group.userData = {
     kind: 'castle',
-    footprint: { w: 48, d: 42 },
-    height: 53,
+    footprint: { w: 52, d: 42 },
+    height: 62,
     gate: { x: gateX, z: gateZ, w: 6, facing: '+z' },
     colliders,
   };
