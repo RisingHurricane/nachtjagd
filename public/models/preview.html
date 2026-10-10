@@ -10,7 +10,7 @@
 <body>
 <script type="module">
 // Vorschau für Modelle aus public/models. Aufruf: preview.html?model=castle&view=front
-// Ansichten: front, back, side, west, aerial, top, court, gate, free (Maus ziehen = drehen, Rad = Zoom)
+// Ansichten: front, back, side, west, aerial, top, court, arcade, tower, gate, free (Maus ziehen = drehen, Rad = Zoom)
 import * as THREE from 'three';
 const q = new URLSearchParams(location.search);
 const modelName = q.get('model') || 'castle';
@@ -25,7 +25,7 @@ document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x9eb8c4);
-scene.fog = new THREE.FogExp2(0x9eb8c4, Number(q.get('fog') || 0.006));
+scene.fog = new THREE.FogExp2(0x9eb8c4, Number(q.get('fog') || 0.003));
 
 scene.add(new THREE.HemisphereLight(0xb4c0cb, 0x303b4f, 1.1));
 const sun = new THREE.DirectionalLight(0xffe2b8, 1.6);
@@ -45,15 +45,18 @@ document.title = 'Modellvorschau: ' + (info.kind || modelName);
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.5, 1200);
 const h = info.height || 30;
 const d = Math.max((info.footprint && info.footprint.w) || 40, (info.footprint && info.footprint.d) || 40);
+const S = Math.max(d, h * 0.9); // Bezugsgröße für die Kameraabstände
 const views = {
-  front: [0, h * 0.55, d * 1.9, 0, h * 0.4, 0],
-  back: [0, h * 0.55, -d * 1.9, 0, h * 0.4, 0],
-  side: [d * 1.9, h * 0.55, d * 0.3, 0, h * 0.4, 0],
-  aerial: [d * 1.2, h * 2.1, d * 1.5, 0, h * 0.3, 0],
+  front: [0, h * 0.45, S * 1.6, 0, h * 0.4, 0],
+  back: [0, h * 0.45, -S * 1.6, 0, h * 0.4, 0],
+  side: [S * 1.6, h * 0.45, S * 0.3, 0, h * 0.4, 0],
+  west: [-S * 1.6, h * 0.45, S * 0.3, 0, h * 0.4, 0],
+  aerial: [S * 0.8, S * 1.0, S * 1.0, 0, h * 0.25, 0],
   gate: [0, 4, d * 0.95, 0, 8, 0],
-  top: [0, d * 2.4, 0.01, 0, 0, 0],
+  top: [0, S * 2.2, 0.01, 0, 0, 0],
   court: [2, 14, d * 0.9, -2, 8, -6],
-  west: [-d * 1.9, h * 0.4, d * 0.3, 0, h * 0.4, 0],
+  arcade: [4, 4, 5, -8, 3.5, 20],
+  tower: [S * 0.5, h * 0.5, S * 0.6, -3.5, h * 0.55, 2.6],
 };
 let yaw = 0.6, pitch = 0.35, dist = d * 2.2;
 function place() {

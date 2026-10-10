@@ -145,7 +145,7 @@ export function buildCastle(THREE, options = {}) {
   function dormer(x, y0, z, dir) {
     const s = dir === '+z' ? 1 : -1;
     box(1.8, 1.8, 1.8, x, y0, z, M.stone);
-    gable(1.8, 1.8, 1.4, 0.15, x, y0 + 1.8, z, false, M.slate);
+    gable(1.8, 1.8, 2.6, 0.15, x, y0 + 1.8, z, false, M.slate);
     pushWin(x, y0 + 0.9, z + s * 0.92, dir, 0.7, 1.0);
   }
 
@@ -160,6 +160,46 @@ export function buildCastle(THREE, options = {}) {
       else if (face === '+x') pushWin(cx + offset, y, cz + t, face, w, h);
       else pushWin(cx - offset, y, cz + t, face, w, h);
     }
+  }
+
+  // Wandscheibe mit Spitzbogenöffnungen bis zum Boden (Bogengang, Tor). Mitte der Scheibe bei (x, z),
+  // t = Tiefe. n Öffnungen der Breite bw, Pfeiler dazwischen und außen je pw breit.
+  function arcadePanel(n, bw, pw, h, spring, apex, t, x, z, material) {
+    const W = n * bw + (n + 1) * pw;
+    const shape = new THREE.Shape();
+    shape.moveTo(-W / 2, 0);
+    shape.lineTo(-W / 2, h);
+    shape.lineTo(W / 2, h);
+    shape.lineTo(W / 2, 0);
+    for (let i = n - 1; i >= 0; i--) {
+      const x0 = -W / 2 + pw + i * (bw + pw);
+      shape.lineTo(x0 + bw, 0);
+      shape.lineTo(x0 + bw, spring);
+      shape.lineTo(x0 + bw / 2, apex);
+      shape.lineTo(x0, spring);
+      shape.lineTo(x0, 0);
+    }
+    shape.lineTo(-W / 2, 0);
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: t, bevelEnabled: false });
+    geo.translate(0, 0, -t / 2);
+    return add(new THREE.Mesh(geo, material), x, 0, z);
+  }
+
+  // Bogengang von (ax, az) nach (bx, bz): Rückwand, Spitzbogenreihe zur linken Seite der Laufrichtung
+  // (zum Hof), steiles Pultdach aus Kupfer. Schräg erlaubt.
+  function arcadeSeg(ax, az, bx, bz, h, t) {
+    const dx = bx - ax;
+    const dz = bz - az;
+    const len = Math.hypot(dx, dz);
+    frame((ax + bx) / 2, (az + bz) / 2, Math.atan2(-dz, dx), () => {
+      const bw = 2.6;
+      const n = Math.max(1, Math.round((len - 1) / (bw + 1)));
+      const pw = (len - n * bw) / (n + 1);
+      box(len, h, 0.7, 0, 0, t / 2 - 0.35, M.stone); // Rückwand
+      arcadePanel(n, bw, pw, h, h * 0.55, h * 0.88, 0.9, 0, -t / 2 + 0.45, M.stoneLight);
+      gable(len, t, 4.5, 0.4, 0, h, 0, true, M.copper);
+      col.box(0, 0, len, t, h + 0.5);
+    });
   }
 
   // Niedrige Mauer ohne Zinnen von (ax, az) nach (bx, bz), schräg erlaubt, mit Deckplatte.
@@ -193,12 +233,12 @@ export function buildCastle(THREE, options = {}) {
   // ---------- Palas (Haupthaus) im Norden: langer Bau mit steilem Dach und Zwerchgiebeln ----------
   box(24, 13, 9, -4, 0, -6, M.stone);
   col.box(-4, -6, 24, 9, 13);
-  gable(24, 9, 11, 0.5, -4, 13, -6, true, M.slate);
+  gable(24, 9, 17, 0.5, -4, 13, -6, true, M.slate);
   // Zwerchgiebel zur Hofseite, unterschiedlich hoch
   box(6, 15, 3, -12, 0, 0, M.stoneLight);
-  gable(6, 3, 9, 0.3, -12, 15, 0, false, M.slate);
+  gable(6, 3, 14, 0.3, -12, 15, 0, false, M.slate);
   box(6, 13, 3, 5, 0, 0, M.stoneLight);
-  gable(6, 3, 7, 0.3, 5, 13, 0, false, M.copper);
+  gable(6, 3, 11, 0.3, 5, 13, 0, false, M.copper);
   col.box(-12, 0, 6, 3, 15);
   col.box(5, 0, 6, 3, 13);
   windowRow(-12, 1.5, '+z', 2, 2.4, 4);
@@ -208,67 +248,71 @@ export function buildCastle(THREE, options = {}) {
   windowRow(5, 1.5, '+z', 2, 2.4, 9);
   windowRow(-3, -10.5, '-z', 5, 3.6, 4);
   windowRow(-3, -10.5, '-z', 5, 3.6, 9);
-  for (const x of [-12, -6, 0]) dormer(x, 15, -9.1, '-z');
-  box(1.3, 4, 1.3, -8, 21.5, -6, M.stoneDark);
-  box(1.3, 4, 1.3, 5.5, 21.5, -6.4, M.stoneDark);
+  for (const x of [-12, -6, 0]) dormer(x, 16.3, -9.1, '-z');
+  box(1.3, 4.5, 1.3, -8, 28, -6, M.stoneDark);
+  box(1.3, 4.5, 1.3, 5.5, 28, -6.4, M.stoneDark);
   // Erkerturm am Ostende der Hofseite, auf einem umgekehrten Kegel
   const corbel = new THREE.Mesh(new THREE.ConeGeometry(1.7, 3.2, 8), M.stoneDark);
   corbel.rotation.x = Math.PI;
   add(corbel, 8.2, 4.4, -1.4);
-  roundTower(8.2, -1.4, 1.7, 9, 6.5, M.copper, M.stoneLight, 6);
+  roundTower(8.2, -1.4, 1.7, 9, 11, M.copper, M.stoneLight, 6);
 
-  // ---------- Hauptturm im Hof vor dem Palas: achteckig, zwei Stufen, steile Haube ----------
+  // ---------- Hauptturm im Hof vor dem Palas: achteckig, schlank, zwei Stufen, sehr steile Haube ----------
   {
     const cx = -3.5;
-    const cz = 3.5; // Nordfläche liegt bündig an der Palasfront (z = -1.5)
+    const cz = 2.6; // Nordfläche liegt bündig an der Palasfront (z = -1.5)
     const oct = (geo) => {
       geo.rotateY(Math.PI / 8); // Fläche statt Kante zeigt nach +z
       return geo;
     };
-    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(5.0, 5.4, 24, 8)), M.stone), cx, 12, cz);
-    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(6.3, 5.0, 1.2, 8)), M.stoneDark), cx, 24.6, cz);
-    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(4.2, 4.2, 10, 8)), M.stoneLight), cx, 30.2, cz);
-    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(5.3, 4.2, 1, 8)), M.stoneDark), cx, 35.7, cz);
-    add(new THREE.Mesh(oct(new THREE.ConeGeometry(5.4, 20, 8)), M.copper), cx, 36.2 + 10, cz);
-    add(new THREE.Mesh(new THREE.ConeGeometry(0.25, 4, 6), M.dark), cx, 36.2 + 20 + 1.6, cz);
+    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(4.0, 4.4, 34, 8)), M.stone), cx, 17, cz);
+    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(5.2, 4.0, 1.2, 8)), M.stoneDark), cx, 34.6, cz);
+    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(3.2, 3.2, 14, 8)), M.stoneLight), cx, 42.2, cz);
+    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(4.2, 3.2, 1, 8)), M.stoneDark), cx, 49.7, cz);
+    add(new THREE.Mesh(oct(new THREE.ConeGeometry(4.3, 26, 8)), M.copper), cx, 50.2 + 13, cz);
+    add(new THREE.Mesh(new THREE.ConeGeometry(0.25, 5, 6), M.dark), cx, 50.2 + 26 + 2.2, cz);
     // vier Erkertürmchen auf dem unteren Kragen
-    for (const [dx, dz] of [[-3.8, -3.8], [3.8, -3.8], [-3.8, 3.8], [3.8, 3.8]]) {
-      add(new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 4.5, 8), M.stoneLight), cx + dx, 25.2 + 2.25, cz + dz);
-      add(new THREE.Mesh(new THREE.ConeGeometry(1.25, 4, 8), M.slate), cx + dx, 29.7 + 2, cz + dz);
+    for (const [dx, dz] of [[-3.1, -3.1], [3.1, -3.1], [-3.1, 3.1], [3.1, 3.1]]) {
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 5, 8), M.stoneLight), cx + dx, 35.2 + 2.5, cz + dz);
+      add(new THREE.Mesh(new THREE.ConeGeometry(1.1, 6, 8), M.slate), cx + dx, 40.2 + 3, cz + dz);
     }
-    col.circle(cx, cz, 5.4, 36);
+    col.circle(cx, cz, 4.4, 81);
     // Tür und Fenster an den Flächen (Radius nimmt nach oben leicht ab, Fläche = 0,924 x Radius)
-    box(2.4, 4.2, 0.3, cx, 0, cz + 5.0, M.dark);
-    windowRow(cx, cz + 4.85, '+z', 1, 1, 9, 1.0, 2.2);
-    windowRow(cx, cz + 4.75, '+z', 1, 1, 15, 1.0, 2.2);
-    windowRow(cx, cz + 4.7, '+z', 1, 1, 20.5, 1.0, 2.2);
-    windowRow(cx, cz + 3.88, '+z', 1, 1, 29, 0.9, 2.6);
-    windowRow(cx + 4.8, cz, '+x', 1, 1, 12, 1.0, 2.2);
-    windowRow(cx - 4.8, cz, '-x', 1, 1, 12, 1.0, 2.2);
-    windowRow(cx + 3.88, cz, '+x', 1, 1, 29, 0.9, 2.6);
-    windowRow(cx - 3.88, cz, '-x', 1, 1, 29, 0.9, 2.6);
+    box(2.4, 4.2, 0.3, cx, 0, cz + 4.07, M.dark);
+    windowRow(cx, cz + 3.96, '+z', 1, 1, 9, 0.9, 2.2);
+    windowRow(cx, cz + 3.89, '+z', 1, 1, 16, 0.9, 2.2);
+    windowRow(cx, cz + 3.82, '+z', 1, 1, 23, 0.9, 2.2);
+    windowRow(cx, cz + 3.74, '+z', 1, 1, 30, 0.9, 2.4);
+    windowRow(cx, cz + 2.96, '+z', 1, 1, 41, 0.8, 2.6);
+    windowRow(cx, cz + 2.96, '+z', 1, 1, 46, 0.8, 2.6);
+    for (const y of [14, 26]) {
+      windowRow(cx + 3.9, cz, '+x', 1, 1, y, 0.9, 2.2);
+      windowRow(cx - 3.9, cz, '-x', 1, 1, y, 0.9, 2.2);
+    }
+    windowRow(cx + 2.96, cz, '+x', 1, 1, 42, 0.8, 2.6);
+    windowRow(cx - 2.96, cz, '-x', 1, 1, 42, 0.8, 2.6);
   }
 
   // ---------- Hoher Rundturm am Westende (Neuschwanstein-Art) ----------
-  roundTower(-17, -8, 4, 26, 15, M.slate, M.stoneLight);
+  roundTower(-17, -8, 4, 26, 25, M.slate, M.stoneLight);
   col.circle(-17, -8, 4, 26);
   windowRow(-17, -4, '+z', 1, 1, 9, 0.8, 1.8);
   windowRow(-17, -4, '+z', 1, 1, 16, 0.8, 1.8);
   windowRow(-17, -4, '+z', 1, 1, 22, 0.8, 1.8);
   // schlanker Begleitturm, weiter hinten und niedriger
-  roundTower(-12.5, -13.5, 1.8, 17, 9, M.copper, M.stone);
+  roundTower(-12.5, -13.5, 1.8, 17, 15, M.copper, M.stone);
   col.circle(-12.5, -13.5, 1.8, 17);
 
   // ---------- Bergfried im Nordosten: quadratisch, Kragen, Eckerker, steile Pyramide ----------
   box(8, 22, 8, 9, 0, -12, M.stone);
   col.box(9, -12, 8, 8, 22);
   box(9.4, 1.6, 9.4, 9, 22, -12, M.stoneDark);
-  pyramid(8.6, 14, 9, 23.6, -12, M.copper);
+  pyramid(8.6, 24, 9, 23.6, -12, M.copper);
   for (const [dx, dz] of [[-4.1, -4.1], [4.1, -4.1], [-4.1, 4.1], [4.1, 4.1]]) {
     add(new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 3.5, 8), M.stoneLight), 9 + dx, 23.6 + 1.75, -12 + dz);
-    add(new THREE.Mesh(new THREE.ConeGeometry(1.2, 4, 8), M.slate), 9 + dx, 23.6 + 3.5 + 2, -12 + dz);
+    add(new THREE.Mesh(new THREE.ConeGeometry(1.2, 6, 8), M.slate), 9 + dx, 23.6 + 3.5 + 3, -12 + dz);
   }
-  add(new THREE.Mesh(new THREE.ConeGeometry(0.2, 3.5, 6), M.dark), 9, 23.6 + 14 + 1.5, -12);
+  add(new THREE.Mesh(new THREE.ConeGeometry(0.2, 3.5, 6), M.dark), 9, 23.6 + 24 + 1.5, -12);
   windowRow(13, -12, '+x', 2, 3, 8);
   windowRow(13, -12, '+x', 2, 3, 15);
   windowRow(9, -16, '-z', 2, 3, 8);
@@ -278,64 +322,71 @@ export function buildCastle(THREE, options = {}) {
   // ---------- Rückflügel hinter dem Palas, gegen die Achsen gedreht ----------
   frame(-3, -18, 0.45, () => {
     box(10, 9, 7, 0, 0, 0, M.stoneLight);
-    gable(10, 7, 6, 0.5, 0, 9, 0, true, M.copper);
+    gable(10, 7, 10, 0.5, 0, 9, 0, true, M.copper);
     col.box(0, 0, 10, 7, 9);
     windowRow(0, 3.5, '+z', 3, 3, 3.6);
     windowRow(0, 3.5, '+z', 3, 3, 6.6);
     windowRow(0, -3.5, '-z', 3, 3, 3.6);
     windowRow(0, -3.5, '-z', 3, 3, 6.6);
-    box(1.2, 3.5, 1.2, 2, 11, 0, M.stoneDark);
+    box(1.2, 3.5, 1.2, 2, 15, 0, M.stoneDark);
   });
 
   // ---------- Kemenate im Osten, 22 Grad gedreht, mit Ecktürmchen ----------
   frame(18.5, 1.5, -0.38, () => {
     box(8, 10, 12, 0, 0, 0, M.stoneLight);
-    gable(8, 12, 8, 0.6, 0, 10, 0, false, M.slate);
+    gable(8, 12, 13, 0.6, 0, 10, 0, false, M.slate);
     col.box(0, 0, 8, 12, 10);
     windowRow(-4, 0, '-x', 3, 3.6, 3.6);
     windowRow(-4, 0, '-x', 3, 3.6, 7.2);
     windowRow(0, 6, '+z', 2, 3, 4);
     windowRow(0, 6, '+z', 2, 3, 7.5);
-    roundTower(4.2, 6.2, 1.6, 12, 8, M.copper, M.stone);
+    roundTower(4.2, 6.2, 1.6, 12, 13, M.copper, M.stone);
     col.circle(4.2, 6.2, 1.6, 12);
   });
 
   // ---------- Kapelle im Westen, 17 Grad gedreht, mit Apsis und schlankem Spitzturm ----------
   frame(-17.5, 10, 0.3, () => {
     box(8, 10, 14, 0, 0, 0, M.stone);
-    gable(8, 14, 9, 0.6, 0, 10, 0, false, M.copper);
+    gable(8, 14, 14, 0.6, 0, 10, 0, false, M.copper);
     col.box(0, 0, 8, 14, 10);
     windowRow(4, 0, '+x', 3, 3.6, 5, 1.0, 3.2);
     add(new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.9, 10, 10), M.stone), 0, 5, 7);
-    add(new THREE.Mesh(new THREE.ConeGeometry(4.5, 8, 10), M.copper), 0, 14, 7);
+    add(new THREE.Mesh(new THREE.ConeGeometry(4.5, 13, 10), M.copper), 0, 16.5, 7);
     col.circle(0, 7, 3.8, 10);
-    roundTower(4.8, -5.5, 1.5, 19, 10, M.slate, M.stoneLight);
+    roundTower(4.8, -5.5, 1.5, 19, 17, M.slate, M.stoneLight);
     col.circle(4.8, -5.5, 1.5, 19);
   });
 
   // ---------- Torhaus (rechts der Mitte) mit Rundturm ----------
   const gateX = 4;
   const gateZ = 19;
-  box(2.5, 10, 5, gateX - 4.25, 0, gateZ, M.stone);
-  box(2.5, 10, 5, gateX + 4.25, 0, gateZ, M.stone);
-  box(11, 3.5, 5, gateX, 6.5, gateZ, M.stone); // Sturz, liegt über 6,5 m und blockiert Spieler nicht
-  box(6, 6.5, 0.3, gateX, 0, gateZ - 2.2, M.dark); // dunkle Rückwand im Torbogen
+  arcadePanel(1, 6, 2.5, 10, 5.4, 8.8, 5, gateX, gateZ, M.stone); // Spitzbogentor, 6 m breit
   col.box(gateX - 4.25, gateZ, 2.5, 5, 10);
   col.box(gateX + 4.25, gateZ, 2.5, 5, 10);
-  gable(11, 5, 7, 0.5, gateX, 10, gateZ, true, M.slate);
-  windowRow(gateX, gateZ + 2.5, '+z', 2, 3, 8.2, 0.7, 1.3);
-  roundTower(12.8, gateZ, 3.2, 15, 10, M.slate, M.stoneLight);
+  gable(11, 5, 11, 0.5, gateX, 10, gateZ, true, M.slate);
+  windowRow(gateX - 4.25, gateZ + 2.5, '+z', 1, 1, 6.5, 0.7, 1.5);
+  windowRow(gateX + 4.25, gateZ + 2.5, '+z', 1, 1, 6.5, 0.7, 1.5);
+  roundTower(12.8, gateZ, 3.2, 15, 17, M.slate, M.stoneLight);
   col.circle(12.8, gateZ, 3.2, 15);
   windowRow(12.8, gateZ + 3.2, '+z', 1, 1, 9, 0.7, 1.5);
 
   // ---------- Niedrige Mauern ohne Zinnen, teils schräg ----------
-  wallSeg(-13.5, 21, -1.5, 18.6, 6); // Süd links vom Tor, leicht schräg
+  arcadeSeg(-13.5, 21, -1.5, 18.6, 7, 3.2); // Bogengang links vom Tor, leicht schräg
   wallSeg(15.5, 20.5, 24, 12, 5); // Südost, schräg zur Kemenate
   wallSeg(-20, -4.5, -23, 3.5, 5); // West, zwischen Rundturm und Kapelle
 
   // ---------- Fenster als InstancedMesh ----------
   const tmp = new THREE.Object3D();
-  const winGeo = new THREE.BoxGeometry(1, 1, 0.18);
+  // Spitzbogenfenster: Rechteck mit aufgesetztem Dreieck, Maße 1 x 1 (werden pro Fenster skaliert)
+  const winShape = new THREE.Shape();
+  winShape.moveTo(-0.5, -0.5);
+  winShape.lineTo(0.5, -0.5);
+  winShape.lineTo(0.5, 0.15);
+  winShape.lineTo(0, 0.5);
+  winShape.lineTo(-0.5, 0.15);
+  winShape.lineTo(-0.5, -0.5);
+  const winGeo = new THREE.ExtrudeGeometry(winShape, { depth: 0.18, bevelEnabled: false });
+  winGeo.translate(0, 0, -0.09);
   const win = new THREE.InstancedMesh(winGeo, M.glow, windows.length);
   windows.forEach((w, i) => {
     tmp.position.set(w.x, w.y, w.z);
@@ -353,7 +404,7 @@ export function buildCastle(THREE, options = {}) {
   group.userData = {
     kind: 'castle',
     footprint: { w: 52, d: 42 },
-    height: 62,
+    height: 85,
     gate: { x: gateX, z: gateZ, w: 6, facing: '+z' },
     colliders,
   };
