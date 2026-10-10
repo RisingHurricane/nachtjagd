@@ -30,7 +30,7 @@
   Object.assign(sun.shadow.camera, { left: -260, right: 260, top: 260, bottom: -260, far: 650 });
   sun.shadow.bias = -.0005;
   scene.add(sun);
-  const colors = { ground: '#e4e7df', house: '#d6ba92', landmark: '#b59370', forest: '#658777', path: '#b9a78b', castle: '#8a9aab', water: '#8eb0bc', hill: '#bac3b4' };
+  const colors = { ground: '#e4e7df', house: '#d6ba92', landmark: '#b59370', forest: '#658777', path: '#b9a78b', castle: '#8a9aab', viaduct: '#b7ad97', water: '#8eb0bc', hill: '#bac3b4' };
   const materials = {};
   for (const [key, value] of Object.entries(colors)) materials[key] = new THREE.MeshLambertMaterial({ color: new THREE.Color(value).convertSRGBToLinear() });
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1), coneGeometry = new THREE.ConeGeometry(1, 1, 7);
@@ -64,7 +64,7 @@
   const baseHeights = new Float32Array(221 * 201);
   for (let row = 0; row <= 200; row++) for (let col = 0; col <= 220; col++) baseHeights[row * 221 + col] = terrainHeight(col * 5 - 640, row * 5 - 565);
   const terrainModel = NachtjagdTerrain.create({ width: 221, depth: 201, step: 5, originX: -640, originZ: -565, base: baseHeights, basis: layout.basis });
-  const storageKey = 'nachtjagd-bergdorf-skizze-v1';
+  const storageKey = 'nachtjagd-bergdorf-gebirgsring-v2';
   let restored = false, storageWarning = '';
   try { const saved = localStorage.getItem(storageKey); if (saved) { terrainModel.load(saved, false); restored = true; } }
   catch { storageWarning = 'Browserstand konnte nicht geladen werden. Du kannst eine Geländedatei laden.'; }
@@ -80,6 +80,8 @@
     const a = vertexHeight(ix, iz), b = vertexHeight(ix + 1, iz), c = vertexHeight(ix, iz + 1), d = vertexHeight(ix + 1, iz + 1);
     return tx + tz <= 1 ? a + (b - a) * tx + (c - a) * tz : d + (c - d) * (1 - tx) + (b - d) * (1 - tz);
   }
+  const viaduct = NachtjagdViaduct.create({ a: [-210,-80], b: [-120,-180], width: 8, arches: 7, groundHeight });
+  const surfaceHeight = (x,z,previousFeet) => viaduct.floor(x,z,previousFeet);
   function box(x, z, w, d, h, material = 'house', rotation = 0, floor, solid = true) {
     const anchor = { x, z, w, d, h, rotation, automatic: floor === undefined, offset: floor === undefined ? 0 : floor - groundHeight(x, z) };
     if (floor === undefined) {
@@ -142,7 +144,7 @@
         for (let k = 0; k <= across; k++) {
           const offset = width * (k / across - .5);
           const px = x + dz / length * offset, pz = z - dx / length * offset;
-          vertices.push(px, groundHeight(px, pz) + .4, pz);
+          vertices.push(px, surfaceHeight(px, pz) + .4, pz);
           if (j < count && k < across) {
             const index = j * (across + 1) + k, next = index + across + 1;
             indices.push(index, next, index + 1, index + 1, next, next + 1);
@@ -183,7 +185,47 @@
     if (type === 3) box(x, z, w * .72, d * .85, 1.8, 'landmark', rotation, top, false);
     return mesh;
   });
-  const castleRoute = [[90,45],[-5,45],[-50,30],[-85,-15],[-100,-64],[-160,-73],[-210,-80],[-225,-100],[-236,-100],[-248,-100]];
+  const viaductGroup = new THREE.Group();
+  viaductGroup.position.set(viaduct.a[0],0,viaduct.a[1]);
+  viaductGroup.rotation.y = -Math.atan2(viaduct.sine,viaduct.cosine); scene.add(viaductGroup);
+  function refreshViaduct() {
+    viaduct.refresh();
+    while (viaductGroup.children.length) {
+      const child = viaductGroup.children[0]; child.geometry.dispose(); viaductGroup.remove(child);
+    }
+    function extrude(shape, depth, lateral) {
+      const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 12 });
+      geometry.translate(0,0,lateral);
+      const mesh = new THREE.Mesh(geometry,materials.viaduct); mesh.castShadow = mesh.receiveShadow = true;
+      viaductGroup.add(mesh);
+    }
+    function strip(bottom,top,depth,lateral) {
+      const shape = new THREE.Shape();
+      shape.moveTo(0,viaduct.top(0)+bottom); shape.lineTo(viaduct.length,viaduct.top(viaduct.length)+bottom);
+      shape.lineTo(viaduct.length,viaduct.top(viaduct.length)+top); shape.lineTo(0,viaduct.top(0)+top); shape.closePath();
+      extrude(shape,depth,lateral);
+    }
+    strip(-1.5,0,viaduct.width,-viaduct.width/2);
+    strip(0,1.35,.55,-viaduct.width/2); strip(0,1.35,.55,viaduct.width/2-.55);
+    for (let i = 0; i < viaduct.arches; i++) {
+      const left = i * viaduct.span + viaduct.pierWidth/2, right = (i+1)*viaduct.span-viaduct.pierWidth/2;
+      const radius = (right-left)/2, middle = (left+right)/2;
+      const spring = Math.min(viaduct.top(i*viaduct.span),viaduct.top((i+1)*viaduct.span))-3-radius;
+      const arch = new THREE.Shape();
+      arch.moveTo(left,viaduct.top(left)-1.5); arch.lineTo(right,viaduct.top(right)-1.5); arch.lineTo(right,spring);
+      for (let k = 1; k <= 20; k++) { const angle = k/20*Math.PI; arch.lineTo(middle+radius*Math.cos(angle),spring+radius*Math.sin(angle)); }
+      arch.closePath(); extrude(arch,viaduct.width-.6,-viaduct.width/2+.3);
+    }
+    for (let i = 0; i <= viaduct.arches; i++) {
+      const s = i*viaduct.span, samples = [];
+      for (const ds of [-viaduct.pierWidth/2,viaduct.pierWidth/2]) for (const lateral of [-viaduct.width/2,viaduct.width/2]) samples.push(groundHeight(...viaduct.point(s+ds,lateral)));
+      const floor = Math.min(...samples)-1, top = viaduct.top(s)-1.4;
+      const geometry = new THREE.BoxGeometry(viaduct.pierWidth,Math.max(.5,top-floor),viaduct.width-.6);
+      const pier = new THREE.Mesh(geometry,materials.viaduct); pier.position.set(s,(floor+top)/2,0); pier.castShadow = pier.receiveShadow = true; viaductGroup.add(pier);
+    }
+  }
+  refreshViaduct();
+  const castleRoute = [[90,45],[-5,45],[-50,30],[-65,-20],[-55,-95],[-65,-145],viaduct.point(viaduct.length+10),viaduct.b,viaduct.a,viaduct.point(-10),[-225,-100],[-236,-100],[-248,-100]];
   const shoreRoute = [[-5,45],[-25,70],[-38,105],[-65,135],[-90,162],[-110,170]];
   road(castleRoute, 6);
   road(shoreRoute, 4);
@@ -220,6 +262,8 @@
   box(cx + 25, cz + 17, 10, 15, 16, 'castle', 0, ch + .25);
   box(cx - 23, cz - 19, 13, 13, 34, 'castle', 0, ch + .25);
   label('Burg · Felssporn', cx, cz, 46, 58);
+  const viaductMiddle = viaduct.point(viaduct.length/2);
+  label('Viadukt · sieben Bögen', ...viaductMiddle, viaduct.top(viaduct.length/2)-groundHeight(...viaductMiddle)+14, 64);
   label('Hochgebirge · Norden', -20, -300, 28, 100);
   // Reproduzierbarer Wald; Wege, See und Gebäuderänder bleiben frei.
   let seed = 71;
@@ -264,19 +308,21 @@
   const keys = new Set();
   const views = {
     village: { target: [90,groundHeight(90,45),45], distance: 230, yaw: .38, polar: .92, name: 'Bergdorf am Hang · 28 Häuser · drei Tore' },
-    world: { target: [-30,45,-20], distance: 930, yaw: 0, polar: .74, name: 'Nach deiner Skizze · Norden im Hintergrund' },
-    map: { target: [-30,45,-20], distance: 990, yaw: 0, polar: .12, name: 'Draufsicht · Norden oben · 10 m Raster' },
-    castle: { target: [castle.x,castle.height,castle.z], distance: 205, yaw: -.65, polar: 1.05, name: 'Burg auf freiem Felssporn · Zugang über den Bergrücken' }
+    world: { target: [-25,55,5], distance: 1120, yaw: 0, polar: .55, name: 'Gebirgsring · hügelige Hochebene · sanftes Seeufer' },
+    map: { target: [-25,45,5], distance: 1130, yaw: 0, polar: .12, name: 'Draufsicht · Norden oben · Berge ringsum' },
+    castle: { target: [castle.x,castle.height,castle.z], distance: 205, yaw: -.65, polar: 1.05, name: 'Burg auf freiem Felssporn · Zugang über das Viadukt' },
+    viaduct: { target: [-165,65,-130], distance: 220, yaw: 1.2, polar: 1.15, name: 'Viadukt · sieben Bögen · begehbarer Burgweg' }
   };
   function setView(view) {
-    const walking = view === 'walk' || view === 'forest';
+    const walking = view === 'walk' || view === 'forest' || view === 'bridgewalk';
     if (walking && editing) toggleEditor(false);
     mode = walking ? 'walk' : view; keys.clear(); labels.visible = !walking && !editing; grid.visible = editing || view === 'map';
     document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
     if (walking) {
-      const x = view === 'forest' ? 221 : 90, z = view === 'forest' ? 60 : 45;
-      camera.position.set(x, groundHeight(x,z) + 1.75, z); walkingYaw = view === 'forest' ? .55 : Math.PI; pitch = 0;
-      status.textContent = view === 'forest' ? 'Im Wald · unter den Baumkronen · Augenhöhe 1,75 m' : 'Im Dorf · Augenhöhe 1,75 m';
+      const start = view === 'bridgewalk' ? viaduct.point(viaduct.length-4) : view === 'forest' ? [221,60] : [90,45];
+      const [x,z] = start;
+      camera.position.set(x, surfaceHeight(x,z) + 1.75, z); walkingYaw = view === 'bridgewalk' ? Math.atan2(-viaduct.cosine,-viaduct.sine) : view === 'forest' ? .55 : Math.PI; pitch = 0;
+      status.textContent = view === 'bridgewalk' ? 'Auf dem Viadukt · zur Burg · Augenhöhe 1,75 m' : view === 'forest' ? 'Im Wald · unter den Baumkronen · Augenhöhe 1,75 m' : 'Im Dorf · Augenhöhe 1,75 m';
       help.textContent = 'WASD / Pfeiltasten: gehen · Ziehen: umsehen · Shift: schneller · Esc: Übersicht';
     } else {
       const preset = views[view]; target.fromArray(preset.target); ({ yaw, polar, distance } = preset);
@@ -312,7 +358,7 @@
       target.z += (Math.sin(yaw) * dx - Math.cos(yaw) * dy) * scale;
     } else { yaw -= dx * .006; polar = THREE.MathUtils.clamp(polar + dy * .005, .12, 1.5); }
   });
-  canvas.addEventListener('wheel', event => { event.preventDefault(); if (mode !== 'walk') distance = THREE.MathUtils.clamp(distance * Math.exp(event.deltaY * .001), 20, 1000); }, { passive: false });
+  canvas.addEventListener('wheel', event => { event.preventDefault(); if (mode !== 'walk') distance = THREE.MathUtils.clamp(distance * Math.exp(event.deltaY * .001), 20, 1400); }, { passive: false });
   addEventListener('keydown', event => {
     if (event.target.matches('input,textarea,select')) return;
     if (editing && (event.ctrlKey || event.metaKey) && ['z','y'].includes(event.key.toLowerCase())) {
@@ -325,15 +371,17 @@
   addEventListener('keyup', event => keys.delete(event.key.toLowerCase()));
   addEventListener('blur', () => { keys.clear(); drag = null; finishStroke(); });
   addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
-  function blocked(x, z) {
+  function blocked(x, z, feet = surfaceHeight(x,z)) {
     if (x < -390 || x > 340 || z < -340 || z > 310) return true;
     if (groundHeight(x, z) < .35) return true;
+    if (viaduct.collides(x,z,feet)) return true;
     return colliders.some(c => {
       const dx = x - c.x, dz = z - c.z, cosine = Math.cos(c.rotation), sine = Math.sin(c.rotation);
       return Math.abs(cosine * dx - sine * dz) < c.w + .45 && Math.abs(sine * dx + cosine * dz) < c.d + .45;
     });
   }
   function refreshTerrain() {
+    refreshViaduct();
     const low = new THREE.Color('#9eaf92').convertSRGBToLinear(), rock = new THREE.Color('#8c9da4').convertSRGBToLinear(), snow = new THREE.Color('#e7ebe7').convertSRGBToLinear(), color = new THREE.Color();
     const colors = groundGeometry.attributes.color;
     for (let i = 0; i < positions.count; i++) {
@@ -353,7 +401,7 @@
     }
     for (const mesh of roadMeshes) {
       const p = mesh.geometry.attributes.position;
-      for (let i = 0; i < p.count; i++) p.setY(i, groundHeight(p.getX(i), p.getZ(i)) + .4);
+      for (let i = 0; i < p.count; i++) p.setY(i, surfaceHeight(p.getX(i), p.getZ(i)) + .4);
       p.needsUpdate = true; mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere();
     }
     const gp = grid.geometry.attributes.position;
@@ -402,6 +450,7 @@
   }
   function protection(x, z) {
     let weight = smooth(8, 28, layout.lakeDistance(x, z));
+    weight = Math.min(weight,smooth(7,22,segmentDistance(x,z,viaduct.a,viaduct.b)));
     for (const pad of pads) {
       const delta = Math.max(Math.abs(x - pad.x) - pad.w, Math.abs(z - pad.z) - pad.d, 0);
       weight = Math.min(weight, smooth(0, 18, delta));
@@ -458,9 +507,10 @@
       const speed = (keys.has('shift') ? 12 : 5) * dt / (Math.hypot(forward, side) || 1);
       const dx = (Math.sin(walkingYaw) * forward - Math.cos(walkingYaw) * side) * speed;
       const dz = (Math.cos(walkingYaw) * forward + Math.sin(walkingYaw) * side) * speed;
-      if (!blocked(camera.position.x + dx, camera.position.z)) camera.position.x += dx;
-      if (!blocked(camera.position.x, camera.position.z + dz)) camera.position.z += dz;
-      camera.position.y = groundHeight(camera.position.x, camera.position.z) + 1.75;
+      const feet = camera.position.y - 1.75;
+      if (!blocked(camera.position.x + dx, camera.position.z, surfaceHeight(camera.position.x + dx,camera.position.z,feet))) camera.position.x += dx;
+      if (!blocked(camera.position.x, camera.position.z + dz, surfaceHeight(camera.position.x,camera.position.z + dz,feet))) camera.position.z += dz;
+      camera.position.y = surfaceHeight(camera.position.x,camera.position.z,feet) + 1.75;
       if (Math.abs(camera.position.x - castle.x) < 31 && Math.abs(camera.position.z - castle.z) < 26.5) camera.position.y = Math.max(camera.position.y, castleFloor.position.y + castleFloor.scale.y / 2 + 1.75);
       camera.lookAt(camera.position.x + Math.sin(walkingYaw) * Math.cos(pitch), camera.position.y + Math.sin(pitch), camera.position.z + Math.cos(walkingYaw) * Math.cos(pitch));
     } else {
@@ -481,13 +531,20 @@
     check('Großer See im Südwesten mit abgesenktem Bett', groundHeight(-210,220) < -4 && layout.lakeDistance(-310,130) < 0, groundHeight(-210,220));
     check('Dichter Wald mit freiem Raum unter den Kronen', treeCount > 1400 && treePlacements.every(t => t.clearance >= 4), treeCount);
     check('Mauern blockieren; Tore bleiben frei', blocked(-5,0) && !blocked(-5,45) && !blocked(185,45) && !blocked(115,112), null);
-    let routeBlocked = 0;
+    const routeBlocked = [];
     for (const route of [castleRoute,shoreRoute]) for (let i = 1; i < route.length; i++) {
       const a = route[i-1], b = route[i], count = Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1]) * 2);
-      for (let j = 0; j <= count; j++) if (blocked(a[0]+(b[0]-a[0])*j/count,a[1]+(b[1]-a[1])*j/count)) routeBlocked++;
+      for (let j = 0; j <= count; j++) {
+        const x = a[0]+(b[0]-a[0])*j/count, z = a[1]+(b[1]-a[1])*j/count;
+        if (blocked(x,z)) routeBlocked.push({ x,z,feet:surfaceHeight(x,z), bridge:viaduct.collides(x,z,surfaceHeight(x,z)) });
+      }
     }
-    check('Verbindungen Dorf–Burg und Dorf–See sind begehbar', routeBlocked === 0, routeBlocked);
+    check('Verbindungen Dorf–Burg und Dorf–See sind begehbar', routeBlocked.length === 0, routeBlocked.slice(0,10));
     check('Zwischen Stamm und Kronenrand ist Platz zum Gehen', treePlacements.some(t => !blocked(t.x + 2,t.z) && blocked(t.x,t.z)), null);
+    const bridgeMiddle = viaduct.point(viaduct.length/2), bridgeFloor = viaduct.top(viaduct.length/2);
+    check('Viadukt überspannt die Senke mit sieben Bögen', viaduct.arches === 7 && bridgeFloor-groundHeight(...bridgeMiddle) > 30, bridgeFloor-groundHeight(...bridgeMiddle));
+    const edge = viaduct.point(viaduct.length/2,3.6), below = groundHeight(...bridgeMiddle);
+    check('Fahrbahn, Brüstung und Durchgang unter dem Bogen', !blocked(...bridgeMiddle,bridgeFloor) && blocked(...edge,bridgeFloor) && !viaduct.collides(...bridgeMiddle,below), null);
     let houseError = 0;
     for (const [index, [x, z, w, d, rotation]] of houses.entries()) {
       const mesh = houseMeshes[index], base = mesh.position.y - mesh.scale.y / 2;

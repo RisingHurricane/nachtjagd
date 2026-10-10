@@ -45,15 +45,23 @@ globalThis.NachtjagdLayout = (() => {
     return 1 - smooth(28, 57, distance);
   }
   function naturalHeight(x, z) {
-    let h = 29 - z * .028 + 9 * Math.sin(x / 95) * Math.cos(z / 88) + 6 * Math.sin((x + z) / 57);
-    h += 12 * Math.exp(-(((x - 180) / 130) ** 2) - ((z - 120) / 140) ** 2);
+    let h = 24 - z * .018 + 18 * Math.sin(x / 95) * Math.cos(z / 73) + 10 * Math.sin((x + z) / 47);
+    h += 45 * Math.exp(-(((x - 180) / 115) ** 2) - ((z - 120) / 110) ** 2);
+    h += 25 * Math.exp(-(((x + 100) / 80) ** 2) - ((z - 25) / 95) ** 2);
+    h += 25 * Math.exp(-(((x + 230) / 85) ** 2) - ((z - 35) / 85) ** 2);
     h += 24 * Math.exp(-(((x - 57) / 92) ** 2) - ((z + 10) / 72) ** 2);
     // Kantige, sich überschneidende Bergpyramiden bilden den nördlichen Gebirgskamm.
-    const peaks = [[-370,-293,100,116,235],[-270,-315,104,120,290],[-155,-285,100,135,245],[-50,-329,116,125,310],[65,-293,116,130,260],[182,-313,120,128,295],[310,-280,102,132,237]];
+    const peaks = [
+      [-370,-293,100,116,235],[-270,-315,104,120,290],[-155,-285,100,135,245],[-50,-329,116,125,310],[65,-293,116,130,260],[182,-313,120,128,295],[310,-280,102,132,237],
+      [-475,-185,102,115,213],[-465,-50,95,110,187],[-480,85,105,115,223],[-470,222,105,116,190],[-358,342,116,112,178],
+      [-205,405,115,90,153],[-60,405,106,90,184],[82,405,114,90,150],[221,395,110,90,177],[355,302,100,115,205],
+      [390,180,105,112,218],[385,42,100,108,183],[397,-93,110,110,220],[375,-207,110,106,195]
+    ];
     for (const [px,pz,rx,rz,top] of peaks) {
       const dx = (x - px) / rx, dz = (z - pz) / rz;
       const radius = Math.max(Math.abs(dx), Math.abs(dz), Math.abs(dx * .72 + dz * .63));
-      h = Math.max(h, 31 + (top - 31) * Math.max(0, 1 - radius));
+      // Außerhalb des einzelnen Berges bleibt das hügelige Grundrelief erhalten.
+      if (radius < 1) h = Math.max(h, 24 + (top - 24) * (1 - radius));
     }
     // Freier Sporn mit steilen Flanken; ein schmaler Rücken verbindet ihn nach Osten.
     const dx = x - castle.x, dz = z - castle.z;
@@ -66,7 +74,8 @@ globalThis.NachtjagdLayout = (() => {
       h = Math.max(h, ridge);
     }
     const shore = lakeDistance(x, z);
-    return shore < 0 ? Math.max(-7, shore * .7) : h * smooth(0, 40, shore);
+    // Breiter, sanfter Ufersaum; die Hügel steigen erst hinter dem Strand an.
+    return shore < 0 ? Math.max(-7, shore * .25) : shore * .07 * (1-smooth(30,130,shore)) + Math.max(3,h) * smooth(30,130,shore);
   }
-  return { village, castle, lake, houses, forestBands, smooth, segmentDistance, lakeDistance, forestWeight, naturalHeight, basis: 'bergdorf-skizze-2026-10-10-v1' };
+  return { village, castle, lake, houses, forestBands, smooth, segmentDistance, lakeDistance, forestWeight, naturalHeight, basis: 'bergdorf-gebirgsring-2026-10-10-v2' };
 })();
