@@ -67,7 +67,7 @@
   const baseHeights = new Float32Array(321 * 281);
   for (let row = 0; row <= 280; row++) for (let col = 0; col <= 320; col++) baseHeights[row * 321 + col] = unpavedHeight(col * 5 - 800, row * 5 - 705);
   const terrainModel = NachtjagdTerrain.create({ width: 321, depth: 281, step: 5, originX: -800, originZ: -705, base: baseHeights, basis: layout.basis, maxHeight: 650 });
-  const storageKey = 'nachtjagd-bergdorf-bergvariation-v5';
+  const storageKey = 'nachtjagd-bergdorf-bergruecken-v6';
   let restored = false, storageWarning = '';
   try { const saved = localStorage.getItem(storageKey); if (saved) { terrainModel.load(saved, false); restored = true; } }
   catch { storageWarning = 'Browserstand konnte nicht geladen werden. Du kannst eine Geländedatei laden.'; }
@@ -279,9 +279,8 @@
       box(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, length / count + .12, 2.3, 4.8, 'castle', rotation);
     }
   }
-  wall([-5,-20],[185,-20]); wall([-5,-20],[-5,39]); wall([-5,51],[-5,112]);
-  wall([185,-20],[185,39]); wall([185,51],[185,112]); wall([-5,112],[109,112]); wall([121,112],[185,112]);
-  for (const [x,z] of [[-5,-20],[185,-20],[-5,112],[185,112]]) box(x,z,7,7,10,'castle');
+  for(const [a,b] of layout.villageWalls) wall(a,b);
+  for(const [x,z] of [[36,-30],[198,76],[42,118]]) box(x,z,7,7,10,'castle');
   label('Bergdorf', 190, -25, 16, 40);
   const lakeShape = new THREE.Shape(layout.lake.map(([x,z]) => new THREE.Vector2(x, -z)));
   const lake = new THREE.Mesh(new THREE.ShapeGeometry(lakeShape), materials.water);
@@ -316,9 +315,9 @@
     return false;
   }
   let treeCount = 0;
-  function plantTree(x,z,foothill=false) {
-    if (x > -17 && x < 197 && z > -32 && z < 124) return false;
-    if (layout.lakeDistance(x, z) < 14 || groundHeight(x,z) > (foothill ? 110 : 115)) return false;
+  function plantTree(x,z,foothill=false,ridge=false) {
+    if (layout.villageDistance(x,z)<9 || layout.clearingWeight(x,z)<.15) return false;
+    if (layout.lakeDistance(x, z) < 14 || groundHeight(x,z) > (ridge ? 155 : foothill ? 110 : 115)) return false;
     if (nearTree(x,z) || buildingColliders.some(c => Math.hypot(x - c.x, z - c.z) < Math.max(c.w, c.d) + 3)) return false;
     if (roadNetwork.clearance(x,z) < 1.5 || segmentDistance(x,z,bridgeSpec.a,bridgeSpec.b) < 5.5) return false;
     const height = 12 + random() * 10, clearance = 4 + random() * 1.5, rx = 3.4 + random() * 1.8, rz = 3.4 + random() * 1.8;
@@ -326,24 +325,33 @@
     forest.setMatrixAt(treeCount, dummy.matrix);
     dummy.position.y = groundHeight(x, z) + (clearance + 2) / 2; dummy.scale.set(.4, clearance + 2, .4); dummy.updateMatrix();
     trunks.setMatrixAt(treeCount++, dummy.matrix);
-    treePlacements.push({ x, z, height, clearance, rx, rz, foothill });
+    treePlacements.push({ x, z, height, clearance, rx, rz, foothill, ridge });
     const bucket=Math.floor(x/4)+','+Math.floor(z/4);
     if(!treeBuckets.has(bucket)) treeBuckets.set(bucket,[]);
     treeBuckets.get(bucket).push({x,z});
     colliders.push({ x, z, w: .4, d: .4, rotation: 0, tree: true });
     return true;
   }
-  for(let i=0;i<80000 && treeCount<3300;i++) {
+  for(let i=0;i<80000 && treeCount<3100;i++) {
     const x=-380+random()*720,z=-225+random()*575;
     if(random()>layout.treeWeight(x,z)*(.55+.45*smooth(.15,.8,Math.sin(x/27)*Math.cos(z/31)))) continue;
     plantTree(x,z);
   }
   // Nur wenige zusätzliche Bäume an niedrigen, nicht zu steilen Berghängen.
-  for(let i=0;i<10000 && treeCount<3480;i++) {
+  const foothillStart=treeCount;
+  for(let i=0;i<10000 && treeCount-foothillStart<140;i++) {
     const [gx,gz,r]=layout.foothillGroups[i%layout.foothillGroups.length],angle=random()*Math.PI*2,distance=r*Math.sqrt(random());
     const x=gx+Math.cos(angle)*distance,z=gz+Math.sin(angle)*distance;
     const slope=Math.hypot(groundHeight(x+2,z)-groundHeight(x-2,z),groundHeight(x,z+2)-groundHeight(x,z-2))/4;
     if(slope<.7) plantTree(x,z,true);
+  }
+  // Kleine Gruppen auf den aufgefüllten Sätteln, statt den Hauptwald weiter zu verdichten.
+  const ridgeStart=treeCount;
+  for(let i=0;i<10000 && treeCount-ridgeStart<140;i++) {
+    const [gx,gz,r]=layout.ridgeGroups[i%layout.ridgeGroups.length],angle=random()*Math.PI*2,distance=r*Math.sqrt(random());
+    const x=gx+Math.cos(angle)*distance,z=gz+Math.sin(angle)*distance;
+    const slope=Math.hypot(groundHeight(x+2,z)-groundHeight(x-2,z),groundHeight(x,z+2)-groundHeight(x,z-2))/4;
+    if(slope<.7) plantTree(x,z,true,true);
   }
   forest.count = trunks.count = treeCount; forest.castShadow = trunks.castShadow = true; scene.add(forest, trunks);
   // Niedriger Waldboden bleibt durchquerbar; nur Baumstämme kollidieren.
@@ -352,7 +360,7 @@
   for(let i=0;i<45000 && coverCount<3200;i++) {
     const x=-380+random()*720,z=-225+random()*575;
     if(random()>layout.treeWeight(x,z) || layout.lakeDistance(x,z)<12 || groundHeight(x,z)>110 || roadNetwork.clearance(x,z)<1) continue;
-    if(x>-17 && x<197 && z>-32 && z<124) continue;
+    if(layout.villageDistance(x,z)<9) continue;
     if(buildingColliders.some(c=>Math.hypot(x-c.x,z-c.z)<Math.max(c.w,c.d)+3)) continue;
     const height=.3+random()*.65,rx=1+random()*1.5,rz=1+random()*1.5,rotation=random()*Math.PI;
     dummy.position.set(x,groundHeight(x,z)+height*.45,z); dummy.scale.set(rx,height,rz); dummy.rotation.y=rotation; dummy.updateMatrix();
@@ -606,10 +614,13 @@
     check('Burghof auf Felssporn', Math.abs(groundHeight(castle.x,castle.z) - castle.height) < .01, groundHeight(castle.x,castle.z));
     check('Großer See im Südwesten mit abgesenktem Bett', groundHeight(-210,220) < -4 && layout.lakeDistance(-310,130) < 0, groundHeight(-210,220));
     check('Aufgelichteter Wald mit freiem Raum unter den Kronen', treeCount > 2500 && treeCount <= 3480 && treePlacements.every(t => t.clearance >= 4), treeCount);
-    check('Mauern blockieren; Tore bleiben frei', blocked(-5,0) && !blocked(-5,45) && !blocked(185,45) && !blocked(115,112), null);
+    check('Mauern blockieren; Tore bleiben frei', blocked(-7.5,.5) && !blocked(-5,45) && !blocked(185,45) && !blocked(115,112), null);
     check('Waldboden und einzelne Baumgruppen außerhalb des Waldgürtels',coverCount>2500 && treePlacements.filter(t=>layout.forestWeight(t.x,t.z)<.1).length>50,{cover:coverCount,scattered:treePlacements.filter(t=>layout.forestWeight(t.x,t.z)<.1).length});
-    const foothillTrees=treePlacements.filter(t=>t.foothill);
+    const foothillTrees=treePlacements.filter(t=>t.foothill && !t.ridge);
     check('Lockere Baumgruppen auf niedrigen Berghängen',foothillTrees.length>=100 && foothillTrees.every(t=>groundHeight(t.x,t.z)<=110),foothillTrees.length);
+    const ridgeTrees=treePlacements.filter(t=>t.ridge);
+    check('Unebene Sättel zwischen den Bergreihen tragen lockere Baumgruppen',ridgeTrees.length>=100 && layout.ridgeGroups.every(([x,z])=>groundHeight(x,z)>75),{trees:ridgeTrees.length,heights:layout.ridgeGroups.map(([x,z])=>groundHeight(x,z))});
+    check('Dorf folgt unregelmäßiger Kontur; drei Lichtungen bleiben offen',houses.every(([x,z])=>layout.villageDistance(x,z)<-5) && layout.clearings.every(([x,z])=>!treePlacements.some(t=>Math.hypot(t.x-x,t.z-z)<10)),{outline:layout.villageOutline.length,clearings:layout.clearings.length});
     const stairBlocked=stairs.treads.filter(t=>blocked(t.x,t.z,t.top));
     check('Zwei Treppenwege haben freie waagerechte Trittflächen',stairs.treads.length>30 && stairBlocked.length===0,{treads:stairs.treads.length,blocked:stairBlocked.slice(0,4)});
     let crossSlope=0;

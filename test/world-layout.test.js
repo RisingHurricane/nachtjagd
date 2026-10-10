@@ -73,3 +73,37 @@ test('Beide Bergtypen besitzen unterschiedliche Gipfelhöhen und breite sowie sc
   }
   assert.ok(layout.foothillGroups.filter(([x,z])=>layout.naturalHeight(x,z)<110).length>=5);
 });
+
+
+test('Die Dorfmauer folgt einer unregelmäßigen Kontur und lässt alle drei Tore offen',()=>{
+  for(const [x,z,w,d,rotation] of layout.houses) {
+    for(const a of [-w/2,w/2]) for(const b of [-d/2,d/2]) {
+      assert.ok(layout.villageDistance(x+Math.cos(rotation)*a+Math.sin(rotation)*b,z-Math.sin(rotation)*a+Math.cos(rotation)*b)<-2);
+    }
+  }
+  const diagonal=layout.villageWalls.filter(([a,b])=>Math.abs(a[0]-b[0])>1 && Math.abs(a[1]-b[1])>1);
+  assert.ok(diagonal.length>layout.villageWalls.length/2);
+  for(const [x,z] of layout.villageGates) {
+    assert.ok(Math.abs(layout.villageDistance(x,z))<.001);
+    assert.ok(layout.villageWalls.every(([a,b])=>layout.segmentDistance(x,z,a,b)>=6));
+  }
+});
+
+test('Tiefe Spalten zwischen den Bergreihen werden zu unebenen Sätteln',()=>{
+  const heights=[[0,-440],[20,-420],[-270,-405],[125,-395]].map(p=>layout.naturalHeight(...p));
+  assert.ok(Math.min(...heights)>90);
+  assert.ok(Math.max(...heights)-Math.min(...heights)>30);
+  assert.ok(layout.naturalHeight(-165,-130)<40);
+});
+
+test('Wenige Lichtungen öffnen den Hauptwald; Baumgruppen reichen in die Bergrücken',()=>{
+  for(const [x,z] of layout.clearings) {
+    assert.equal(layout.treeWeight(x,z),0);
+    assert.equal(layout.forestWeight(x,z),0);
+  }
+  assert.ok(layout.forestWeight(-100,-150)>.8);
+  for(const [x,z] of layout.ridgeGroups) {
+    assert.ok(layout.naturalHeight(x,z)>75);
+    assert.ok(layout.treeWeight(x,z)>=.8);
+  }
+});
