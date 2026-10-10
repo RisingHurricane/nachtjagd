@@ -1,10 +1,17 @@
 # STATUS
 
-Letzte Aktualisierung: 2026-10-10 (Codex, Dorfentwurf auf Basis von `nachtjagd-neu`)
+Letzte Aktualisierung: 2026-10-10 (Codex, grober Weltentwurf auf Basis von `nachtjagd-neu`)
 
-## Aktueller Dorfentwurf
+## Aktueller grober Weltentwurf
 
-- `public/entwurf/index.html` ist eine separate, allein spielbare Vorschau des neuesten Live-Frontends. Kleinerer Dorfplatz, engere Marktstraße, Kirchgasse mit fünf ergänzten Häusern, steilere variierte Dächer, Gauben und feinere Gebäudekonturen. Neun vorhandene Häuser wurden umgestellt.
+- Nutzerkorrektur: zunächst ausschließlich das grobe Layout, Quader als Gebäude und Kegel als Bäume. `public/entwurf/index.html` mit `blockout.js` ist deshalb die neue Standardansicht. Dorfplatz, Hauptstraße, Kirchgasse und Verbindungen zu Wald, See und Burg sind räumlich dargestellt.
+- Fünf Ansichten: Dorf, ganzes Tal, Burg, Waldweg und Durchlaufen. Übersicht drehen/verschieben/zoomen; Rundgang mit WASD, Mausziehen und Gebäudekollision. Kein Kampf oder Koop in dieser Studie. Höhen und Burginnenräume bleiben offen; die erhöhte Burg wird vorerst aus der Übersicht betrachtet.
+- Der vorherige spielbare Dorfentwurf ist als `public/entwurf/spiel.html` erhalten. `tools/build-village-preview.mjs` erzeugt diesen Vergleich, nicht mehr die Standardseite. Der ursprüngliche Import unter `live/` bleibt unverändert.
+- JavaScript-Syntax, Browseransichten und Dorfbewegung geprüft; 35/35 vorhandene Tests des älteren getrennten Servers/Clients bestanden. Veröffentlichung weiterhin unter demselben Vorschaupfad. Als Nächstes: Feedback zu Abständen, Straßenführung, Sichtachsen und Verteilung der Orte, erst danach Modelle ausarbeiten.
+
+### Bisheriger spielbarer Vergleich
+
+- `public/entwurf/spiel.html` ist eine separate, allein spielbare Vorschau des neuesten Live-Frontends. Kleinerer Dorfplatz, engere Marktstraße, Kirchgasse mit fünf ergänzten Häusern, steilere variierte Dächer, Gauben und feinere Gebäudekonturen. Neun vorhandene Häuser wurden umgestellt.
 - `tools/build-village-preview.mjs` erzeugt den Entwurf aus dem unveränderten Import in `live/`. Lokale Grafikdateien und relative Assetpfade erlauben die statische Vorschau auch auf GitHub Pages. Keine Referenzfotos oder MP3-Dateien hochgeladen.
 - Hausrotationen, Eingänge, Innenräume und Hofdetails stimmen überein. Alle 21 Bewegungsprüfungen im Browser bestanden: drei Straßenverbindungen und alle 18 Häuser mit Eingang und Treppe. Sichtprüfung von Platz und Übersicht; JavaScript-Syntax geprüft. Die 35 vorhandenen Tests für den älteren Repository-Server/Client sind ebenfalls grün (mit erlaubtem lokalen Netzwerkzugriff).
 - Vorschau unter `https://risinghurricane.github.io/nachtjagd/entwurf/` veröffentlicht und im Browser geprüft. Dorfplatz, Übersicht und friedlicher Rundgang sind über die Leiste unten links erreichbar.
@@ -42,6 +49,8 @@ Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` un
 - Die Berge am Kartenrand ragen stellenweise ein Stück auf die Karte hinein (Kulisse). Das lässt sich verschieben, wenn es stört.
 
 ## Übergabe-Log
+
+- 2026-10-10, Codex: Standardvorschau auf Wunsch auf groben Blockout umgestellt; bisheriges Spiel als Vergleich erhalten. Ansichten und Dorfbewegung im Browser geprüft, 35 Repository-Tests grün. Keine neue Abhängigkeit, kein Merge nach main.
 
 - 2026-10-10, Codex: Dorfentwurf 01 aus `nachtjagd-neu` gebaut, getrennt unter `/entwurf/` auf GitHub Pages veröffentlicht und im Browser geprüft. 21/21 Bewegungsprüfungen und 35/35 vorhandene Repository-Tests bestanden. Eigene Referenzen je Bereich dokumentiert; keine privaten Referenzfotos veröffentlicht. Online-Koop im Entwurf noch nicht angebunden.
 

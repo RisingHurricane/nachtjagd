@@ -24,7 +24,7 @@ replace('</head>', `<style>
 #draft-label{position:fixed;bottom:15px;left:18px;z-index:14;padding:7px 11px;border:1px solid #c1b09055;background:#101a24cc;color:#e5d9c3;font:14px var(--font-hud);pointer-events:none}
 #draft-label a{color:#e5d9c3;margin-left:12px;pointer-events:auto}
 </style></head>`);
-replace('<canvas id="c">', '<nav id="draft-label" aria-label="Entwurfsansichten">Dorfentwurf 01 <a href="?auto=1&amp;cam=3,21,17,-5,20,-45&amp;fov=62">Dorfplatz</a><a href="?auto=1&amp;cam=62,42,70,-3,5,-17">Übersicht</a><a href="?auto=1&amp;wt=99999">Rundgang</a><a href="index.html">Spielen</a></nav><canvas id="c">');
+replace('<canvas id="c">', '<nav id="draft-label" aria-label="Entwurfsansichten">Dorfentwurf 01 <a href="?auto=1&amp;cam=3,21,17,-5,20,-45&amp;fov=62">Dorfplatz</a><a href="?auto=1&amp;cam=62,42,70,-3,5,-17">Übersicht</a><a href="?auto=1&amp;wt=99999">Rundgang</a><a href="spiel.html">Spielen</a></nav><canvas id="c">');
 replace('async function mpRequest(action,body,token=MP.token){', 'async function mpRequest(action,body,token=MP.token){\n throw new Error("Online-Koop ist in diesem Dorfentwurf noch nicht verbunden.");');
 replace('startMusic=function(){if(SOUNDTRACK.on)', 'startMusic=function(){return; if(SOUNDTRACK.on)');
 
@@ -163,6 +163,7 @@ replace("{ const T=QS.get('test');", `{ const T=QS.get('test');
     }`);
 
 fs.mkdirSync(output, { recursive:true });
-fs.writeFileSync(path.join(output, 'index.html'), html);
+fs.writeFileSync(path.join(output, 'spiel.html'), html);
 for(const folder of ['vendor','textures']) fs.cpSync(path.join(imported,'nachtjagd',folder),path.join(output,folder),{recursive:true});
-console.log('Dorfentwurf erstellt: public/entwurf/index.html');
+console.log('Spielbarer Vergleich erstellt: public/entwurf/spiel.html');
+
