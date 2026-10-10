@@ -10,6 +10,8 @@ Nachtjagd ist ein Ego-Shooter im Browser (Three.js), allein oder mit bis zu 4 Sp
 
 Das Projekt nutzt ES-Module (`"type": "module"` in `package.json`).
 
+Zusätzlich zum folgenden älteren Prototyp liegt der unveränderte Import des neueren Altay-Frontends unter `live/altay.vision/nachtjagd-neu/`. Die getrennte Layout-Vorschau unter `public/entwurf/` wird mit `node tools/build-village-preview.mjs` daraus erzeugt. Ihre Welt liegt im monolithischen HTML, nicht in `public/level.json`; der private Altay-Koop-Backendcode fehlt. Änderungen am Entwurf im Generator vornehmen und anschließend neu erzeugen. Details und Referenzgruppen: `public/entwurf/README.md`.
+
 - `server.js`: Node.js-Server. Liefert den Ordner `public/` per HTTP aus und nimmt WebSocket-Verbindungen an (Bibliothek `ws`). Er liest `public/level.json` beim Start, ruft `game.step()` etwa 30-mal pro Sekunde auf und schickt `game.snapshot()` an alle Clients. Der Server ist autoritativ: Clients senden nur Eingaben.
 - `game.js`: Spielzustand, Bewegung und Kollision ohne Netzwerk. Exporte: `parseLevel(text)` und `createGame(level)`. Das Spiel hat `addPlayer`, `removePlayer`, `setName`, `setInput`, `step(dt)`, `snapshot()` und `world`. Höchstens 4 Spieler (`MAX_PLAYERS`). Spieler sind Kreise mit 0,5 m Radius. Häuser und Mauern sind Rechtecke, Bäume, Türme und der Brunnen Kreise, der See ist nicht betretbar. Bewegung in x und z getrennt, damit Spieler an Wänden entlanggleiten. Kartenrand bei ±98.
 - `public/level.json`: die Karte (Format siehe `PLAN.md`, Abschnitt Spielwelt). Server und Client lesen dieselbe Datei.
