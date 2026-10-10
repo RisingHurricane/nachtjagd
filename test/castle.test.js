@@ -33,8 +33,19 @@ test('Burg bleibt innerhalb des Footprints und hat ein Fensterleuchtmaterial', (
 test('Das Tor ist frei: kein Collider im Torbogen', () => {
   const { colliders, gate } = buildCastle(THREE).userData;
   for (const c of colliders) {
-    if (c.type !== 'box') continue;
-    const inGate = Math.abs(c.x) < gate.w / 2 && Math.abs(c.z - gate.z) < 3 && c.w > 0;
-    assert.ok(!(inGate && Math.abs(c.x - 0) < 0.01), 'Collider blockiert das Tor');
+    if (c.type === 'box') {
+      const hit = Math.abs(gate.x - c.x) < c.w / 2 && Math.abs(gate.z - c.z) < c.d / 2;
+      assert.ok(!hit, 'Box blockiert das Tor');
+    } else {
+      assert.ok(Math.hypot(gate.x - c.x, gate.z - c.z) > c.r, 'Kreis blockiert das Tor');
+    }
   }
+});
+
+test('Die Burg ist nicht spiegelsymmetrisch', () => {
+  const { colliders } = buildCastle(THREE).userData;
+  const key = (c) => [c.type, c.x, c.z, c.w, c.d, c.r, c.h].join('|');
+  const mirrored = new Set(colliders.map((c) => key({ ...c, x: -c.x })));
+  const same = colliders.filter((c) => mirrored.has(key(c))).length;
+  assert.ok(same < colliders.length / 3);
 });
