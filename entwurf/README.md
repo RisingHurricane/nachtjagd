@@ -1,10 +1,10 @@
 # Bergdorf nach Nutzerskizze
 
-Vorschau Entwurf 08: https://risinghurricane.github.io/nachtjagd/entwurf/?v=08
+Vorschau Entwurf 09: https://risinghurricane.github.io/nachtjagd/entwurf/?v=09
 
 Norden ist -z: Burg westlich auf freiem Felssporn, großer Südwestsee, ummauertes Hangdorf rechts der Mitte. Ein innerer Ring weicher Mittelberge (103–208 m) und eine äußere Reihe schroffer Hochgipfel (235–436 m) umschließen die Welt. Unebene Vorberge füllen die Lücke hinter dem Dorf. Beide Bergtypen variieren reproduzierbar in Höhe, Breite, Tiefe, Ausrichtung und Abständen. Gewellte Bergrücken füllen die tiefen Spalten zwischen den Bergreihen. 140 Hangbäume und 140 Bäume auf den Sätteln bilden kleine Gruppen; drei gezielte Lichtungen gleichen sie aus. world-layout.js enthält Orte, Grundhöhen, See, Wald und Häuser; blockout.js erzeugt die Szene. Kein Build-Schritt.
 
-28 Häuser in vier groben Volumenformen stehen versetzt und unterschiedlich gedreht in kleinen Gruppen. Der unregelmäßige Dorfrand mit Vorsprüngen und Einzügen bestimmt Mauer und Waldkante. Kirche, Höfe, Mauer mit drei Toren und zwei begehbare Treppenwege. Aufgelichteter Wald mit 3380 Bäumen, mit größeren Stammabständen, kleineren Kronen, Lichtungen, einzelnen Baumgruppen und niedrigem Bewuchs. Kronen beginnen mindestens 4 m über dem Boden; nur Stämme kollidieren. Modelle bleiben bewusst Quader und Kegel.
+28 Häuser in vier groben Volumenformen stehen versetzt und unterschiedlich gedreht in kleinen Gruppen. Der unregelmäßige Dorfrand mit Vorsprüngen und Einzügen bestimmt Mauer und Waldkante. Kirche, Höfe, Mauer mit drei Toren und drei zusätzlich offenen Abschnitten und zwei begehbare Treppenwege. Aufgelichteter Wald mit 3380 Bäumen, mit größeren Stammabständen, kleineren Kronen, Lichtungen, einzelnen Baumgruppen und niedrigem Bewuchs. Sechs kleine Gruppen aus insgesamt 96 höheren Buschformen ergänzen Dorf- und Wegränder. Kronen beginnen mindestens 4 m über dem Boden; nur Stämme kollidieren. Modelle bleiben bewusst Quader und Kegel.
 
 road-layout.js beschreibt 13 Straßen/Gassen einschließlich der beiden Treppen. road-profile.js verbindet Kreuzungen und begrenzt Längsneigungen auf 18 %. Fahrbahnen sind quer waagerecht; der Boden erhält weiche Einschnitte und Aufschüttungen. stairs.js erzeugt waagerechte Trittflächen mit höchstens 20 cm Stufenhöhe; dieselben Tritte setzen die Augenhöhe. Das siebenbogige Viadukt bleibt rund 135 m lang und begehbar; Brüstungen/Pfeiler blockieren, offene Bögen lassen sich unten durchqueren.
 
@@ -18,7 +18,7 @@ Das Gelände nutzt 321×281 Punkte bei 5 m Rasterweite, Grundform bergdorf-bergr
 
 68 automatisierte Tests: 35 bestehende Server/Client-, neun Editor-, dreizehn Weltlayout-, fünf Straßen-, vier Viadukt- und zwei Treppen-Tests. 19 Browserprüfungen unter ?test=terrain prüfen unter anderem Querneigung, freie Wegverbindungen, Treppen, Gebäudesockel und Geländeanschlüsse. Treppenbewegung und Editor mit Undo/Redo und Wiederherstellung nach Reload sichtbar geprüft.
 
-Die sichtbare Kennung Entwurf 08 und Skriptadressen mit ?v=08 verhindern gemischte alte/neue Dateien. Bei Veröffentlichung Kennung, Direktlink und Skriptzusätze gemeinsam ändern; bei inkompatiblen Grundformänderungen zusätzlich Basis und Speicherschlüssel erhöhen.
+Die sichtbare Kennung Entwurf 09 und Skriptadressen mit ?v=09 verhindern gemischte alte/neue Dateien. Bei Veröffentlichung Kennung, Direktlink und Skriptzusätze gemeinsam ändern; bei inkompatiblen Grundformänderungen zusätzlich Basis und Speicherschlüssel erhöhen.
 
 ## Spielbarer Vergleich
 

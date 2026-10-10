@@ -3,11 +3,11 @@
 // Norden ist -z. Die Orte und Waldflächen folgen der farbigen Nutzerskizze.
 globalThis.NachtjagdLayout = (() => {
   const village = { x: 90, z: 45 };
-  // Unregelmäßiger Dorfrand mit drei ausgesparten Toren, auch Grundlage der Waldkante.
+  // Unregelmäßiger Dorfrand mit drei Toren und drei offenen Mauerabschnitten.
   const villageOutline=[[-5,51],[-5,39],[-15,15],[0,-14],[36,-30],[76,-26],[115,-18],[150,-28],[180,-10],[198,18],[185,39],[185,51],[198,76],[186,105],[150,124],[121,112],[109,112],[80,126],[42,118],[10,109],[-14,83]];
   const villageGates=[[-5,45],[185,45],[115,112]];
   const villageWalls=villageOutline.map((a,i)=>[a,villageOutline[(i+1)%villageOutline.length]])
-    .filter(([a,b])=>!villageGates.some(g=>Math.hypot((a[0]+b[0])/2-g[0],(a[1]+b[1])/2-g[1])<.01));
+    .filter(([a,b],i)=>![4,12,18].includes(i) && !villageGates.some(g=>Math.hypot((a[0]+b[0])/2-g[0],(a[1]+b[1])/2-g[1])<.01));
   const castle = { x: -265, z: -100, height: 102 };
   const lake = [[-418,312],[-405,242],[-375,168],[-334,115],[-317,69],[-293,82],[-268,116],[-213,147],[-149,170],[-81,194],[-12,218],[18,242],[-24,280],[-113,325],[-237,348],[-350,346],[-410,332]];
   const forestBands = [
