@@ -4,8 +4,11 @@ Letzte Aktualisierung: 2026-10-10 (Codex, grober Weltentwurf auf Basis von `nach
 
 ## Aktueller grober Weltentwurf
 
+- Entwurf 02: Die bisher flache Studie hat jetzt Höhenzüge, einen Talboden, ein abgesenktes Seebecken und ein Burgplateau auf 48 m über Wasser. Der Dorfplatz liegt auf 2 m; die Kirchgasse steigt zur Terrasse an. Wege, Bäume, Gebäudesockel und Augenhöhe folgen dem sichtbaren Höhenmodell. Die Gesamtansicht ist die neue Startansicht. Burgzufahrt und offener Hof sind begehbar; Innenräume bleiben offen.
+- Sechs geometrische Browserprüfungen unter `?test=terrain` bestanden: Relief, Platzniveau, Burgniveau, Seebett, Gebäudesockel und Weganschlüsse. Hangbewegung sowie Tal- und Burgansicht sichtbar geprüft; 35/35 vorhandene Repository-Tests grün.
+
 - Nutzerkorrektur: zunächst ausschließlich das grobe Layout, Quader als Gebäude und Kegel als Bäume. `public/entwurf/index.html` mit `blockout.js` ist deshalb die neue Standardansicht. Dorfplatz, Hauptstraße, Kirchgasse und Verbindungen zu Wald, See und Burg sind räumlich dargestellt.
-- Fünf Ansichten: Dorf, ganzes Tal, Burg, Waldweg und Durchlaufen. Übersicht drehen/verschieben/zoomen; Rundgang mit WASD, Mausziehen und Gebäudekollision. Kein Kampf oder Koop in dieser Studie. Höhen und Burginnenräume bleiben offen; die erhöhte Burg wird vorerst aus der Übersicht betrachtet.
+- Fünf Ansichten: Dorf, ganzes Tal, Burg, Waldweg und Durchlaufen. Übersicht drehen/verschieben/zoomen; Rundgang mit WASD, Mausziehen und Gebäudekollision. Kein Kampf oder Koop in dieser Studie. Gelände bleibt eine grobe Studie; Burginnenräume sind noch offen.
 - Der vorherige spielbare Dorfentwurf ist als `public/entwurf/spiel.html` erhalten. `tools/build-village-preview.mjs` erzeugt diesen Vergleich, nicht mehr die Standardseite. Der ursprüngliche Import unter `live/` bleibt unverändert.
 - JavaScript-Syntax, Browseransichten und Dorfbewegung geprüft; 35/35 vorhandene Tests des älteren getrennten Servers/Clients bestanden. Veröffentlichung weiterhin unter demselben Vorschaupfad. Als Nächstes: Feedback zu Abständen, Straßenführung, Sichtachsen und Verteilung der Orte, erst danach Modelle ausarbeiten.
 
@@ -49,6 +52,8 @@ Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` un
 - Die Berge am Kartenrand ragen stellenweise ein Stück auf die Karte hinein (Kulisse). Das lässt sich verschieben, wenn es stört.
 
 ## Übergabe-Log
+
+- 2026-10-10, Codex: Auf Nutzerhinweis das flache Gelände durch eine grobe Talform ersetzt. Ansteigende Wege, See im Becken, Burgplateau und höhenabhängige Bewegung ergänzt. Sechs geometrische Browserprüfungen und 35 Repository-Tests bestanden. Modelle bleiben Quader und Kegel.
 
 - 2026-10-10, Codex: Standardvorschau auf Wunsch auf groben Blockout umgestellt; bisheriges Spiel als Vergleich erhalten. Ansichten und Dorfbewegung im Browser geprüft, 35 Repository-Tests grün. Keine neue Abhängigkeit, kein Merge nach main.
 
