@@ -11,7 +11,7 @@ test('Skizzenanordnung: See südwestlich, Burg westlich, Gebirge nördlich des D
   assert.ok(layout.lakeDistance(-210,220) < 0);
   assert.ok(layout.lakeDistance(layout.village.x,layout.village.z) > 0);
   assert.ok(layout.castle.x < layout.village.x && layout.castle.z < layout.village.z);
-  assert.ok(layout.naturalHeight(-40,-550) > 350);
+  assert.ok(layout.naturalHeight(-40,-550) > 230);
   assert.ok(layout.naturalHeight(90,45) < layout.castle.height);
 });
 test('Dorfgrund besitzt Gefälle und mehr als eine Gebäudeform', () => {
@@ -56,10 +56,20 @@ test('Der See reicht weiter nach Südwesten; Waldinseln liegen außerhalb der gr
 });
 
 test('Mittelberge stehen vor einem höheren äußeren Gipfelring; Vorberge füllen die Dorfsenke',()=>{
-  assert.ok(layout.naturalHeight(-50,-329)>110 && layout.naturalHeight(-50,-329)<190);
-  assert.ok(layout.naturalHeight(-40,-550)>layout.naturalHeight(-50,-329)+150);
+  assert.ok(layout.naturalHeight(-50,-329)>110 && layout.naturalHeight(-50,-329)<220);
+  assert.ok(Math.max(...layout.highPeaks.map(p=>layout.naturalHeight(p.x,p.z)))>layout.naturalHeight(-50,-329)+150);
   const heights=[[110,-100],[180,-150],[60,-190]].map(p=>layout.naturalHeight(...p));
   assert.ok(Math.min(...heights)>38);
   assert.ok(Math.max(...heights)-Math.min(...heights)>12);
   assert.ok(new Set(layout.houses.map(h=>h[1])).size>15);
+});
+
+test('Beide Bergtypen besitzen unterschiedliche Gipfelhöhen und breite sowie schmale Fußabdrücke',()=>{
+  for(const peaks of [layout.middlePeaks,layout.highPeaks]) {
+    const heights=peaks.map(p=>layout.naturalHeight(p.x,p.z));
+    assert.ok(Math.max(...heights)-Math.min(...heights)>70);
+    assert.ok(Math.max(...peaks.map(p=>p.rx))-Math.min(...peaks.map(p=>p.rx))>40);
+    assert.ok(Math.max(...peaks.map(p=>p.rz))-Math.min(...peaks.map(p=>p.rz))>30);
+  }
+  assert.ok(layout.foothillGroups.filter(([x,z])=>layout.naturalHeight(x,z)<110).length>=5);
 });

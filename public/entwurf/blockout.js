@@ -67,7 +67,7 @@
   const baseHeights = new Float32Array(321 * 281);
   for (let row = 0; row <= 280; row++) for (let col = 0; col <= 320; col++) baseHeights[row * 321 + col] = unpavedHeight(col * 5 - 800, row * 5 - 705);
   const terrainModel = NachtjagdTerrain.create({ width: 321, depth: 281, step: 5, originX: -800, originZ: -705, base: baseHeights, basis: layout.basis, maxHeight: 650 });
-  const storageKey = 'nachtjagd-bergdorf-vorberge-dorf-v4';
+  const storageKey = 'nachtjagd-bergdorf-bergvariation-v5';
   let restored = false, storageWarning = '';
   try { const saved = localStorage.getItem(storageKey); if (saved) { terrainModel.load(saved, false); restored = true; } }
   catch { storageWarning = 'Browserstand konnte nicht geladen werden. Du kannst eine Geländedatei laden.'; }
@@ -307,8 +307,8 @@
     const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz)));
     return Math.hypot(x - a[0] - t * dx, z - a[1] - t * dz);
   }
-  const forest = new THREE.InstancedMesh(coneGeometry, materials.forest, 3300), dummy = new THREE.Object3D();
-  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 6), materials.landmark, 3300);
+  const forest = new THREE.InstancedMesh(coneGeometry, materials.forest, 3480), dummy = new THREE.Object3D();
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 6), materials.landmark, 3480);
   const buildingColliders = colliders.slice(), treeBuckets = new Map();
   function nearTree(x,z) {
     const bx=Math.floor(x/4),bz=Math.floor(z/4);
@@ -316,23 +316,34 @@
     return false;
   }
   let treeCount = 0;
-  for (let i = 0; i < 80000 && treeCount < 3300; i++) {
-    const x = -380 + random() * 720, z = -225 + random() * 575;
-    if (random() > layout.treeWeight(x, z)*(.55+.45*smooth(.15,.8,Math.sin(x/27)*Math.cos(z/31)))) continue;
-    if (x > -17 && x < 197 && z > -32 && z < 124) continue;
-    if (layout.lakeDistance(x, z) < 14 || groundHeight(x,z) > 115) continue;
-    if (nearTree(x,z) || buildingColliders.some(c => Math.hypot(x - c.x, z - c.z) < Math.max(c.w, c.d) + 3)) continue;
-    if (roadNetwork.clearance(x,z) < 1.5 || segmentDistance(x,z,bridgeSpec.a,bridgeSpec.b) < 5.5) continue;
+  function plantTree(x,z,foothill=false) {
+    if (x > -17 && x < 197 && z > -32 && z < 124) return false;
+    if (layout.lakeDistance(x, z) < 14 || groundHeight(x,z) > (foothill ? 110 : 115)) return false;
+    if (nearTree(x,z) || buildingColliders.some(c => Math.hypot(x - c.x, z - c.z) < Math.max(c.w, c.d) + 3)) return false;
+    if (roadNetwork.clearance(x,z) < 1.5 || segmentDistance(x,z,bridgeSpec.a,bridgeSpec.b) < 5.5) return false;
     const height = 12 + random() * 10, clearance = 4 + random() * 1.5, rx = 3.4 + random() * 1.8, rz = 3.4 + random() * 1.8;
     dummy.position.set(x, groundHeight(x, z) + clearance + height / 2, z); dummy.scale.set(rx, height, rz); dummy.updateMatrix();
     forest.setMatrixAt(treeCount, dummy.matrix);
     dummy.position.y = groundHeight(x, z) + (clearance + 2) / 2; dummy.scale.set(.4, clearance + 2, .4); dummy.updateMatrix();
     trunks.setMatrixAt(treeCount++, dummy.matrix);
-    treePlacements.push({ x, z, height, clearance, rx, rz });
+    treePlacements.push({ x, z, height, clearance, rx, rz, foothill });
     const bucket=Math.floor(x/4)+','+Math.floor(z/4);
     if(!treeBuckets.has(bucket)) treeBuckets.set(bucket,[]);
     treeBuckets.get(bucket).push({x,z});
     colliders.push({ x, z, w: .4, d: .4, rotation: 0, tree: true });
+    return true;
+  }
+  for(let i=0;i<80000 && treeCount<3300;i++) {
+    const x=-380+random()*720,z=-225+random()*575;
+    if(random()>layout.treeWeight(x,z)*(.55+.45*smooth(.15,.8,Math.sin(x/27)*Math.cos(z/31)))) continue;
+    plantTree(x,z);
+  }
+  // Nur wenige zusätzliche Bäume an niedrigen, nicht zu steilen Berghängen.
+  for(let i=0;i<10000 && treeCount<3480;i++) {
+    const [gx,gz,r]=layout.foothillGroups[i%layout.foothillGroups.length],angle=random()*Math.PI*2,distance=r*Math.sqrt(random());
+    const x=gx+Math.cos(angle)*distance,z=gz+Math.sin(angle)*distance;
+    const slope=Math.hypot(groundHeight(x+2,z)-groundHeight(x-2,z),groundHeight(x,z+2)-groundHeight(x,z-2))/4;
+    if(slope<.7) plantTree(x,z,true);
   }
   forest.count = trunks.count = treeCount; forest.castShadow = trunks.castShadow = true; scene.add(forest, trunks);
   // Niedriger Waldboden bleibt durchquerbar; nur Baumstämme kollidieren.
@@ -594,9 +605,11 @@
     check('Dorf am Hang mit mehr Hausformen', houses.length >= 28 && Math.max(...villageHeights) - Math.min(...villageHeights) > 8, { houses: houses.length, heightSpan: Math.max(...villageHeights) - Math.min(...villageHeights) });
     check('Burghof auf Felssporn', Math.abs(groundHeight(castle.x,castle.z) - castle.height) < .01, groundHeight(castle.x,castle.z));
     check('Großer See im Südwesten mit abgesenktem Bett', groundHeight(-210,220) < -4 && layout.lakeDistance(-310,130) < 0, groundHeight(-210,220));
-    check('Aufgelichteter Wald mit freiem Raum unter den Kronen', treeCount > 2500 && treeCount <= 3300 && treePlacements.every(t => t.clearance >= 4), treeCount);
+    check('Aufgelichteter Wald mit freiem Raum unter den Kronen', treeCount > 2500 && treeCount <= 3480 && treePlacements.every(t => t.clearance >= 4), treeCount);
     check('Mauern blockieren; Tore bleiben frei', blocked(-5,0) && !blocked(-5,45) && !blocked(185,45) && !blocked(115,112), null);
     check('Waldboden und einzelne Baumgruppen außerhalb des Waldgürtels',coverCount>2500 && treePlacements.filter(t=>layout.forestWeight(t.x,t.z)<.1).length>50,{cover:coverCount,scattered:treePlacements.filter(t=>layout.forestWeight(t.x,t.z)<.1).length});
+    const foothillTrees=treePlacements.filter(t=>t.foothill);
+    check('Lockere Baumgruppen auf niedrigen Berghängen',foothillTrees.length>=100 && foothillTrees.every(t=>groundHeight(t.x,t.z)<=110),foothillTrees.length);
     const stairBlocked=stairs.treads.filter(t=>blocked(t.x,t.z,t.top));
     check('Zwei Treppenwege haben freie waagerechte Trittflächen',stairs.treads.length>30 && stairBlocked.length===0,{treads:stairs.treads.length,blocked:stairBlocked.slice(0,4)});
     let crossSlope=0;

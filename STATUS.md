@@ -1,17 +1,18 @@
 # STATUS
 
-Letzte Aktualisierung: 2026-10-10 (Codex, grober Weltentwurf auf Basis von `nachtjagd-neu`)
+Letzte Aktualisierung: 2026-10-11 (Codex, grober Weltentwurf auf Basis von `nachtjagd-neu`)
 
 ## Aktueller grober Weltentwurf
 
-- Entwurf 06: Der bisherige Gebirgsring besteht nun aus weicheren Mittelbergen (rund 110–165 m). Eine eigene äußere Reihe von 24 schroffen Hochgipfeln (rund 290–420 m) umschließt ihn. Unebene Vorberge füllen die Senke nördlich des Dorfhügels. Die äußere Geländegrundfläche ist auf 1600×1400 m erweitert, bei weiterhin 5 m Rasterweite.
-- Wald auf 3300 statt 4800 Bäume reduziert, größere Stammabstände, kleinere Kronen und ungleichmäßige Dichte; Baumgruppen und niedriger Waldbewuchs bleiben. Kronenfreiheit mindestens 4 m, nur Stämme kollidieren.
+- Entwurf 07: Beide Bergtypen variieren jetzt in Höhe, Breite, Tiefe, Ausrichtung und Abstand. Der bisherige Gebirgsring besteht nun aus weicheren Mittelbergen (rund 103–208 m). Eine eigene äußere Reihe von 24 schroffen Hochgipfeln (rund 235–436 m) umschließt ihn. Unebene Vorberge füllen die Senke nördlich des Dorfhügels. Die äußere Geländegrundfläche ist auf 1600×1400 m erweitert, bei weiterhin 5 m Rasterweite.
+- Rund 3400 Bäume, darunter 136 zusätzliche Bäume in lockeren Gruppen an niedrigen Berghängen; größere Stammabstände, kleinere Kronen und ungleichmäßige Dichte; Baumgruppen und niedriger Waldbewuchs bleiben. Kronenfreiheit mindestens 4 m, nur Stämme kollidieren.
+- 136 zusätzliche Hangbäume verteilen sich auf sieben Bereiche, ausschließlich unter 110 m Höhe und an Hängen unter 70 % Neigung. Der Hauptwald bleibt aufgelichtet.
 - 28 Häuser mit vier groben Volumenformen in versetzten Gruppen, unterschiedlichen Abständen und Drehungen. Kleine Höfe und zwei begehbare Treppenwege statt gleichmäßiger Hauszeilen. Rundgang Dorftreppe ergänzt. Treppen besitzen waagerechte Trittflächen mit höchstens 20 cm Stufenhöhe und gemeinsamer Geometrie/Augenhöhe aus stairs.js.
 - Die 13 Straßen/Gassen einschließlich Treppen nutzen road-layout.js und road-profile.js: waagerechte Querschnitte, gemeinsame Kreuzungshöhen, maximal 18 % Längsneigung. Straßenprofile und Viaduktanschlüsse bleiben beim Modellieren fest; Gebäude, Vegetation und Treppensockel schließen an das bearbeitete Gelände an.
 - Nutzerskizze bleibt Grundlage: Norden ist -z, Burg westlich auf freiem Felssporn, See im Südwesten, ummauertes Hangdorf rechts der Mitte. Großer Südwestsee mit sanftem Ufersaum, siebenbogiges Viadukt, drei Dorftore und Wegschleifen bleiben erhalten.
-- Neue Grundform bergdorf-vorberge-dorf-2026-10-10-v4, Browser-Schlüssel nachtjagd-bergdorf-vorberge-dorf-v4, Raster 321×281. Vorherige Browserstände bleiben erhalten; Dateien anderer Grundformen werden ohne Zustandsänderung abgewiesen. Gelände-Editor mit Pinsel, Undo/Redo und Datei-Sicherung bleibt verfügbar.
-- Validierung: 64 automatisierte Tests (35 Server/Client, neun Editor, neun Weltlayout, fünf Straßen, vier Viadukt, zwei Treppen) und 16 geometrische Browserprüfungen bestanden. Treppenbewegung sichtbar geprüft; Höhenpinsel, Undo/Redo und Wiederherstellung nach Reload auf dem vergrößerten Gelände geprüft. Lokale Teständerungen zurückgesetzt. Keine neue Abhängigkeit.
-- Aktuelle Vorschau: https://risinghurricane.github.io/nachtjagd/entwurf/?v=06 . Versionskennung und Skriptadressen gemeinsam aktualisiert. Die Layoutstudie enthält noch keinen Kampf/Koop; Multiplayer für 1–4, endgültige Modelle und Schlossinnenräume bleiben spätere Schritte. Originalimport und spielbarer Vergleich erhalten, keine privaten Referenzbilder veröffentlicht. main unverändert.
+- Neue Grundform bergdorf-bergvariation-2026-10-11-v5, Browser-Schlüssel nachtjagd-bergdorf-bergvariation-v5, Raster 321×281. Vorherige Browserstände bleiben erhalten; Dateien anderer Grundformen werden ohne Zustandsänderung abgewiesen. Gelände-Editor mit Pinsel, Undo/Redo und Datei-Sicherung bleibt verfügbar.
+- Validierung: 65 automatisierte Tests (35 Server/Client, neun Editor, zehn Weltlayout, fünf Straßen, vier Viadukt, zwei Treppen) und 17 geometrische Browserprüfungen bestanden. Treppenbewegung sichtbar geprüft; Höhenpinsel, Undo/Redo und Wiederherstellung nach Reload auf dem vergrößerten Gelände geprüft. Lokale Teständerungen zurückgesetzt. Keine neue Abhängigkeit.
+- Aktuelle Vorschau: https://risinghurricane.github.io/nachtjagd/entwurf/?v=07 . Versionskennung und Skriptadressen gemeinsam aktualisiert. Die Layoutstudie enthält noch keinen Kampf/Koop; Multiplayer für 1–4, endgültige Modelle und Schlossinnenräume bleiben spätere Schritte. Originalimport und spielbarer Vergleich erhalten, keine privaten Referenzbilder veröffentlicht. main unverändert.
 
 ### Bisheriger spielbarer Vergleich
 
@@ -85,3 +86,7 @@ See nach Südwesten vergrößert, Wald und frei stehende Baumgruppen ergänzt, n
 ### 2026-10-10 · Entwurf 06
 
 Wald aufgelichtet, unebene Vorberge ergänzt, inneren Ring zu Mittelbergen geformt und äußeren Hochgebirgsring hinzugefügt. Häuser versetzt neu angeordnet, zwei begehbare Treppenwege und Dorftreppen-Ansicht ergänzt. 64 Tests und 16 Browserprüfungen grün, Editor und Treppenbewegung geprüft. Version 06 separat auf gh-pages veröffentlicht.
+
+### 2026-10-11 · Entwurf 07
+
+Höhen und Fußabdrücke beider Bergtypen variiert, Anordnung und Ausrichtung unregelmäßiger. 136 Bäume an niedrigen Hängen ergänzt, insgesamt 3436 Bäume. 65 automatisierte Tests und 17 Browserprüfungen bestanden. Version 07 separat veröffentlicht, main unverändert.
