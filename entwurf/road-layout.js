@@ -16,6 +16,8 @@ globalThis.NachtjagdRoadLayout = ({ height,castle }) => {
     { id:'south',points:southRoad,width:5 },
     { id:'lane-north',points:[[10,33],[60,33],[90,25],[145,33],[178,33]],width:3.5 },
     { id:'lane-south',points:[[10,57],[60,57],[115,57],[178,57]],width:3.5 },
+    { id:'stairs-north',stairs:true,points:[[78,28.2],[78,2]],width:2.8 },
+    { id:'stairs-south',stairs:true,points:[[120,57],[120,87]],width:3 },
     { id:'south-loop',points:southLoop,width:5 },
     { id:'lake-loop',points:[[-190,0],[-270,-20],[-290,25],[-275,70],[-215,108],[-140,130],[-65,135],[-45,150]],width:4 },
     { id:'lower-forest',points:[[-50,30],[-120,25],[-190,0]],width:4 },

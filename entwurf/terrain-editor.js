@@ -2,7 +2,7 @@
 
 // Höhenpinsel, Verlauf und Dateiformat ohne Abhängigkeit von der Darstellung.
 globalThis.NachtjagdTerrain = {
-  create({ width, depth, step, originX, originZ, base, basis = 'default' }) {
+  create({ width, depth, step, originX, originZ, base, basis = 'default', maxHeight = 400 }) {
     const offsets = new Float32Array(width * depth);
     const undoStack = [], redoStack = [];
     let before = null;
@@ -52,7 +52,7 @@ globalThis.NachtjagdTerrain = {
             if (!Number.isFinite(target)) continue;
             delta = (target - current) * clamp(strength * seconds * .15 * weight, 0, 1);
           }
-          const next = clamp(offsets[index] + delta, Math.max(-250, -100 - base[index]), Math.min(250, 400 - base[index]));
+          const next = clamp(offsets[index] + delta, Math.max(-250, -100 - base[index]), Math.min(250, maxHeight - base[index]));
           if (Math.abs(next - offsets[index]) > .00001) { offsets[index] = next; changed = true; }
         }
         return changed;
@@ -76,13 +76,13 @@ globalThis.NachtjagdTerrain = {
         return JSON.stringify({ format: 'nachtjagd-terrain', version: 2, basis, grid: { width, depth, step, originX, originZ }, offsets: Array.from(offsets) });
       },
       load(text, record = true) {
-        if (typeof text !== 'string' || text.length > 2000000) throw new Error('Die Geländedatei ist zu groß.');
+        if (typeof text !== 'string' || text.length > 4000000) throw new Error('Die Geländedatei ist zu groß.');
         let data;
         try { data = JSON.parse(text); } catch { throw new Error('Die Datei ist keine lesbare Geländedatei.'); }
         const expected = { width, depth, step, originX, originZ };
         if (!data || data.format !== 'nachtjagd-terrain' || data.version !== 2 || data.basis !== basis || !data.grid || Object.entries(expected).some(([key, value]) => data.grid[key] !== value)
           || !Array.isArray(data.offsets) || data.offsets.length !== offsets.length
-          || data.offsets.some((value, index) => typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) > 250 || base[index] + value < -100 || base[index] + value > 400)) {
+          || data.offsets.some((value, index) => typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) > 250 || base[index] + value < -100 || base[index] + value > maxHeight)) {
           throw new Error('Diese Datei passt nicht zum Gelände des Bergdorfs.');
         }
         if (record) remember(offsets.slice());
