@@ -12,7 +12,7 @@ test('Skizzenanordnung: See südwestlich, Burg westlich, Gebirge nördlich des D
   assert.ok(layout.lakeDistance(layout.village.x,layout.village.z) > 0);
   assert.ok(layout.castle.x < layout.village.x && layout.castle.z < layout.village.z);
   assert.ok(layout.naturalHeight(-50,-329) > 280);
-  assert.ok(layout.naturalHeight(90,45) < 60);
+  assert.ok(layout.naturalHeight(90,45) < layout.castle.height);
 });
 test('Dorfgrund besitzt Gefälle und mehr als eine Gebäudeform', () => {
   const heights = layout.houses.map(h => layout.naturalHeight(h[0],h[1]));
@@ -30,4 +30,18 @@ test('Wald bildet nördliche, östliche und südliche Bänder; See bleibt getren
   assert.ok(layout.forestWeight(-300,220) < .01);
   assert.ok(layout.naturalHeight(-210,220) < -6);
   assert.ok(Math.abs(layout.lakeDistance(...layout.lake[0])) < .001);
+});
+test('Berge umschließen die Hochebene auch im Westen, Osten und Süden', () => {
+  for (const [x,z] of [[-475,-185],[390,180],[-60,405]]) assert.ok(layout.naturalHeight(x,z) > 175);
+});
+test('Der Ufersaum steigt auf den ersten dreißig Metern nur sanft an', () => {
+  for (const z of [290,300,310]) {
+    const distance = layout.lakeDistance(-210,z), height = layout.naturalHeight(-210,z);
+    assert.ok(distance > 0 && distance < 30);
+    assert.ok(height >= 0 && height < 2.1);
+  }
+});
+test('Die Hochebene zwischen den Bergen besitzt eigenes Hügelrelief', () => {
+  const heights = [[-70,10],[180,120],[-230,-20],[40,160]].map(p => layout.naturalHeight(...p));
+  assert.ok(Math.max(...heights)-Math.min(...heights) > 35);
 });

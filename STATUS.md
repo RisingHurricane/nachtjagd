@@ -4,11 +4,17 @@ Letzte Aktualisierung: 2026-10-10 (Codex, grober Weltentwurf auf Basis von `nach
 
 ## Aktueller grober Weltentwurf
 
+- Entwurf 04: Berge jetzt ringsum, nördlicher Hauptkamm bleibt am höchsten. Die bisher versehentlich durch die Bergfunktion auf mindestens 31 m nivellierte Grundfläche ist korrigiert; die Hochebene hat stärkeres eigenes Hügelrelief. Der See besitzt einen breiten, sanften Ufersaum (erste 30 m rund 7 % Steigung) und flacheres Wasser am Rand.
+- Siebenbogiges, rund 135 m langes Viadukt auf der Burgverbindung über die Senke. Fahrbahn, Brüstungen und Pfeiler; Begehen der Brücke und Durchgang unter offenen Bögen besitzen getrennte Höhen/Kollisionen. Ansichten Viadukt und Brücke betreten ergänzt. Gelände-Editor schützt das Bauwerk standardmäßig, Profil/Pfeiler folgen beim Bearbeiten den Widerlagern und dem Boden.
+- Sichtbare Versionskennung Entwurf 04 und versionierte Skriptadressen gegen veraltete Browserdateien. Direkter aktueller Link: https://risinghurricane.github.io/nachtjagd/entwurf/?v=04
+- Neue Geländegrundform: Kennung bergdorf-gebirgsring-2026-10-10-v2, Browser-Schlüssel nachtjagd-bergdorf-gebirgsring-v2. Vorherige persönliche Stände bleiben unter ihren alten Schlüsseln; Dateien anderer Grundformen werden abgewiesen.
+- Aktuelle Validierung: 54 automatisierte Tests (35 Server/Client, acht Editor, sieben Weltlayout, vier Viadukt) und zwölf geometrische Browserprüfungen. Brückenbewegung sichtbar geprüft. Keine neue Abhängigkeit.
+
 - Nutzerskizze umgesetzt: Hochgebirge im Norden, Burg westlich auf freiem Felssporn, großer unregelmäßiger See im Südwesten, Dorf rechts der Mitte. Wald als nördlicher/östlicher/südlicher Bogen und zentraler westlicher Streifen. Norden ist -z. `world-layout.js` hält Orte, Grundhöhen, See und Waldmasken gemeinsam.
-- 28 Häuser mit vier einfachen Volumenformen stehen am Hang (rund 28 m Höhenunterschied zwischen Hausplätzen). Nur einzelne Bauplätze sind geglättet. Umfassungsmauer mit drei offenen Toren, Kirche und Wege zur Burg, zum See und in den Wald. Burg auf 102 m auf einem steilen kantigen Sporn, östlich über einen schmalen Rücken erreichbar. Weiche Hügel und kantige hohe Bergspitzen bilden zwei Landschaftsarten.
+- 28 Häuser mit vier einfachen Volumenformen stehen am Hang (rund 31 m Höhenunterschied zwischen Hausplätzen). Nur einzelne Bauplätze sind geglättet. Umfassungsmauer mit drei offenen Toren, Kirche und Wege zur Burg, zum See und in den Wald. Burg auf 102 m auf einem steilen kantigen Sporn, östlich über einen schmalen Rücken erreichbar. Weiche Hügel und kantige hohe Bergspitzen bilden zwei Landschaftsarten.
 - 2400 instanzierte Bäume mit dünnen Stämmen und Kronen ab 4 m; nur die Stämme kollidieren. Waldweg startet direkt als Rundgang unter den Kronen. Draufsicht mit Norden oben zum Skizzenvergleich. Modelle bleiben ausdrücklich Quader und Kegel.
 - Gelände-Editor bleibt vorhanden: Anheben, Absenken, Glätten, Ebnen, Schutzmaske, Undo/Redo, Browserstand und JSON-Dateien. Neue Grundform hat eigenen Browser-Schlüssel und Grundformkennung im Dateiformat v2; alte Dateien werden ohne Änderung abgewiesen. Vorherige Browserstände bleiben erhalten.
-- Validierung: 47 Repository-Tests bestanden (35 älterer Server/Client, acht Editor-, vier Weltlayout-Tests). Zehn geometrische Browserprüfungen bestanden: Relief, Hangdorf, Burghof, Seebett, Wald/Kronenfreiheit, Mauern/Tore, begehbare Dorf–Burg/See-Verbindungen, Stammkollision, Gebäudesockel und Wegoberflächen. Ansichten und Waldbewegung sichtbar geprüft. Pinsel, Undo/Redo und Wiederherstellung nach Reload erneut geprüft; lokaler Prüfstand zurückgesetzt.
+- Validierung: 54 Repository-Tests bestanden (35 älterer Server/Client, acht Editor-, sieben Weltlayout- und vier Viadukt-Tests). Zwölf geometrische Browserprüfungen bestanden: Relief, Hangdorf, Burghof, Seebett, Wald/Kronenfreiheit, Mauern/Tore, begehbare Dorf–Burg/See-Verbindungen, Stammkollision, Gebäudesockel und Wegoberflächen. Ansichten und Waldbewegung sichtbar geprüft. Pinsel, Undo/Redo und Wiederherstellung nach Reload erneut geprüft; lokaler Prüfstand zurückgesetzt.
 - Vorschau weiterhin unter `https://risinghurricane.github.io/nachtjagd/entwurf/`. Kein Kampf oder Koop in der Layoutstudie; Schlossinnenräume sind offen. Spielbarer Vergleich `spiel.html` und ursprünglicher Import unter `live/` bleiben erhalten. Keine neue Abhängigkeit und keine privaten Referenzfotos veröffentlicht.
 - Als Nächstes: räumliches Feedback zur Skizzenumsetzung; danach endgültige Modelle und Grafik ausarbeiten. Multiplayer für 1–4 bleibt ein späterer eigener Schritt.
 
@@ -52,6 +58,8 @@ Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` un
 - Die Berge am Kartenrand ragen stellenweise ein Stück auf die Karte hinein (Kulisse). Das lässt sich verschieben, wenn es stört.
 
 ## Übergabe-Log
+
+- 2026-10-10, Codex: Entwurf 04 mit begehbarem siebenbogigem Viadukt, Gebirgsring, stärkerem Hügelrelief und sanftem Seeufer. Versionskennung und versionierte Skriptadressen ergänzt. 54 Tests und zwölf geometrische Browserprüfungen bestanden.
 
 - 2026-10-10, Codex: Nutzerskizze als neuen Weltblockout umgesetzt: Nordgebirge, westlicher Burgsporn, südwestlicher See, ummauertes Hangdorf und dichter unterlaufbarer Wald. Grundformkennung für Geländedateien ergänzt. 47 Tests und zehn geometrische Browserprüfungen bestanden. Keine neue Abhängigkeit.
 
