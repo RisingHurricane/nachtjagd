@@ -355,7 +355,7 @@
   }
   forest.count = trunks.count = treeCount; forest.castShadow = trunks.castShadow = true; scene.add(forest, trunks);
   // Niedriger Waldboden bleibt durchquerbar; nur Baumstämme kollidieren.
-  const undergrowth = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0), new THREE.MeshLambertMaterial({color:'#718455'}),3200);
+  const undergrowth = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0), new THREE.MeshLambertMaterial({color:'#718455'}),3296);
   let coverCount=0;
   for(let i=0;i<45000 && coverCount<3200;i++) {
     const x=-380+random()*720,z=-225+random()*575;
@@ -363,6 +363,17 @@
     if(layout.villageDistance(x,z)<9) continue;
     if(buildingColliders.some(c=>Math.hypot(x-c.x,z-c.z)<Math.max(c.w,c.d)+3)) continue;
     const height=.3+random()*.65,rx=1+random()*1.5,rz=1+random()*1.5,rotation=random()*Math.PI;
+    dummy.position.set(x,groundHeight(x,z)+height*.45,z); dummy.scale.set(rx,height,rz); dummy.rotation.y=rotation; dummy.updateMatrix();
+    undergrowth.setMatrixAt(coverCount++,dummy.matrix); coverPlacements.push({x,z,rx,rz,height,rotation});
+  }
+  // Wenige höhere Buschgruppen an Dorfrändern und Waldwegen, weiterhin durchquerbar.
+  const bushGroups=[[-28,98],[208,94],[63,141],[-215,30],[275,-70],[-65,-80]];
+  for(let i=0;i<2000 && coverCount<3296;i++) {
+    const [gx,gz]=bushGroups[i%bushGroups.length],angle=random()*Math.PI*2,r=12*Math.sqrt(random());
+    const x=gx+Math.cos(angle)*r,z=gz+Math.sin(angle)*r;
+    if(layout.villageDistance(x,z)<5 || layout.lakeDistance(x,z)<12 || layout.clearingWeight(x,z)<.15 || roadNetwork.clearance(x,z)<2) continue;
+    if(buildingColliders.some(c=>Math.hypot(x-c.x,z-c.z)<Math.max(c.w,c.d)+3)) continue;
+    const height=1.1+random()*.7,rx=1.1+random()*.8,rz=.9+random()*.7,rotation=random()*Math.PI;
     dummy.position.set(x,groundHeight(x,z)+height*.45,z); dummy.scale.set(rx,height,rz); dummy.rotation.y=rotation; dummy.updateMatrix();
     undergrowth.setMatrixAt(coverCount++,dummy.matrix); coverPlacements.push({x,z,rx,rz,height,rotation});
   }

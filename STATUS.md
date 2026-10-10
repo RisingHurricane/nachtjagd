@@ -4,14 +4,14 @@ Letzte Aktualisierung: 2026-10-11 (Codex, grober Weltentwurf auf Basis von `nach
 
 ## Aktueller grober Weltentwurf
 
-- Entwurf 08: Unregelmäßiger Dorfrand mit Vorsprüngen und Einzügen statt rechteckiger Mauer. Waldkante folgt derselben Kontur; neun Randhäuser versetzt, drei Tore bleiben an ihren Straßenanschlüssen frei.
+- Entwurf 09: Unregelmäßiger Dorfrand mit Vorsprüngen und Einzügen statt rechteckiger Mauer. Waldkante folgt derselben Kontur; neun Randhäuser versetzt, drei Tore bleiben an ihren Straßenanschlüssen frei. Drei weitere Mauerabschnitte sind bewusst offen.
 - Gewellte Bergrücken schließen tiefe Spalten zwischen den Mittelbergen und dem äußeren Hochgebirgsring. Unterschiedliche Gipfelgrößen und -höhen bleiben sichtbar. Burgsporn, Senke unter dem Viadukt und sanftes Seeufer bleiben erhalten.
-- 3380 Bäume: 3100 im Hauptwald, 140 an niedrigen Hängen und 140 in sechs lockeren Gruppen auf den Bergrücken. Drei gezielte Lichtungen öffnen den bisherigen Wald; insgesamt 56 Bäume weniger als in Entwurf 07. Kronenfreiheit mindestens 4 m, nur Stämme kollidieren; 3200 niedrige Vegetationskörper bleiben durchquerbar.
+- 3380 Bäume: 3100 im Hauptwald, 140 an niedrigen Hängen und 140 in sechs lockeren Gruppen auf den Bergrücken. Drei gezielte Lichtungen öffnen den bisherigen Wald; insgesamt 56 Bäume weniger als in Entwurf 07. Kronenfreiheit mindestens 4 m, nur Stämme kollidieren; 3200 niedrige Vegetationskörper und 96 höhere Buschformen in sechs Gruppen bleiben durchquerbar.
 - 28 Häuser mit vier groben Volumenformen, Kirche, Höfe und zwei begehbare Treppenwege mit 58 waagerechten Tritten. 13 Straßen/Gassen bleiben quer waagerecht, mit gemeinsamen Kreuzungshöhen und maximal 18 % Längsneigung. Gebäude schließen an das Gelände an; Straßen und Viaduktanschlüsse bleiben beim Modellieren fest.
 - Nutzerskizze: Norden ist -z, Burg westlich auf freiem Felssporn, großer See im Südwesten, Hangdorf rechts der Mitte. Siebenbogiges Viadukt und Wegschleifen erhalten.
 - Neue Grundform bergdorf-bergruecken-2026-10-11-v6, Browser-Schlüssel nachtjagd-bergdorf-bergruecken-v6, Raster 321×281. Vorherige Browserstände bleiben erhalten; Dateien anderer Grundformen werden ohne Zustandsänderung abgewiesen. Gelände-Editor mit Pinsel, Undo/Redo und Datei-Sicherung verfügbar.
 - Validierung: 68 automatisierte Tests (35 Server/Client, neun Editor, dreizehn Weltlayout, fünf Straßen, vier Viadukt, zwei Treppen) und 19 geometrische Browserprüfungen bestanden. Dorfkontur, Bergübergänge und Lichtungen sichtbar geprüft. Keine neue Abhängigkeit.
-- Aktuelle Vorschau: https://risinghurricane.github.io/nachtjagd/entwurf/?v=08 . Versionskennung und Skriptadressen gemeinsam aktualisiert. Die Layoutstudie enthält noch keinen Kampf/Koop; Multiplayer für 1–4, endgültige Modelle und Schlossinnenräume bleiben spätere Schritte. Originalimport und spielbarer Vergleich erhalten, keine privaten Referenzbilder veröffentlicht. main unverändert.
+- Aktuelle Vorschau: https://risinghurricane.github.io/nachtjagd/entwurf/?v=09 . Versionskennung und Skriptadressen gemeinsam aktualisiert. Die Layoutstudie enthält noch keinen Kampf/Koop; Multiplayer für 1–4, endgültige Modelle und Schlossinnenräume bleiben spätere Schritte. Originalimport und spielbarer Vergleich erhalten, keine privaten Referenzbilder veröffentlicht. main unverändert.
 
 ### Bisheriger spielbarer Vergleich
 
@@ -93,3 +93,7 @@ Höhen und Fußabdrücke beider Bergtypen variiert, Anordnung und Ausrichtung un
 ### 2026-10-11 · Entwurf 08
 
 Dorfmauer und Waldkante unregelmäßig geformt, Randhäuser versetzt. Gewellte Bergrücken verbinden Mittelberge mit dem äußeren Gipfelring; 140 Bäume auf den Sätteln ergänzt und drei andere Waldstellen geöffnet. Insgesamt 3380 Bäume. 68 automatisierte Tests und 19 Browserprüfungen bestanden. Version 08 separat veröffentlicht, main unverändert.
+
+### 2026-10-11 · Entwurf 09
+
+Drei Mauerabschnitte bewusst geöffnet, 96 einfache Buschformen in sechs Gruppen ergänzt. Berge unverändert. 68 Tests und 19 Browserprüfungen bestanden. Vorschau separat veröffentlicht.
