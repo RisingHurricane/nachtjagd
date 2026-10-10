@@ -390,6 +390,15 @@
   label('Wald', -88, -126, 32, 45);
 
   const target = new THREE.Vector3();
+  let gameplay=null;
+  // Räumlicher Index: Spielbewegung fragt nur nahe Gebäude und Stämme ab.
+  const collisionBuckets=new Map();
+  for(const c of colliders) {
+    const radius=c.w+c.d+.5;
+    for(let x=Math.floor((c.x-radius)/16);x<=Math.floor((c.x+radius)/16);x++) for(let z=Math.floor((c.z-radius)/16);z<=Math.floor((c.z+radius)/16);z++) {
+      const key=x+','+z; if(!collisionBuckets.has(key)) collisionBuckets.set(key,[]); collisionBuckets.get(key).push(c);
+    }
+  }
   let yaw, polar, distance, mode, walkingYaw = Math.PI, pitch = 0;
   let editing = false, sculpting = false, brushPoint = null, flattenLevel = 0, lastSculpt = 0;
   let tool = 'raise';
@@ -437,6 +446,7 @@
   const canvas = renderer.domElement;
   canvas.addEventListener('contextmenu', event => event.preventDefault());
   canvas.addEventListener('pointerdown', event => {
+    if(gameplay && gameplay.active) return;
     canvas.setPointerCapture(event.pointerId);
     if (editing && event.button === 0 && !event.altKey) {
       locateBrush(event);
@@ -449,6 +459,7 @@
   canvas.addEventListener('pointercancel', () => { drag = null; finishStroke(); });
   canvas.addEventListener('pointerleave', () => { if (!sculpting) { brushCursor.visible = false; brushPoint = null; } });
   canvas.addEventListener('pointermove', event => {
+    if(gameplay && gameplay.active) return;
     if (editing && !drag) locateBrush(event);
     if (!drag) return;
     const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
@@ -462,6 +473,7 @@
   });
   canvas.addEventListener('wheel', event => { event.preventDefault(); if (mode !== 'walk') distance = THREE.MathUtils.clamp(distance * Math.exp(event.deltaY * .001), 20, 2100); }, { passive: false });
   addEventListener('keydown', event => {
+    if(gameplay && gameplay.active) return;
     if (event.target.matches('input,textarea,select')) return;
     if (editing && (event.ctrlKey || event.metaKey) && ['z','y'].includes(event.key.toLowerCase())) {
       event.preventDefault(); changeHistory(event.key.toLowerCase() === 'y' || event.shiftKey); return;
@@ -477,7 +489,7 @@
     if (x < -465 || x > 340 || z < -340 || z > 365) return true;
     if (groundHeight(x, z) < .35 && landmarks.floor(x,z)===null) return true;
     if (viaduct.collides(x,z,feet)) return true;
-    return colliders.some(c => {
+    return (collisionBuckets.get(Math.floor(x/16)+','+Math.floor(z/16))||[]).some(c => {
       const dx = x - c.x, dz = z - c.z, cosine = Math.cos(c.rotation), sine = Math.sin(c.rotation);
       return Math.abs(cosine * dx - sine * dz) < c.w + .45 && Math.abs(sine * dx + cosine * dz) < c.d + .45;
     });
@@ -613,7 +625,9 @@
     requestAnimationFrame(frame);
     const dt = Math.min((now - previous) / 1000, .05); previous = now;
     if (sculpting && now - lastSculpt >= 50) { applySculpt(Math.min((now - lastSculpt) / 1000, .1)); lastSculpt = now; }
-    if (mode === 'walk') {
+    if(gameplay && gameplay.active) {
+      gameplay.update(dt);
+    } else if (mode === 'walk') {
       const forward = Number(keys.has('w') || keys.has('arrowup')) - Number(keys.has('s') || keys.has('arrowdown'));
       const side = Number(keys.has('d') || keys.has('arrowright')) - Number(keys.has('a') || keys.has('arrowleft'));
       const speed = (keys.has('shift') ? 12 : 5) * dt / (Math.hypot(forward, side) || 1);
@@ -708,5 +722,76 @@
     report.textContent = JSON.stringify({ passed: checks.every(c => c.passed), checks }, null, 2);
     document.body.append(report);
   }
-  setView('world'); requestAnimationFrame(frame);
+  // Der Weltadapter hält Spielregeln unabhängig von späteren Burg-/Kirchenmodellen.
+  const shotMeshes=[];
+  scene.traverse(child=>{ if(child.isMesh && child!==lake && child!==forest && child!==undergrowth) shotMeshes.push(child); });
+  const shotRay=new THREE.Raycaster();
+  function gameFloor(x,z,previousFeet) {
+    const y=surfaceHeight(x,z,previousFeet);
+    return Math.abs(x-castle.x)<31 && Math.abs(z-castle.z)<26.5?Math.max(y,castleFloor.position.y+castleFloor.scale.y/2):y;
+  }
+  function clearWalk(a,b) {
+    const distance=Math.hypot(b.x-a.x,b.z-a.z),steps=Math.ceil(distance/.8); let y=a.y;
+    for(let i=1;i<=steps;i++) {
+      const x=a.x+(b.x-a.x)*i/steps,z=a.z+(b.z-a.z)*i/steps,next=gameFloor(x,z,y);
+      if(blocked(x,z,next) || Math.abs(next-y)>1.6) return false; y=next;
+    }
+    return true;
+  }
+  // Gegner folgen bei Hindernissen den vorhandenen Straßen statt durch Häuser zu laufen.
+  const paths=new Map();
+  function nearestNode(p) {
+    return roadNetwork.nodes.map((n,i)=>({n,i,d:Math.hypot(n.x-p.x,n.z-p.z)})).sort((a,b)=>a.d-b.d).slice(0,12).find(({n,d})=>d<30 && clearWalk(p,n))?.i;
+  }
+  function chaseTarget(m,p) {
+    if(clearWalk(m,p)) { paths.delete(m.id); return [p.x-m.x,p.z-m.z]; }
+    let path=paths.get(m.id);
+    if(!path || Math.hypot(path.target.x-p.x,path.target.z-p.z)>12 || !path.nodes.length) {
+      const first=nearestNode(m),last=nearestNode(p);
+      if(first===undefined || last===undefined) return [p.x-m.x,p.z-m.z];
+      const queue=[first],previous=new Map([[first,null]]);
+      for(let i=0;i<queue.length && !previous.has(last);i++) for(const [next] of roadNetwork.nodes[queue[i]].links) if(!previous.has(next)) { previous.set(next,queue[i]); queue.push(next); }
+      const nodes=[];
+      if(previous.has(last)) for(let i=last;i!==null;i=previous.get(i)) nodes.unshift(roadNetwork.nodes[i]);
+      path={nodes,target:{x:p.x,z:p.z}}; paths.set(m.id,path);
+    }
+    while(path.nodes.length && Math.hypot(path.nodes[0].x-m.x,path.nodes[0].z-m.z)<1) path.nodes.shift();
+    const next=path.nodes[0]||p; return [next.x-m.x,next.z-m.z];
+  }
+  const world={
+    spawn:[90,45],floor:gameFloor,blocked,chaseTarget,resetNavigation:()=>paths.clear(),
+    objectives:[{id:'church',name:'Kirche',x:90,z:30},{id:'mine',name:'Westmine',x:-349,z:-27},{id:'castle',name:'Burg',x:-251,z:-100}],
+    bell:{x:90,z:27},
+    rayDistance(origin,direction,maxRange) {
+      shotRay.set(new THREE.Vector3(origin.x,origin.y,origin.z),new THREE.Vector3(direction.x,direction.y,direction.z).normalize());
+      shotRay.near=.05; shotRay.far=maxRange;
+      return shotRay.intersectObjects(shotMeshes,false)[0]?.distance ?? maxRange;
+    },
+    spawnEnemy(p,random) {
+      const candidates=roadNetwork.nodes.filter(n=>{
+        const d=Math.hypot(n.x-p.x,n.z-p.z); return d>30 && d<58 && Math.abs(n.y-p.y)<16 && !blocked(n.x,n.z,gameFloor(n.x,n.z,n.y));
+      });
+      if(candidates.length) { const n=candidates[Math.floor(random()*candidates.length)]; return [n.x,n.z]; }
+      for(let i=0;i<40;i++) {
+        const angle=random()*Math.PI*2,radius=30+random()*28,x=p.x+Math.sin(angle)*radius,z=p.z+Math.cos(angle)*radius,y=gameFloor(x,z,p.y);
+        if(!blocked(x,z,y) && Math.abs(y-p.y)<12 && clearWalk(p,{x,y,z})) return [x,z];
+      }
+      return null;
+    }
+  };
+  world.checks=[{name:'Dorfstart frei',passed:!blocked(90,45,gameFloor(90,45))},...world.objectives.map(o=>({name:o.name+'-Siegel erreichbar',passed:!blocked(o.x,o.z,gameFloor(o.x,o.z))})),{name:'Glockenplatz frei',passed:!blocked(world.bell.x,world.bell.z,gameFloor(world.bell.x,world.bell.z))}];
+  gameplay=NachtjagdPlay.create({THREE,scene,camera,canvas,world,onExit:()=>setView('village')});
+  if(new URLSearchParams(location.search).has('test')) {
+    for(const [name,start,end] of [['Spielfigur steigt die Dorftreppe hinauf',[120,57],[120,87]],['Spielfigur überquert das Viadukt',viaduct.b,viaduct.a]]) {
+      const probe=NachtjagdGame.create({world:{...world,spawn:start,spawnEnemy:()=>null}}); probe.start();
+      let p=probe.snapshot().player;
+      for(let i=0;i<2500 && Math.hypot(p.x-end[0],p.z-end[1])>.5;i++) { probe.setLook(Math.atan2(end[0]-p.x,end[1]-p.z),0); p=probe.step(.1,{forward:1}).player; }
+      world.checks.push({name,passed:Math.hypot(p.x-end[0],p.z-end[1])<.5});
+    }
+    world.checks.push({name:'Kirchenmauer hält Schüsse auf',passed:world.rayDistance({x:91,y:gameFloor(91,30)+2,z:30},{x:0,y:0,z:-1},30)<10});
+    const report=document.createElement('pre'); report.id='game-tests'; report.hidden=true; report.textContent=JSON.stringify({checks:world.checks}); document.body.append(report);
+  }
+  setView('world');
+  if(new URLSearchParams(location.search).get('play')==='1') gameplay.start();
+  requestAnimationFrame(frame);
 })();

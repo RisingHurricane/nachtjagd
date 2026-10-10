@@ -9,9 +9,17 @@
 <style>
 #editor{position:fixed;z-index:3;top:120px;left:16px;width:270px;max-height:calc(100vh - 225px);overflow:auto;background:#fafbf5f5;border:1px solid #bec8c5;border-radius:8px;padding:14px}#editor[hidden]{display:none}#editor h2{font-size:16px;margin:0 0 10px}#editor .tools{display:grid;grid-template-columns:1fr 1fr;gap:5px}#editor label{display:block;margin:14px 0 5px;font-size:12px}#editor input[type=range]{width:100%;accent-color:#284d48}#editor .actions{display:flex;gap:5px;margin-top:10px}#editor .actions button{flex:1;padding:7px;font-size:12px}#editor p{line-height:1.5;margin-top:10px}#edit-status{font-size:12px;line-height:1.5;margin-top:12px;color:#284d48}button:disabled{opacity:.4;cursor:default}#editor input[type=checkbox]{accent-color:#284d48}@media(max-width:650px){#editor{top:115px;left:10px;width:240px;max-height:calc(100vh - 240px)}}
 </style>
-</head>
+<style>
+[hidden]{display:none!important}.playing header,.playing nav,.playing #legend,.playing #help,.playing #editor{display:none!important}
+#game-hud{position:fixed;inset:0;pointer-events:none;z-index:7;color:#f8f7ed;text-shadow:0 1px 3px #000;font-size:14px}
+#game-score,#game-objective,#game-hint,#game-feed{position:absolute;padding:10px 14px;border-radius:6px;background:#152a31d9;max-width:90vw}
+#game-score{top:16px;left:16px}#game-objective{top:62px;left:16px}#game-hint{bottom:18px;left:50%;transform:translateX(-50%);text-align:center;width:max-content}#game-feed{top:120px;left:50%;transform:translateX(-50%)}
+#game-crosshair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:30px;line-height:1}#game-hud.hit #game-crosshair{color:#ffd66f}#game-hud.hurt{box-shadow:inset 0 0 100px #ae2424aa}
+#game-pause{position:absolute;right:16px;top:16px;pointer-events:auto}
+#game-panel{position:fixed;z-index:9;left:50%;top:50%;transform:translate(-50%,-50%);background:#fafbf5f5;border-radius:10px;padding:28px;width:min(420px,94vw);text-align:center}#game-panel p{margin:12px 0;line-height:1.6}#game-panel button{margin:6px}#game-panel h2{margin:0}
+</style></head>
 <body>
-<header><h1>Nachtjagd · Bergdorf</h1><p>Entwurf 11 · Skizzenwelt mit Viadukt</p><div id="status" role="status">Ansicht wird geladen …</div></header>
+<header><h1>Nachtjagd · Bergdorf</h1><p>Entwurf 12 · Skizzenwelt mit Viadukt</p><div id="status" role="status">Ansicht wird geladen …</div><button id="play-start" style="margin-top:10px">Spiel starten</button></header>
 <div id="legend"><span class="houses"></span>Gebäude / Würfel<br><span class="forest"></span>Wald / Kegel<br><span class="paths"></span>Wege und Plätze<br><span class="castle"></span>Burg / Baukörper</div>
 <nav aria-label="Ansichten"><button data-view="village" aria-pressed="false">Dorf</button><button data-view="world" aria-pressed="true">Hochebene</button><button data-view="map" aria-pressed="false">Draufsicht</button><button data-view="castle" aria-pressed="false">Burg</button><button data-view="viaduct" aria-pressed="false">Viadukt</button><button data-view="bridgewalk" aria-pressed="false">Brücke betreten</button><button data-view="forest" aria-pressed="false">Waldweg</button><button data-view="stairswalk" aria-pressed="false">Dorftreppe</button><button data-view="walk" aria-pressed="false">Durchlaufen</button><select id="place-view" aria-label="Neue Orte"><option value="" disabled selected>Neue Orte …</option><option value="wind">Windrad</option><option value="stones">Steinkreis</option><option value="ruin">Klosterruine</option><option value="lakeside">Seehäuser / Insel</option><option value="mines">Westmine</option><option value="northmine">Nordmine</option></select><button id="edit-toggle" aria-pressed="false">Berge formen</button></nav>
 <aside id="editor" aria-label="Gelände modellieren" hidden>
@@ -26,5 +34,7 @@
 <p>Ebnen übernimmt die Höhe beim ersten Klick. Änderungen bleiben in diesem Browser. Mit „Datei speichern“ kannst du mir deinen Entwurf geben.</p>
 </aside>
 <div id="help">Ziehen: drehen · Mausrad: Abstand · Rechte Maustaste: verschieben</div><div id="error" hidden></div>
-<script src="./vendor/three.min.js"></script><script src="./terrain-editor.js?v=11"></script><script src="./world-layout.js?v=11"></script><script src="./viaduct.js?v=11"></script><script src="./road-layout.js?v=11"></script><script src="./road-profile.js?v=11"></script><script src="./stairs.js?v=11"></script><script src="./landmarks.js?v=11"></script><script src="./blockout.js?v=11"></script>
+<section id="game-hud" aria-label="Spielstatus" hidden><div id="game-score"></div><div id="game-objective"></div><div id="game-crosshair" aria-hidden="true">+</div><div id="game-feed" role="status"></div><div id="game-hint"></div><button id="game-pause">Pause</button></section>
+<section id="game-panel" aria-label="Spielpause" hidden><h2 id="game-title">Nachtjagd</h2><p id="game-message"></p><p>Solo-Spieltest · drei Mondsiegel finden, Glocke läuten und bis zum Morgengrauen durchhalten.</p><button id="game-action">Weiterspielen</button><button id="game-exit">Zur Layoutansicht</button></section>
+<script src="./vendor/three.min.js"></script><script src="./terrain-editor.js?v=12"></script><script src="./world-layout.js?v=12"></script><script src="./viaduct.js?v=12"></script><script src="./road-layout.js?v=12"></script><script src="./road-profile.js?v=12"></script><script src="./stairs.js?v=12"></script><script src="./landmarks.js?v=12"></script><script src="./gameplay-core.js?v=12"></script><script src="./gameplay.js?v=12"></script><script src="./blockout.js?v=12"></script>
 </body></html>

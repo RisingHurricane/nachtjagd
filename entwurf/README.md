@@ -1,6 +1,6 @@
 # Bergdorf nach Nutzerskizze
 
-Vorschau Entwurf 11: https://risinghurricane.github.io/nachtjagd/entwurf/?v=11
+Vorschau Entwurf 12: https://risinghurricane.github.io/nachtjagd/entwurf/?v=12
 
 Norden ist -z: Burg westlich auf freiem Felssporn, großer Südwestsee, ummauertes Hangdorf rechts der Mitte. Ein innerer Ring weicher Mittelberge (103–208 m) und eine äußere Reihe schroffer Hochgipfel (235–436 m) umschließen die Welt. Unebene Vorberge füllen die Lücke hinter dem Dorf. Beide Bergtypen variieren reproduzierbar in Höhe, Breite, Tiefe, Ausrichtung und Abständen. Gewellte Bergrücken füllen die tiefen Spalten zwischen den Bergreihen. 140 Hangbäume und 140 Bäume auf den Sätteln bilden kleine Gruppen; drei gezielte Lichtungen gleichen sie aus. world-layout.js enthält Orte, Grundhöhen, See, Wald und Häuser; blockout.js erzeugt die Szene. Kein Build-Schritt.
 
@@ -8,7 +8,7 @@ Norden ist -z: Burg westlich auf freiem Felssporn, großer Südwestsee, ummauert
 
 road-layout.js beschreibt 18 Straßen/Gassen einschließlich der beiden Treppen. road-profile.js verbindet Kreuzungen und begrenzt Längsneigungen auf 18 %. Fahrbahnen sind quer waagerecht; der Boden erhält weiche Einschnitte und Aufschüttungen. stairs.js erzeugt waagerechte Trittflächen mit höchstens 20 cm Stufenhöhe; dieselben Tritte setzen die Augenhöhe. Das siebenbogige Viadukt bleibt rund 135 m lang und begehbar; Brüstungen/Pfeiler blockieren, offene Bögen lassen sich unten durchqueren.
 
-Ansichten: Dorf, Hochebene, Draufsicht, Burg, Viadukt und Rundgänge auf Brücke, Waldweg, Dorftreppe und Dorfplatz. Ziehen dreht, Mausrad zoomt, rechts ziehen verschiebt. Rundgang: WASD/Pfeiltasten, Ziehen zum Umsehen, Shift schneller, Esc zurück. Keine Kämpfe oder Koop-Verbindung in der Layoutstudie.
+Ansichten: Dorf, Hochebene, Draufsicht, Burg, Viadukt und Rundgänge auf Brücke, Waldweg, Dorftreppe und Dorfplatz. Ziehen dreht, Mausrad zoomt, rechts ziehen verschiebt. Rundgang: WASD/Pfeiltasten, Ziehen zum Umsehen, Shift schneller, Esc zurück. Spiel starten öffnet einen ersten Solo-Spieltest. Online-Koop ist noch nicht verbunden.
 
 ## Neue Orte als grobe Baukörper
 
@@ -22,7 +22,7 @@ Das Gelände nutzt 321×281 Punkte bei 5 m Rasterweite, Grundform bergdorf-seein
 
 69 automatisierte Tests: 35 bestehende Server/Client-, neun Editor-, vierzehn Weltlayout-, fünf Straßen-, vier Viadukt- und zwei Treppen-Tests. 22 Browserprüfungen unter ?test=terrain prüfen unter anderem Querneigung, freie Wegverbindungen, Treppen, Gebäudesockel und Geländeanschlüsse. Treppenbewegung und Editor mit Undo/Redo und Wiederherstellung nach Reload sichtbar geprüft.
 
-Die sichtbare Kennung Entwurf 11 und Skriptadressen mit ?v=11 verhindern gemischte alte/neue Dateien. Bei Veröffentlichung Kennung, Direktlink und Skriptzusätze gemeinsam ändern; bei inkompatiblen Grundformänderungen zusätzlich Basis und Speicherschlüssel erhöhen.
+Die sichtbare Kennung Entwurf 12 und Skriptadressen mit ?v=12 verhindern gemischte alte/neue Dateien. Bei Veröffentlichung Kennung, Direktlink und Skriptzusätze gemeinsam ändern; bei inkompatiblen Grundformänderungen zusätzlich Basis und Speicherschlüssel erhöhen.
 
 ## Spielbarer Vergleich
 
@@ -40,3 +40,9 @@ Der öffentliche Import des neuesten Altay-Frontends enthält seinen privaten Ko
 - Weitere einzelne Bauwerke und Monster bleiben eigene Referenzen.
 
 Der Blockout legt die räumliche Verteilung fest. Endgültige Hausmodelle, Waldgrafik, Burgdetails und Schlossräume folgen nach dem Layoutfeedback.
+
+## Erster Solo-Spieltest
+
+Spiel starten verbindet die neue Welt mit einem ausgelagerten Teil der neuesten Spiellogik: Bewegung, Revolver, Nachladen, Wellen mit drei Boden-Gegnerarten, Leben/Tod, Mondsiegel bei Kirche, Westmine und Burg. E nimmt ein Siegel auf; die ersten zwei gesammelten Siegel schalten weitere Waffen frei. Danach die Glocke vor der Kirche läuten und 100 Sekunden überleben. WASD, Shift laufen, Maus umsehen, Klick schießen, rechts zielen, R nachladen, 1–3 Waffen, Esc Pause. Falls die Maus nicht eingefangen werden kann: zum Umsehen ziehen, zum Schießen kurz klicken. Pause bietet Neustart beziehungsweise Rückkehr zum Layout. Gegner/Objekte bleiben grobe Platzhalter.
+
+gameplay-core.js enthält Spielzustand und Regeln ohne Three.js/DOM; gameplay.js verbindet Darstellung/Eingabe. Es sind 78 Node-Tests vorhanden (davon neun Spielkernprüfungen). ?test=terrain ergänzt acht Weltadapterprüfungen im ausgeblendeten Bericht #game-tests. Spezialgegner, Händler, Relikte, Wetter, Fahrzeuge, echte Minentunnel und Online-Koop sind noch nicht übertragen. Originalimport und Vergleich bleiben erhalten.
