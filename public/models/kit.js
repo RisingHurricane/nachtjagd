@@ -264,6 +264,6 @@ export function createKit(THREE, group, opt) {
 
   return {
     M, colliders, windows, add, box, roundTower, pyramid, gable, roofGeo, dormer, windowRow,
-    arcadePanel, arcadeSeg, wallSeg, frame, col, rock, oct, finish,
+    arcadePanel, arcadeSeg, wallSeg, frame, col, rock, oct, finish, mat, toWorld,
   };
 }

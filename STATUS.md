@@ -38,6 +38,10 @@ Vertrag: `buildX(THREE, options)` gibt eine `THREE.Group` zurück, 1 Einheit = 1
 4. Mehrspieler: `net.js` (PeerJS, Raumcode) ist mit dem Weltentwurf noch nicht verbunden. Alle Teilnehmer brauchen dieselbe Weltversion.
 5. Vor dem Push `npm test` ausführen, eigenen Branch pushen, nicht `main` und nicht `gh-pages` anfassen, danach `STATUS.md` und den Übergabe-Log ergänzen.
 
+### Burg-Innenräume (Claude, 11.10.)
+
+`public/models/castle-interior.js` (`buildCastleInterior(THREE)`) liefert fünf Innenräume im selben Koordinatensystem wie `castle.js` (gleiche Position und Drehung verwenden): Rittersaal, Bibliothek, Turmtreppe, Turmzimmer, Kapelle. `userData.rooms` enthält je Raum `id`, `label`, `eye`, `target`, `cutY`, `userData.lights` Lichtvorschläge je Raum. Grenzen: Die Außenhülle hat noch keine Türöffnungen, die Innenräume haben keine Collider. Ein interaktiver Betrachter mit Schnittebene liegt als Artifact vor (Quelle im Arbeitsverzeichnis des Agenten, nicht im Repository). Für andere Werkzeuge ließe sich ein GLB-Export ergänzen.
+
 ## Nächste Schritte
 
 1. Aufgaben aus `PLAN.md` der Reihe nach umsetzen, mit Haiku, je Sitzung zwei bis drei Aufgaben. Als Nächstes Aufgabe 6 (Nachtstimmung, Schnee, Taschenlampe, Fotos).
@@ -70,3 +74,4 @@ Vertrag: `buildX(THREE, options)` gibt eine `THREE.Group` zurück, 1 Einheit = 1
 - 2026-10-11, Claude Code (Branch `claude/burg`): Hauptturm schlank und rund 80 m hoch (Höhe des Modells 85 m), alle Dächer steiler (Satteldächer 10 bis 17 m Anstieg, Kegel 11 bis 26 m), Spitzbogentor, Spitzbogenfenster, Bogengang links vom Tor (`arcadeSeg`, `arcadePanel`). Vorschau: neue Ansichten `arcade` und `tower`, Kamera skaliert mit der Modellhöhe.
 - 2026-10-11, Claude Code (Branch `claude/burg`): Baukasten `kit.js` aus `castle.js` herausgelöst (Geometrie unverändert), zweite Burgvariante `castle2.js` (anderer Grundriss, Fachwerkflügel, Torturm mit Pyramidendach), Tests für beide Burgen (44 Tests grün), Übergabe an Codex (siehe Abschnitt oben). Footprint von `castle.js` auf 52 x 49 m korrigiert.
 - 2026-10-11, Claude Code (Branch `claude/burg`): Dächer beider Burgen mit flacherem Rand am Traufrand (etwa 17 Grad, danach die steile Hauptneigung): `kit.gable` mit Knickprofil, neue Funktion `kit.roofGeo` für Kegel- und Pyramidendächer (Lathe-Profil), Dachgauben tiefer gesetzt. Besitzer bevorzugt die erste Burg (`castle.js`), `castle2.js` bleibt als Alternative.
+- 2026-10-11, Claude Code (Branch `claude/burg`): Innenräume der Burg (`castle-interior.js`, 5 Räume, 10 Lichter), Test ergänzt (45 Tests grün), Artifact-Betrachter mit Schnittebene veröffentlicht.

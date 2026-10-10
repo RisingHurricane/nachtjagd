@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { buildCastle } from '../public/models/castle.js';
 import { buildCastle2 } from '../public/models/castle2.js';
+import { buildCastleInterior } from '../public/models/castle-interior.js';
 
 const variants = [
   ['castle', buildCastle],
@@ -64,4 +65,21 @@ test('Die beiden Burgen unterscheiden sich im Grundriss', () => {
   const b = buildCastle2(THREE).userData;
   assert.notDeepEqual(a.colliders, b.colliders);
   assert.notEqual(a.gate.x, b.gate.x);
+});
+
+test('Burginnenraum liefert Räume mit Kamerapunkten und Lichtern', () => {
+  const g = buildCastleInterior(THREE);
+  assert.ok(g instanceof THREE.Group);
+  assert.equal(g.name, 'castleInterior');
+  const { rooms, lights } = g.userData;
+  assert.ok(rooms.length >= 5);
+  for (const r of rooms) {
+    assert.ok(r.id && r.label);
+    assert.equal(r.eye.length, 3);
+    assert.equal(r.target.length, 3);
+    assert.ok(Number.isFinite(r.cutY));
+    assert.ok(lights.some((l) => l.room === r.id), `Licht für ${r.id}`);
+  }
+  const box = new THREE.Box3().setFromObject(g);
+  assert.ok(box.min.y >= -1 && box.max.y < 70);
 });
