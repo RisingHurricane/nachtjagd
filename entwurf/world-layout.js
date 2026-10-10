@@ -4,13 +4,16 @@
 globalThis.NachtjagdLayout = (() => {
   const village = { x: 90, z: 45 };
   const castle = { x: -265, z: -100, height: 102 };
-  const lake = [[-353,267],[-344,193],[-334,115],[-317,69],[-293,82],[-268,116],[-213,147],[-149,170],[-81,194],[-12,218],[18,242],[-24,264],[-113,281],[-237,289],[-321,284]];
+  const lake = [[-418,312],[-405,242],[-375,168],[-334,115],[-317,69],[-293,82],[-268,116],[-213,147],[-149,170],[-81,194],[-12,218],[18,242],[-24,280],[-113,325],[-237,348],[-350,346],[-410,332]];
   const forestBands = [
     [[-130,-145],[-60,-165],[25,-142],[125,-102],[211,-34],[255,62]],
     [[-115,-134],[-128,-60],[-100,5],[-142,65],[-65,57],[0,70]],
     [[255,40],[247,131],[201,196],[142,178],[75,173],[22,150]],
-    [[227,170],[255,225],[175,222],[112,201]]
+    [[227,170],[255,225],[175,222],[112,201]],
+    [[-295,-15],[-250,25],[-195,65],[-120,85]],
+    [[55,235],[130,275],[225,280],[295,200]]
   ];
+  const treeGroups = [[-345,-170,24],[-320,20,23],[-235,75,28],[-35,105,24],[15,-65,22],[70,240,30],[210,315,27],[300,-135,30],[320,20,23]];
   const houses = [];
   // Vier kurze Gassen mit verschieden großen, noch bewusst einfachen Baukörpern.
   for (const z of [-43,-23,24,44]) for (const x of [-48,-29,-10,14,36,57]) {
@@ -42,7 +45,12 @@ globalThis.NachtjagdLayout = (() => {
   function forestWeight(x, z) {
     let distance = Infinity;
     for (const band of forestBands) for (let i = 1; i < band.length; i++) distance = Math.min(distance, segmentDistance(x, z, band[i - 1], band[i]));
-    return 1 - smooth(28, 57, distance);
+    return 1 - smooth(35, 68, distance);
+  }
+  function treeWeight(x,z) {
+    let weight=forestWeight(x,z);
+    for(const [cx,cz,r] of treeGroups) weight=Math.max(weight,.8*(1-smooth(r*.55,r,Math.hypot(x-cx,z-cz))));
+    return weight;
   }
   function naturalHeight(x, z) {
     let h = 24 - z * .018 + 18 * Math.sin(x / 95) * Math.cos(z / 73) + 10 * Math.sin((x + z) / 47);
@@ -77,5 +85,5 @@ globalThis.NachtjagdLayout = (() => {
     // Breiter, sanfter Ufersaum; die Hügel steigen erst hinter dem Strand an.
     return shore < 0 ? Math.max(-7, shore * .25) : shore * .07 * (1-smooth(30,130,shore)) + Math.max(3,h) * smooth(30,130,shore);
   }
-  return { village, castle, lake, houses, forestBands, smooth, segmentDistance, lakeDistance, forestWeight, naturalHeight, basis: 'bergdorf-gebirgsring-2026-10-10-v2' };
+  return { village, castle, lake, houses, forestBands, treeGroups, smooth, segmentDistance, lakeDistance, forestWeight, treeWeight, naturalHeight, basis: 'bergdorf-strassen-wald-2026-10-10-v3' };
 })();
