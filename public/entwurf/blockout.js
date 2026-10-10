@@ -36,7 +36,8 @@
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1), coneGeometry = new THREE.ConeGeometry(1, 1, 7);
   const edgeGeometry = new THREE.EdgesGeometry(boxGeometry);
   const edgeMaterial = new THREE.LineBasicMaterial({ color: '#526266', transparent: true, opacity: .3 });
-  const colliders = [], roadSegments = [], anchors = [], roadMeshes = [], labelAnchors = [], treePlacements = [];
+  const colliders = [], anchors = [], roadMeshes = [], labelAnchors = [], treePlacements = [], coverPlacements=[];
+  const roadVertices=[],roadIndices=[],roadRanges=[];
   const labels = new THREE.Group();
   scene.add(labels);
   const layout = NachtjagdLayout;
@@ -53,7 +54,7 @@
     { x: castle.x, z: castle.z, w: 34, d: 29, y: castle.height, blend: 9 }
   );
   pads.push(...pads.splice(0, houses.length));
-  function terrainHeight(x, z) {
+  function unpavedHeight(x, z) {
     let h = naturalHeight(x, z);
     for (const pad of pads) {
       const delta = Math.max(Math.abs(x - pad.x) - pad.w, Math.abs(z - pad.z) - pad.d, 0);
@@ -61,17 +62,24 @@
     }
     return h;
   }
+  const { bridgeSpec,castleRoute,shoreRoute,routes,anchors:roadAnchors }=NachtjagdRoadLayout({ height:unpavedHeight,castle });
+  const roadNetwork=NachtjagdRoads.create({ routes,height:unpavedHeight,maxGrade:.18,anchors:roadAnchors });
   const baseHeights = new Float32Array(221 * 201);
-  for (let row = 0; row <= 200; row++) for (let col = 0; col <= 220; col++) baseHeights[row * 221 + col] = terrainHeight(col * 5 - 640, row * 5 - 565);
+  for (let row = 0; row <= 200; row++) for (let col = 0; col <= 220; col++) baseHeights[row * 221 + col] = unpavedHeight(col * 5 - 640, row * 5 - 565);
   const terrainModel = NachtjagdTerrain.create({ width: 221, depth: 201, step: 5, originX: -640, originZ: -565, base: baseHeights, basis: layout.basis });
-  const storageKey = 'nachtjagd-bergdorf-gebirgsring-v2';
+  const storageKey = 'nachtjagd-bergdorf-strassen-wald-v3';
   let restored = false, storageWarning = '';
   try { const saved = localStorage.getItem(storageKey); if (saved) { terrainModel.load(saved, false); restored = true; } }
   catch { storageWarning = 'Browserstand konnte nicht geladen werden. Du kannst eine Geländedatei laden.'; }
+  const renderedHeights = new Float32Array(baseHeights.length);
+  function updateHeightGrid() {
+    for (let i=0;i<baseHeights.length;i++) renderedHeights[i]=roadNetwork.grade(i%221*5-640,Math.floor(i/221)*5-565,baseHeights[i]+terrainModel.offsets[i]);
+  }
+  updateHeightGrid();
   function vertexHeight(col, row) {
     col = THREE.MathUtils.clamp(col, 0, 220); row = THREE.MathUtils.clamp(row, 0, 200);
     const index = row * 221 + col;
-    return baseHeights[index] + terrainModel.offsets[index];
+    return renderedHeights[index];
   }
   // Dieselben Dreiecke wie im sichtbaren Boden bestimmen Wege und Augenhöhe.
   function groundHeight(x, z) {
@@ -80,8 +88,25 @@
     const a = vertexHeight(ix, iz), b = vertexHeight(ix + 1, iz), c = vertexHeight(ix, iz + 1), d = vertexHeight(ix + 1, iz + 1);
     return tx + tz <= 1 ? a + (b - a) * tx + (c - a) * tz : d + (c - d) * (1 - tx) + (b - d) * (1 - tz);
   }
-  const viaduct = NachtjagdViaduct.create({ a: [-210,-80], b: [-120,-180], width: 8, arches: 7, groundHeight });
-  const surfaceHeight = (x,z,previousFeet) => viaduct.floor(x,z,previousFeet);
+  const bridgeAnchors=[bridgeSpec.a,bridgeSpec.b].map(point=>roadNetwork.nodes.find(n=>Math.hypot(n.x-point[0],n.z-point[1])<.001));
+  const viaduct = NachtjagdViaduct.create({ ...bridgeSpec,groundHeight:(x,z)=>{
+    const anchor=bridgeAnchors.find(n=>Math.hypot(n.x-x,n.z-z)<.001);
+    return anchor?anchor.y:groundHeight(x,z);
+  } });
+  function streetHeight(x,z) {
+    let best=Infinity,y=null;
+    for(const segment of roadNetwork.nearby(x,z)) {
+      if(segment.bridge) continue;
+      const p=roadNetwork.project(segment,x,z);
+      if(p.distance<=segment.width/2 && p.distance<best) { best=p.distance; y=p.y+.4; }
+    }
+    return y;
+  }
+  function surfaceHeight(x,z,previousFeet) {
+    const bridge=viaduct.floor(x,z,previousFeet),street=streetHeight(x,z);
+    if(viaduct.contains(x,z) && Math.abs(bridge-viaduct.top(viaduct.coordinates(x,z).s))<.5) return bridge;
+    return street===null?bridge:street;
+  }
   function box(x, z, w, d, h, material = 'house', rotation = 0, floor, solid = true) {
     const anchor = { x, z, w, d, h, rotation, automatic: floor === undefined, offset: floor === undefined ? 0 : floor - groundHeight(x, z) };
     if (floor === undefined) {
@@ -113,9 +138,10 @@
   const positions = groundGeometry.attributes.position;
   const terrainColors = [];
   for (let i = 0; i < positions.count; i++) {
-    const height = baseHeights[i] + terrainModel.offsets[i];
+    const height = vertexHeight(i%221,Math.floor(i/221));
     positions.setY(i, height);
     const color = new THREE.Color('#9eaf92').convertSRGBToLinear();
+    color.lerp(new THREE.Color('#627c55').convertSRGBToLinear(), layout.treeWeight(positions.getX(i),positions.getZ(i))*.34);
     color.lerp(new THREE.Color('#8c9da4').convertSRGBToLinear(), smooth(60, 115, height));
     color.lerp(new THREE.Color('#e7ebe7').convertSRGBToLinear(), smooth(165, 240, height));
     terrainColors.push(color.r, color.g, color.b);
@@ -134,9 +160,9 @@
   }
   const grid = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(gridPositions, 3)), new THREE.LineBasicMaterial({ color: '#8eaaa1', transparent: true, opacity: .27 }));
   scene.add(grid);
-  function road(points, width = 6) {
-    for (let i = 1; i < points.length; i++) {
-      const a = points[i - 1], b = points[i], dx = b[0] - a[0], dz = b[1] - a[1];
+  function road(segment) {
+      const an=roadNetwork.nodes[segment.a],bn=roadNetwork.nodes[segment.b];
+      const a=[an.x,an.z],b=[bn.x,bn.z],width=segment.width,dx=b[0]-a[0],dz=b[1]-a[1];
       const length = Math.hypot(dx, dz), count = Math.ceil(length * 2), across = Math.ceil(width * 2);
       const vertices = [], indices = [];
       for (let j = 0; j <= count; j++) {
@@ -144,20 +170,18 @@
         for (let k = 0; k <= across; k++) {
           const offset = width * (k / across - .5);
           const px = x + dz / length * offset, pz = z - dx / length * offset;
-          vertices.push(px, surfaceHeight(px, pz) + .4, pz);
+          const height=segment.bridge?viaduct.top(viaduct.coordinates(x,z).s)-.4:an.y+(bn.y-an.y)*j/count;
+          vertices.push(px,height+.4,pz);
           if (j < count && k < across) {
             const index = j * (across + 1) + k, next = index + across + 1;
             indices.push(index, next, index + 1, index + 1, next, next + 1);
           }
         }
       }
-      const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); geometry.setIndex(indices); geometry.computeVertexNormals();
-      const mesh = new THREE.Mesh(geometry, materials.path);
-      mesh.receiveShadow = true; scene.add(mesh);
-      roadMeshes.push(mesh);
-      roadSegments.push({ a, b, width });
-    }
+      const start=roadVertices.length/3;
+      for(const value of vertices) roadVertices.push(value);
+      for(const index of indices) roadIndices.push(index+start);
+      roadRanges.push({ segment,start,count:vertices.length/3,across:across+1 });
   }
   function label(text, x, z, height = 4, size = 13) {
     const canvas = document.createElement('canvas');
@@ -225,15 +249,10 @@
     }
   }
   refreshViaduct();
-  const castleRoute = [[90,45],[-5,45],[-50,30],[-65,-20],[-55,-95],[-65,-145],viaduct.point(viaduct.length+10),viaduct.b,viaduct.a,viaduct.point(-10),[-225,-100],[-236,-100],[-248,-100]];
-  const shoreRoute = [[-5,45],[-25,70],[-38,105],[-65,135],[-90,162],[-110,170]];
-  road(castleRoute, 6);
-  road(shoreRoute, 4);
-  road([[90,45],[185,45],[221,60],[245,99]], 7);
-  road([[90,45],[90,25]], 5);
-  road([[90,45],[115,45],[115,112],[110,143],[140,174],[200,185]], 5);
-  road([[10,33],[60,33],[90,25],[145,33],[178,33]], 3.5);
-  road([[10,57],[60,57],[115,57],[178,57]], 3.5);
+  roadNetwork.segments.forEach(road);
+  const roadGeometry=new THREE.BufferGeometry();
+  roadGeometry.setAttribute('position',new THREE.Float32BufferAttribute(roadVertices,3)); roadGeometry.setIndex(roadIndices); roadGeometry.computeVertexNormals();
+  const roadMesh=new THREE.Mesh(roadGeometry,materials.path); roadMesh.receiveShadow=true; scene.add(roadMesh); roadMeshes.push(roadMesh);
   box(82, 41, 2.5, 2.5, 1.2, 'castle');
   box(91, 6, 13, 23, 13, 'landmark'); box(91, 21, 7, 7, 25, 'landmark');
   // Kurze Mauerstücke passen sich dem Hang an; drei Öffnungen bleiben als Tore frei.
@@ -273,25 +292,47 @@
     const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz)));
     return Math.hypot(x - a[0] - t * dx, z - a[1] - t * dz);
   }
-  const forest = new THREE.InstancedMesh(coneGeometry, materials.forest, 2400), dummy = new THREE.Object3D();
-  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 6), materials.landmark, 2400);
+  const forest = new THREE.InstancedMesh(coneGeometry, materials.forest, 4800), dummy = new THREE.Object3D();
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 6), materials.landmark, 4800);
+  const buildingColliders = colliders.slice(), treeBuckets = new Map();
+  function nearTree(x,z) {
+    const bx=Math.floor(x/4),bz=Math.floor(z/4);
+    for(let a=bx-1;a<=bx+1;a++) for(let b=bz-1;b<=bz+1;b++) for(const t of treeBuckets.get(a+','+b)||[]) if(Math.hypot(x-t.x,z-t.z)<3.15) return true;
+    return false;
+  }
   let treeCount = 0;
-  for (let i = 0; i < 28000 && treeCount < 2400; i++) {
-    const x = -210 + random() * 530, z = -215 + random() * 490;
-    if (random() > layout.forestWeight(x, z)) continue;
+  for (let i = 0; i < 110000 && treeCount < 4800; i++) {
+    const x = -380 + random() * 720, z = -225 + random() * 575;
+    if (random() > layout.treeWeight(x, z)) continue;
     if (x > -17 && x < 197 && z > -32 && z < 124) continue;
     if (layout.lakeDistance(x, z) < 14 || groundHeight(x,z) > 115) continue;
-    if (colliders.some(c => Math.hypot(x - c.x, z - c.z) < Math.max(c.w, c.d) + (c.tree ? 3.5 : 3))) continue;
-    if (roadSegments.some(s => segmentDistance(x, z, s.a, s.b) < s.width / 2 + 1.5)) continue;
+    if (nearTree(x,z) || buildingColliders.some(c => Math.hypot(x - c.x, z - c.z) < Math.max(c.w, c.d) + 3)) continue;
+    if (roadNetwork.clearance(x,z) < 1.5 || segmentDistance(x,z,bridgeSpec.a,bridgeSpec.b) < 5.5) continue;
     const height = 12 + random() * 10, clearance = 4 + random() * 1.5, rx = 3.7 + random() * 2, rz = 3.7 + random() * 2;
     dummy.position.set(x, groundHeight(x, z) + clearance + height / 2, z); dummy.scale.set(rx, height, rz); dummy.updateMatrix();
     forest.setMatrixAt(treeCount, dummy.matrix);
     dummy.position.y = groundHeight(x, z) + (clearance + 2) / 2; dummy.scale.set(.4, clearance + 2, .4); dummy.updateMatrix();
     trunks.setMatrixAt(treeCount++, dummy.matrix);
     treePlacements.push({ x, z, height, clearance, rx, rz });
+    const bucket=Math.floor(x/4)+','+Math.floor(z/4);
+    if(!treeBuckets.has(bucket)) treeBuckets.set(bucket,[]);
+    treeBuckets.get(bucket).push({x,z});
     colliders.push({ x, z, w: .4, d: .4, rotation: 0, tree: true });
   }
   forest.count = trunks.count = treeCount; forest.castShadow = trunks.castShadow = true; scene.add(forest, trunks);
+  // Niedriger Waldboden bleibt durchquerbar; nur Baumstämme kollidieren.
+  const undergrowth = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0), new THREE.MeshLambertMaterial({color:'#718455'}),3200);
+  let coverCount=0;
+  for(let i=0;i<45000 && coverCount<3200;i++) {
+    const x=-380+random()*720,z=-225+random()*575;
+    if(random()>layout.treeWeight(x,z) || layout.lakeDistance(x,z)<12 || groundHeight(x,z)>110 || roadNetwork.clearance(x,z)<1) continue;
+    if(x>-17 && x<197 && z>-32 && z<124) continue;
+    if(buildingColliders.some(c=>Math.hypot(x-c.x,z-c.z)<Math.max(c.w,c.d)+3)) continue;
+    const height=.3+random()*.65,rx=1+random()*1.5,rz=1+random()*1.5,rotation=random()*Math.PI;
+    dummy.position.set(x,groundHeight(x,z)+height*.45,z); dummy.scale.set(rx,height,rz); dummy.rotation.y=rotation; dummy.updateMatrix();
+    undergrowth.setMatrixAt(coverCount++,dummy.matrix); coverPlacements.push({x,z,rx,rz,height,rotation});
+  }
+  dummy.rotation.y=0; undergrowth.count=coverCount; undergrowth.receiveShadow=true; scene.add(undergrowth);
   label('Wald', -88, -126, 32, 45);
 
   const target = new THREE.Vector3();
@@ -372,7 +413,7 @@
   addEventListener('blur', () => { keys.clear(); drag = null; finishStroke(); });
   addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
   function blocked(x, z, feet = surfaceHeight(x,z)) {
-    if (x < -390 || x > 340 || z < -340 || z > 310) return true;
+    if (x < -465 || x > 340 || z < -340 || z > 365) return true;
     if (groundHeight(x, z) < .35) return true;
     if (viaduct.collides(x,z,feet)) return true;
     return colliders.some(c => {
@@ -381,12 +422,13 @@
     });
   }
   function refreshTerrain() {
+    updateHeightGrid();
     refreshViaduct();
     const low = new THREE.Color('#9eaf92').convertSRGBToLinear(), rock = new THREE.Color('#8c9da4').convertSRGBToLinear(), snow = new THREE.Color('#e7ebe7').convertSRGBToLinear(), color = new THREE.Color();
     const colors = groundGeometry.attributes.color;
     for (let i = 0; i < positions.count; i++) {
-      const height = baseHeights[i] + terrainModel.offsets[i]; positions.setY(i, height);
-      color.copy(low).lerp(rock, smooth(60, 115, height)).lerp(snow, smooth(165, 240, height)); colors.setXYZ(i, color.r, color.g, color.b);
+      const height = vertexHeight(i%221,Math.floor(i/221)); positions.setY(i, height);
+      color.copy(low).lerp(new THREE.Color('#627c55').convertSRGBToLinear(),layout.treeWeight(positions.getX(i),positions.getZ(i))*.34).lerp(rock, smooth(60, 115, height)).lerp(snow, smooth(165, 240, height)); colors.setXYZ(i, color.r, color.g, color.b);
     }
     positions.needsUpdate = true; colors.needsUpdate = true;
     groundGeometry.computeVertexNormals(); groundGeometry.computeBoundingSphere();
@@ -401,7 +443,10 @@
     }
     for (const mesh of roadMeshes) {
       const p = mesh.geometry.attributes.position;
-      for (let i = 0; i < p.count; i++) p.setY(i, surfaceHeight(p.getX(i), p.getZ(i)) + .4);
+      for(const range of roadRanges) for(let i=range.start;i<range.start+range.count;i++) {
+        const x=p.getX(i),z=p.getZ(i),s=range.segment;
+        p.setY(i,(s.bridge?viaduct.top(viaduct.coordinates(x,z).s)-.4:roadNetwork.project(s,x,z).y)+.4);
+      }
       p.needsUpdate = true; mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere();
     }
     const gp = grid.geometry.attributes.position;
@@ -413,6 +458,10 @@
     });
     forest.instanceMatrix.needsUpdate = true;
     trunks.instanceMatrix.needsUpdate = true;
+    coverPlacements.forEach((plant,i)=>{
+      dummy.position.set(plant.x,groundHeight(plant.x,plant.z)+plant.height*.45,plant.z); dummy.scale.set(plant.rx,plant.height,plant.rz); dummy.rotation.y=plant.rotation; dummy.updateMatrix(); undergrowth.setMatrixAt(i,dummy.matrix);
+    });
+    dummy.rotation.y=0; undergrowth.instanceMatrix.needsUpdate=true;
     for (const anchor of labelAnchors) anchor.sprite.position.y = Math.max(0, groundHeight(anchor.x, anchor.z)) + anchor.height;
     updateCursor();
   }
@@ -449,7 +498,7 @@
     p.needsUpdate = true; cursorGeometry.computeBoundingSphere();
   }
   function protection(x, z) {
-    let weight = smooth(8, 28, layout.lakeDistance(x, z));
+    let weight = Math.min(smooth(8,28,layout.lakeDistance(x,z)),smooth(2,10,roadNetwork.clearance(x,z)));
     weight = Math.min(weight,smooth(7,22,segmentDistance(x,z,viaduct.a,viaduct.b)));
     for (const pad of pads) {
       const delta = Math.max(Math.abs(x - pad.x) - pad.w, Math.abs(z - pad.z) - pad.d, 0);
@@ -529,8 +578,13 @@
     check('Dorf am Hang mit mehr Hausformen', houses.length >= 28 && Math.max(...villageHeights) - Math.min(...villageHeights) > 8, { houses: houses.length, heightSpan: Math.max(...villageHeights) - Math.min(...villageHeights) });
     check('Burghof auf Felssporn', Math.abs(groundHeight(castle.x,castle.z) - castle.height) < .01, groundHeight(castle.x,castle.z));
     check('Großer See im Südwesten mit abgesenktem Bett', groundHeight(-210,220) < -4 && layout.lakeDistance(-310,130) < 0, groundHeight(-210,220));
-    check('Dichter Wald mit freiem Raum unter den Kronen', treeCount > 1400 && treePlacements.every(t => t.clearance >= 4), treeCount);
+    check('Dichter Wald mit freiem Raum unter den Kronen', treeCount > 4000 && treePlacements.every(t => t.clearance >= 4), treeCount);
     check('Mauern blockieren; Tore bleiben frei', blocked(-5,0) && !blocked(-5,45) && !blocked(185,45) && !blocked(115,112), null);
+    check('Waldboden und einzelne Baumgruppen außerhalb des Waldgürtels',coverCount>2500 && treePlacements.filter(t=>layout.forestWeight(t.x,t.z)<.1).length>50,{cover:coverCount,scattered:treePlacements.filter(t=>layout.forestWeight(t.x,t.z)<.1).length});
+    let crossSlope=0;
+    for(const range of roadRanges) for(let i=range.start;i<range.start+range.count;i+=range.across) for(let j=1;j<range.across;j++) crossSlope=Math.max(crossSlope,Math.abs(roadGeometry.attributes.position.getY(i)-roadGeometry.attributes.position.getY(i+j)));
+    const steepest=Math.max(...roadNetwork.segments.map(s=>Math.abs(roadNetwork.nodes[s.a].y-roadNetwork.nodes[s.b].y)/s.length));
+    check('Fahrbahnen quer waagerecht und längs höchstens 18 Prozent',crossSlope<.001 && steepest<=.18001,{crossSlope,steepest,routes:routes.length});
     const routeBlocked = [];
     for (const route of [castleRoute,shoreRoute]) for (let i = 1; i < route.length; i++) {
       const a = route[i-1], b = route[i], count = Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1]) * 2);
@@ -539,6 +593,13 @@
         if (blocked(x,z)) routeBlocked.push({ x,z,feet:surfaceHeight(x,z), bridge:viaduct.collides(x,z,surfaceHeight(x,z)) });
       }
     }
+    const extraBlocked=[];
+    for(const segment of roadNetwork.segments) {
+      if(segment.bridge) continue;
+      const a=roadNetwork.nodes[segment.a],b=roadNetwork.nodes[segment.b],x=(a.x+b.x)/2,z=(a.z+b.z)/2;
+      if(blocked(x,z,(a.y+b.y)/2+.4)) extraBlocked.push({route:segment.id,x,z});
+    }
+    check('Zusätzliche Straßen sind frei begehbar',extraBlocked.length===0,extraBlocked.slice(0,10));
     check('Verbindungen Dorf–Burg und Dorf–See sind begehbar', routeBlocked.length === 0, routeBlocked.slice(0,10));
     check('Zwischen Stamm und Kronenrand ist Platz zum Gehen', treePlacements.some(t => !blocked(t.x + 2,t.z) && blocked(t.x,t.z)), null);
     const bridgeMiddle = viaduct.point(viaduct.length/2), bridgeFloor = viaduct.top(viaduct.length/2);
@@ -554,7 +615,7 @@
       }
     }
     check('Gebäudesockel schließen an das Gelände an', houseError < .01, houseError);
-    let buriedRoad = 0;
+    let buriedRoad = 0,buriedPoint=null;
     for (const mesh of scene.children.filter(child => child.isMesh && child.material === materials.path && child.geometry.index)) {
       const p = mesh.geometry.attributes.position, indices = mesh.geometry.index;
       if (mesh.geometry === boxGeometry) continue;
@@ -562,10 +623,10 @@
         const a = indices.getX(i), b = indices.getX(i + 1), c = indices.getX(i + 2);
         const x = (p.getX(a) + p.getX(b) + p.getX(c)) / 3, z = (p.getZ(a) + p.getZ(b) + p.getZ(c)) / 3;
         const y = (p.getY(a) + p.getY(b) + p.getY(c)) / 3;
-        buriedRoad = Math.max(buriedRoad, groundHeight(x, z) - y);
+        if(groundHeight(x,z)-y>buriedRoad) { buriedRoad=groundHeight(x,z)-y; buriedPoint={x,z,y,ground:groundHeight(x,z)}; }
       }
     }
-    check('Wege bleiben über der Geländeoberfläche', buriedRoad < .02, buriedRoad);
+    check('Wege bleiben über der Geländeoberfläche', buriedRoad < .02, {buriedRoad,buriedPoint});
     const report = document.createElement('pre');
     report.id = 'terrain-tests'; report.style.cssText = 'position:fixed;top:120px;right:16px;background:white;padding:12px;font-size:11px;z-index:5;max-width:470px;white-space:pre-wrap';
     report.textContent = JSON.stringify({ passed: checks.every(c => c.passed), checks }, null, 2);

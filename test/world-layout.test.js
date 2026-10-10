@@ -32,10 +32,10 @@ test('Wald bildet nördliche, östliche und südliche Bänder; See bleibt getren
   assert.ok(Math.abs(layout.lakeDistance(...layout.lake[0])) < .001);
 });
 test('Berge umschließen die Hochebene auch im Westen, Osten und Süden', () => {
-  for (const [x,z] of [[-475,-185],[390,180],[-60,405]]) assert.ok(layout.naturalHeight(x,z) > 175);
+  for (const [x,z] of [[-475,-185],[390,180],[221,395]]) assert.ok(layout.naturalHeight(x,z) > 175);
 });
 test('Der Ufersaum steigt auf den ersten dreißig Metern nur sanft an', () => {
-  for (const z of [290,300,310]) {
+  for (const z of [350,360,370]) {
     const distance = layout.lakeDistance(-210,z), height = layout.naturalHeight(-210,z);
     assert.ok(distance > 0 && distance < 30);
     assert.ok(height >= 0 && height < 2.1);
@@ -44,4 +44,13 @@ test('Der Ufersaum steigt auf den ersten dreißig Metern nur sanft an', () => {
 test('Die Hochebene zwischen den Bergen besitzt eigenes Hügelrelief', () => {
   const heights = [[-70,10],[180,120],[-230,-20],[40,160]].map(p => layout.naturalHeight(...p));
   assert.ok(Math.max(...heights)-Math.min(...heights) > 35);
+});
+
+test('Der See reicht weiter nach Südwesten; Waldinseln liegen außerhalb der großen Bänder', () => {
+  for(const p of [[-390,280],[-300,325]]) assert.ok(layout.lakeDistance(...p)<0);
+  assert.ok(layout.treeGroups.length>=8);
+  for(const p of [[-345,-170],[15,-65],[300,-135],[320,20]]) {
+    assert.ok(layout.forestWeight(...p)<.1);
+    assert.ok(layout.treeWeight(...p)>=.8);
+  }
 });
