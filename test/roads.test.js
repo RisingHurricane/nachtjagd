@@ -11,7 +11,7 @@ const definition=context.NachtjagdRoadLayout({height:layout.naturalHeight,castle
 const network=create({...definition,height:layout.naturalHeight});
 
 test('Alle Straßen begrenzen ihre Längsneigung trotz Bergrelief',()=>{
-  assert.equal(definition.routes.length,13);
+  assert.equal(definition.routes.length,18);
   for(const s of network.segments) assert.ok(Math.abs(network.nodes[s.a].y-network.nodes[s.b].y)<=s.length*.180001);
   for(const anchor of definition.anchors) {
     const n=network.nodes.find(n=>Math.hypot(n.x-anchor.point[0],n.z-anchor.point[1])<.001);
