@@ -22,7 +22,12 @@ globalThis.NachtjagdRoadLayout = ({ height,castle }) => {
     { id:'lake-loop',points:[[-190,0],[-270,-20],[-290,25],[-275,70],[-215,108],[-140,130],[-65,135],[-45,150]],width:4 },
     { id:'lower-forest',points:[[-50,30],[-120,25],[-190,0]],width:4 },
     { id:'east-loop',points:[[185,45],[250,0],[288,-65],[220,-120],[135,-145],[65,-125],[-55,-95]],width:5 },
-    { id:'east-link',points:[[245,99],[275,145],[260,205],[215,240]],width:4 }
+    { id:'east-link',points:[[245,99],[275,145],[260,205],[215,240]],width:4 },
+    { id:'wind-path',points:[[215,240],[245,260],[250,255]],width:3 },
+    { id:'stone-path',points:[[135,-145],[170,-130],[170,-110]],width:3 },
+    { id:'ruin-path',points:[[275,145],[300,150],[300,132]],width:3 },
+    { id:'mine-west',points:[[-270,-20],[-310,-5],[-340,-15],[-355,-35]],width:3.5 },
+    { id:'mine-north',points:[[-65,-145],[-40,-170],[-55,-185],[-65,-215]],width:3.5 }
   ];
   const anchors=[
     { point:[90,45],height:height(90,45) },

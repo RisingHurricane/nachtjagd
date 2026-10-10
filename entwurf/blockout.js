@@ -41,6 +41,7 @@
   const labels = new THREE.Group();
   scene.add(labels);
   const layout = NachtjagdLayout;
+  let landmarks = null;
   const { houses, village, castle, naturalHeight } = layout;
   function smooth(a, b, value) {
     const t = THREE.MathUtils.clamp((value - a) / (b - a), 0, 1);
@@ -54,6 +55,11 @@
     { x: castle.x, z: castle.z, w: 34, d: 29, y: castle.height, blend: 9 }
   );
   pads.push(...pads.splice(0, houses.length));
+  const [windX,windZ]=layout.landmarkSites.wind;
+  pads.push({x:windX,z:windZ,w:5,d:5,y:naturalHeight(windX,windZ),blend:7});
+  const [stoneX,stoneZ]=layout.landmarkSites.stones;
+  pads.push({x:stoneX,z:stoneZ,w:19,d:19,y:naturalHeight(stoneX,stoneZ),blend:8});
+  for(const [x,z,w,d] of layout.lakeHomes) pads.push({x,z,w:w/2+1,d:d/2+1,y:naturalHeight(x,z),blend:3});
   function unpavedHeight(x, z) {
     let h = naturalHeight(x, z);
     for (const pad of pads) {
@@ -67,7 +73,7 @@
   const baseHeights = new Float32Array(321 * 281);
   for (let row = 0; row <= 280; row++) for (let col = 0; col <= 320; col++) baseHeights[row * 321 + col] = unpavedHeight(col * 5 - 800, row * 5 - 705);
   const terrainModel = NachtjagdTerrain.create({ width: 321, depth: 281, step: 5, originX: -800, originZ: -705, base: baseHeights, basis: layout.basis, maxHeight: 650 });
-  const storageKey = 'nachtjagd-bergdorf-bergruecken-v6';
+  const storageKey = 'nachtjagd-bergdorf-entdeckungsorte-v7';
   let restored = false, storageWarning = '';
   try { const saved = localStorage.getItem(storageKey); if (saved) { terrainModel.load(saved, false); restored = true; } }
   catch { storageWarning = 'Browserstand konnte nicht geladen werden. Du kannst eine Geländedatei laden.'; }
@@ -105,6 +111,8 @@
     return y;
   }
   function surfaceHeight(x,z,previousFeet) {
+    const deck=landmarks && landmarks.floor(x,z);
+    if(deck!==null && deck!==false) return deck;
     const bridge=viaduct.floor(x,z,previousFeet),street=streetHeight(x,z);
     if(viaduct.contains(x,z) && Math.abs(bridge-viaduct.top(viaduct.coordinates(x,z).s))<.5) return bridge;
     const step=stairs.floor(x,z);
@@ -298,6 +306,7 @@
   const viaductMiddle = viaduct.point(viaduct.length/2);
   label('Viadukt · sieben Bögen', ...viaductMiddle, viaduct.top(viaduct.length/2)-groundHeight(...viaductMiddle)+14, 64);
   label('Hochgebirge · Norden', -20, -300, 28, 100);
+  landmarks=NachtjagdLandmarks.create({THREE,scene,materials,box,label,groundHeight,streetHeight,layout});
   // Reproduzierbarer Wald; Wege, See und Gebäuderänder bleiben frei.
   let seed = 71;
   function random() { seed = (1664525 * seed + 1013904223) >>> 0; return seed / 4294967296; }
@@ -397,12 +406,18 @@
     world: { target: [-25,75,5], distance: 1570, yaw: 0, polar: .62, name: 'Mittelberge und äußerer Hochgebirgsring · lockerer Wald' },
     map: { target: [-25,45,5], distance: 1650, yaw: 0, polar: .12, name: 'Draufsicht · Norden oben · Berge ringsum' },
     castle: { target: [castle.x,castle.height,castle.z], distance: 205, yaw: -.65, polar: 1.05, name: 'Burg auf freiem Felssporn · Zugang über das Viadukt' },
+    wind: {target:[270,groundHeight(270,255)+10,255],distance:130,yaw:-2.2,polar:.75,name:'Windrad · grobe Holzwindmühle'},
+    stones: {target:[150,groundHeight(150,-90)+5,-90],distance:140,yaw:.2,polar:.85,name:'Steinkreis auf der Anhöhe'},
+    ruin: {target:[300,groundHeight(300,120)+5,120],distance:140,yaw:-1.2,polar:.8,name:'Klosterruine · offener Hof und Kapellenreste'},
+    lakeside: {target:[-215,8,115],distance:210,yaw:.2,polar:.85,name:'Seehäuser und kleiner Steg'},
+    northmine: {target:[-60,groundHeight(-60,-200)+3,-200],distance:100,yaw:.5,polar:.9,name:'Nordmine · kurzer überdachter Stollen'},
+    mines: {target:[-345,groundHeight(-345,-22)+3,-22],distance:110,yaw:.6,polar:1.05,name:'Westmine · kurzer überdachter Stollen · zweite Mine im Norden'},
     viaduct: { target: [-165,65,-130], distance: 220, yaw: 1.2, polar: 1.15, name: 'Viadukt · sieben Bögen · begehbarer Burgweg' }
   };
   function setView(view) {
     const walking = view === 'walk' || view === 'forest' || view === 'bridgewalk' || view === 'stairswalk';
     if (walking && editing) toggleEditor(false);
-    mode = walking ? 'walk' : view; keys.clear(); labels.visible = !walking && !editing; grid.visible = editing || view === 'map';
+    mode = walking ? 'walk' : view; keys.clear(); labels.visible = !walking && !editing && !['wind','stones','ruin','lakeside','mines','northmine'].includes(view); grid.visible = editing || view === 'map';
     document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
     if (walking) {
       const start = view === 'bridgewalk' ? viaduct.point(viaduct.length-4) : view === 'forest' ? [221,60] : view === 'stairswalk' ? [120,58] : [90,45];
@@ -417,6 +432,7 @@
     }
   }
   document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+  document.querySelector('#place-view').addEventListener('change',event=>setView(event.target.value));
   let drag = null;
   const canvas = renderer.domElement;
   canvas.addEventListener('contextmenu', event => event.preventDefault());
@@ -459,7 +475,7 @@
   addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
   function blocked(x, z, feet = surfaceHeight(x,z)) {
     if (x < -465 || x > 340 || z < -340 || z > 365) return true;
-    if (groundHeight(x, z) < .35) return true;
+    if (groundHeight(x, z) < .35 && landmarks.floor(x,z)===null) return true;
     if (viaduct.collides(x,z,feet)) return true;
     return colliders.some(c => {
       const dx = x - c.x, dz = z - c.z, cosine = Math.cos(c.rotation), sine = Math.sin(c.rotation);
@@ -470,6 +486,7 @@
     updateHeightGrid();
     refreshViaduct();
     refreshStairs();
+    landmarks.refresh();
     const low = new THREE.Color('#9eaf92').convertSRGBToLinear(), rock = new THREE.Color('#8c9da4').convertSRGBToLinear(), snow = new THREE.Color('#e7ebe7').convertSRGBToLinear(), color = new THREE.Color();
     const colors = groundGeometry.attributes.color;
     for (let i = 0; i < positions.count; i++) {
@@ -632,6 +649,11 @@
     const ridgeTrees=treePlacements.filter(t=>t.ridge);
     check('Unebene Sättel zwischen den Bergreihen tragen lockere Baumgruppen',ridgeTrees.length>=100 && layout.ridgeGroups.every(([x,z])=>groundHeight(x,z)>75),{trees:ridgeTrees.length,heights:layout.ridgeGroups.map(([x,z])=>groundHeight(x,z))});
     check('Dorf folgt unregelmäßiger Kontur; drei Lichtungen bleiben offen',houses.every(([x,z])=>layout.villageDistance(x,z)<-5) && layout.clearings.every(([x,z])=>!treePlacements.some(t=>Math.hypot(t.x-x,t.z-z)<10)),{outline:layout.villageOutline.length,clearings:layout.clearings.length});
+    check('Neue Orte sind verteilt und beide Minenstollen bleiben frei',landmarks.stoneCount===10 && landmarks.lakeHouseCount===4 && layout.mines.every(m=>{
+      for(let t=0;t<=1;t+=.05) if(blocked(m.a[0]+(m.b[0]-m.a[0])*t,m.a[1]+(m.b[1]-m.a[1])*t)) return false;
+      return true;
+    }),{stones:landmarks.stoneCount,lakeHouses:landmarks.lakeHouseCount,mines:layout.mines.length});
+    check('Seesteg besitzt eine begehbare Fläche über Wasser',landmarks.floor(-212,147)===2.3 && !blocked(-212,147,2.3),landmarks.floor(-212,147));
     const stairBlocked=stairs.treads.filter(t=>blocked(t.x,t.z,t.top));
     check('Zwei Treppenwege haben freie waagerechte Trittflächen',stairs.treads.length>30 && stairBlocked.length===0,{treads:stairs.treads.length,blocked:stairBlocked.slice(0,4)});
     let crossSlope=0;

@@ -8,6 +8,9 @@ globalThis.NachtjagdLayout = (() => {
   const villageGates=[[-5,45],[185,45],[115,112]];
   const villageWalls=villageOutline.map((a,i)=>[a,villageOutline[(i+1)%villageOutline.length]])
     .filter(([a,b],i)=>![4,12,18].includes(i) && !villageGates.some(g=>Math.hypot((a[0]+b[0])/2-g[0],(a[1]+b[1])/2-g[1])<.01));
+  const landmarkSites={ wind:[270,255],stones:[150,-90],ruin:[300,120] };
+  const lakeHomes=[[-285,65,8,7,.2,5],[-245,110,9,7,-.3,5.5],[-195,125,7,8,.15,4.5],[-145,150,10,7,-.1,5]];
+  const mines=[{id:'mine-west',a:[-340,-15],b:[-355,-35],width:7},{id:'mine-north',a:[-55,-185],b:[-65,-215],width:7}];
   const castle = { x: -265, z: -100, height: 102 };
   const lake = [[-418,312],[-405,242],[-375,168],[-334,115],[-317,69],[-293,82],[-268,116],[-213,147],[-149,170],[-81,194],[-12,218],[18,242],[-24,280],[-113,325],[-237,348],[-350,346],[-410,332]];
   const forestBands = [
@@ -59,6 +62,11 @@ globalThis.NachtjagdLayout = (() => {
   function clearingWeight(x,z) {
     let weight=1;
     for(const [cx,cz,rx,rz] of clearings) weight=Math.min(weight,smooth(.55,1,Math.hypot((x-cx)/rx,(z-cz)/rz)));
+    for(const [key,radius] of [['wind',20],['stones',32],['ruin',40]]) {
+      const [cx,cz]=landmarkSites[key];
+      weight=Math.min(weight,smooth(radius,radius+10,Math.hypot(x-cx,z-cz)));
+    }
+    for(const mine of mines) weight=Math.min(weight,smooth(9,17,segmentDistance(x,z,mine.a,mine.b)));
     return weight;
   }
   function forestWeight(x, z) {
@@ -117,5 +125,5 @@ globalThis.NachtjagdLayout = (() => {
     // Breiter, sanfter Ufersaum; die Hügel steigen erst hinter dem Strand an.
     return shore < 0 ? Math.max(-7, shore * .25) : shore * .07 * (1-smooth(30,130,shore)) + Math.max(3,h) * smooth(30,130,shore);
   }
-  return { village, villageOutline, villageGates, villageWalls, castle, lake, houses, forestBands, treeGroups, foothillGroups, ridgeGroups, clearings, middlePeaks, highPeaks, smooth, segmentDistance, lakeDistance, villageDistance, clearingWeight, forestWeight, treeWeight, naturalHeight, basis: 'bergdorf-bergruecken-2026-10-11-v6' };
+  return { landmarkSites, lakeHomes, mines, village, villageOutline, villageGates, villageWalls, castle, lake, houses, forestBands, treeGroups, foothillGroups, ridgeGroups, clearings, middlePeaks, highPeaks, smooth, segmentDistance, lakeDistance, villageDistance, clearingWeight, forestWeight, treeWeight, naturalHeight, basis: 'bergdorf-entdeckungsorte-2026-10-11-v7' };
 })();
