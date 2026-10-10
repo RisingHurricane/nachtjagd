@@ -63,3 +63,13 @@ test('Dateien einer anderen Grundform werden ohne Änderung abgewiesen', () => {
   assert.throws(() => terrain.load(JSON.stringify(wrongBase)));
   assert.equal(terrain.offsets[40], 10);
 });
+
+test('Äußere Hochgipfel über 400 m bleiben bearbeitbar und werden wiederhergestellt',()=>{
+  const options={width:3,depth:3,step:5,originX:-5,originZ:-5,base:new Float32Array(9).fill(420),basis:'high-mountains',maxHeight:650};
+  const terrain=context.NachtjagdTerrain.create(options);
+  terrain.begin();terrain.brush({x:0,z:0,radius:8,strength:10,seconds:1,tool:'raise'});terrain.end();
+  assert.ok(terrain.offsets[4]>0);
+  const loaded=context.NachtjagdTerrain.create(options);
+  loaded.load(terrain.serialize());
+  assert.deepEqual(Array.from(loaded.offsets),Array.from(terrain.offsets));
+});

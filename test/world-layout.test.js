@@ -11,7 +11,7 @@ test('Skizzenanordnung: See südwestlich, Burg westlich, Gebirge nördlich des D
   assert.ok(layout.lakeDistance(-210,220) < 0);
   assert.ok(layout.lakeDistance(layout.village.x,layout.village.z) > 0);
   assert.ok(layout.castle.x < layout.village.x && layout.castle.z < layout.village.z);
-  assert.ok(layout.naturalHeight(-50,-329) > 280);
+  assert.ok(layout.naturalHeight(-40,-550) > 350);
   assert.ok(layout.naturalHeight(90,45) < layout.castle.height);
 });
 test('Dorfgrund besitzt Gefälle und mehr als eine Gebäudeform', () => {
@@ -32,7 +32,7 @@ test('Wald bildet nördliche, östliche und südliche Bänder; See bleibt getren
   assert.ok(Math.abs(layout.lakeDistance(...layout.lake[0])) < .001);
 });
 test('Berge umschließen die Hochebene auch im Westen, Osten und Süden', () => {
-  for (const [x,z] of [[-475,-185],[390,180],[221,395]]) assert.ok(layout.naturalHeight(x,z) > 175);
+  for (const [x,z] of [[-660,0],[580,0],[-40,550]]) assert.ok(layout.naturalHeight(x,z) > 175);
 });
 test('Der Ufersaum steigt auf den ersten dreißig Metern nur sanft an', () => {
   for (const z of [350,360,370]) {
@@ -53,4 +53,13 @@ test('Der See reicht weiter nach Südwesten; Waldinseln liegen außerhalb der gr
     assert.ok(layout.forestWeight(...p)<.1);
     assert.ok(layout.treeWeight(...p)>=.8);
   }
+});
+
+test('Mittelberge stehen vor einem höheren äußeren Gipfelring; Vorberge füllen die Dorfsenke',()=>{
+  assert.ok(layout.naturalHeight(-50,-329)>110 && layout.naturalHeight(-50,-329)<190);
+  assert.ok(layout.naturalHeight(-40,-550)>layout.naturalHeight(-50,-329)+150);
+  const heights=[[110,-100],[180,-150],[60,-190]].map(p=>layout.naturalHeight(...p));
+  assert.ok(Math.min(...heights)>38);
+  assert.ok(Math.max(...heights)-Math.min(...heights)>12);
+  assert.ok(new Set(layout.houses.map(h=>h[1])).size>15);
 });

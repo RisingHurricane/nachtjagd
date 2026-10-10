@@ -12,7 +12,7 @@ globalThis.NachtjagdRoads = {
       return nodeMap.get(id);
     }
     const lines = [];
-    for (const route of routes) for (let i = 1; i < route.points.length; i++) lines.push({ a:route.points[i-1],b:route.points[i],width:route.width,id:route.id,bridge:route.bridge === i-1,cuts:[0,1] });
+    for (const route of routes) for (let i = 1; i < route.points.length; i++) lines.push({ a:route.points[i-1],b:route.points[i],width:route.width,id:route.id,stairs:route.stairs,bridge:route.bridge === i-1,cuts:[0,1] });
     // Echte Kreuzungen verbinden; Unterführung und Viadukt behalten getrennte Ebenen.
     for (let i = 0; i < lines.length; i++) for (let j = i+1; j < lines.length; j++) {
       const a=lines[i],b=lines[j]; if (a.bridge || b.bridge) continue;
@@ -34,7 +34,7 @@ globalThis.NachtjagdRoads = {
           const flat=!line.bridge && (i*distance<=3 || (count-i+1)*distance<=3);
           const cost=flat?0:distance*maxGrade;
           nodes[a].links.push([b,cost]); nodes[b].links.push([a,cost]); edges.push({ a,b,cost });
-          segments.push({ a,b,width:line.width,id:line.id,bridge:line.bridge,length:distance });
+          segments.push({ a,b,width:line.width,id:line.id,stairs:line.stairs,bridge:line.bridge,length:distance });
         }
       }
     }
