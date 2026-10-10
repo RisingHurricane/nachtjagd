@@ -1,0 +1,52 @@
+{
+  "source": "https://altay.vision/nachtjagd-neu/",
+  "fetched_at": "2026-10-10T16:46:08.511409+00:00",
+  "scope": "public frontend, including referenced snow and limestone textures; no MP3, no private backend",
+  "files": [
+    {
+      "path": "live/altay.vision/nachtjagd/textures/limestone.png",
+      "bytes": 2469821,
+      "sha256": "e523faf5fbedc8db9027c3a997d29bfa00e4c7f618c0fdc5ae1220457dc5e439"
+    },
+    {
+      "path": "live/altay.vision/nachtjagd/textures/snow.png",
+      "bytes": 2234233,
+      "sha256": "79a9c59703217bf2c6e3e3013e710e5c3353230c5d3e26f2a648b80649a78572"
+    },
+    {
+      "path": "live/altay.vision/nachtjagd/vendor/font-0.ttf",
+      "bytes": 81448,
+      "sha256": "cc9fb2539cf27df48255982e896d28f544483537cdb41f9fabd741af8992d719"
+    },
+    {
+      "path": "live/altay.vision/nachtjagd/vendor/font-1.ttf",
+      "bytes": 86636,
+      "sha256": "0d85af813fc3ed87db0c6265515689b2eef5cbaf7aab17922528dfc95a2cd73f"
+    },
+    {
+      "path": "live/altay.vision/nachtjagd/vendor/font-2.ttf",
+      "bytes": 87120,
+      "sha256": "7dde307fa887fc65ff5830cfada77a7decc5dae8d3c816c9d39ba3f1af1c4ed7"
+    },
+    {
+      "path": "live/altay.vision/nachtjagd/vendor/font-3.ttf",
+      "bytes": 179108,
+      "sha256": "cc2cb93f30d52cc800eab494b54e5f038fb49d42c1ed59cb3b9e13488f2a5667"
+    },
+    {
+      "path": "live/altay.vision/nachtjagd/vendor/font-4.ttf",
+      "bytes": 73352,
+      "sha256": "6fbbc8194b203645b9dea180f5c75afdcf4dead77be71ff6453c7772285863b8"
+    },
+    {
+      "path": "live/altay.vision/nachtjagd/vendor/three.min.js",
+      "bytes": 603447,
+      "sha256": "ba0c6cb529517d7e286dadcd68d37ff5220aa638e4ac2cd7fcb316aae580924d"
+    },
+    {
+      "path": "live/altay.vision/nachtjagd-neu/index.html",
+      "bytes": 530759,
+      "sha256": "a24f16264cc892fd45001c377feff2674658040f98a774c42061f2bd9e4f076b"
+    }
+  ]
+}

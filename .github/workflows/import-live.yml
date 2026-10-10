@@ -1,0 +1,56 @@
+name: Import live Nachtjagd frontend
+on:
+  push:
+    branches: ['codex/live']
+    paths: ['.github/workflows/import-live.yml']
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/live
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm ci
+      - name: Test game before snapshot push
+        run: npm test
+      - name: Download public frontend without MP3
+        run: |
+          mkdir -p live
+          wget --mirror --page-requisites --span-hosts --domains=altay.vision,cdn.jsdelivr.net,unpkg.com,cdnjs.cloudflare.com --no-parent --reject='*.mp3,*.MP3,*.mp3?*' --timeout=30 --tries=2 --directory-prefix=live https://altay.vision/nachtjagd-neu/
+          wget --force-directories --directory-prefix=live --timeout=30 --tries=2 https://altay.vision/nachtjagd/textures/limestone.png https://altay.vision/nachtjagd/textures/snow.png
+          test -s live/altay.vision/nachtjagd-neu/index.html
+          test -s live/altay.vision/nachtjagd/textures/limestone.png
+          test -s live/altay.vision/nachtjagd/textures/snow.png
+          find live -type f -iname '*.mp3' -delete
+          python3 - <<'PY'
+          import datetime, hashlib, json, pathlib
+          root = pathlib.Path('live')
+          files = [{'path': str(p), 'bytes': p.stat().st_size, 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in sorted(root.rglob('*')) if p.is_file() and p.name not in ('manifest.json', 'README.md')]
+          (root/'manifest.json').write_text(json.dumps({'source': 'https://altay.vision/nachtjagd-neu/', 'fetched_at': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'scope': 'public frontend, including referenced snow and limestone textures; no MP3, no private backend', 'files': files}, indent=2)+'\n')
+          (root/'README.md').write_text('# Live-Frontend Nachtjagd\n\nÖffentlich ausgelieferte Dateien von https://altay.vision/nachtjagd-neu/, ohne MP3. Originaldateien nicht verändert; externe URLs bleiben erhalten. Manifest mit SHA-256-Prüfsummen. Privater Servercode ist nicht enthalten. Die im Spielcode gefundenen dynamischen Schnee- und Kalksteintexturen sind enthalten. Kein Deployment und kein geprüfter Offline-Build.\n')
+          with pathlib.Path('STATUS.md').open('a') as status:
+              status.write('\n- '+datetime.date.today().isoformat()+', Codex: Öffentliches Live-Frontend unter live/ auf codex/live gesichert, ohne MP3. npm test vor Snapshot-Push im Runner ausgeführt. Dynamische Schnee- und Kalksteintexturen ergänzt; privater Backendcode fehlt. Kein Merge oder Deployment.\n')
+          PY
+      - name: Save source ZIP as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nachtjagd-live-without-mp3
+          path: live/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Commit snapshot to codex/live
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add live/ STATUS.md
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Import public Nachtjagd frontend without MP3'
+          git push origin HEAD:codex/live
