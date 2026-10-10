@@ -39,7 +39,7 @@ Grundform bergdorf-seeinsel-2026-10-11-v8; Browser-Speicherschlüssel nachtjagd-
 
 ## Technische Übergabe der laufenden ersten Integration
 
-Umgesetzt: public/entwurf/gameplay-core.js als reiner Zustand/Regelkern und public/entwurf/gameplay.js für Eingabe/HUD/Platzhalter. blockout.js liefert den Weltadapter (Höhen, Kollision, Strahlprüfung und Wegnavigation). Spiel starten beziehungsweise ?v=13&play=1 öffnet den Solo-Test. Neun neue Kerntests und insgesamt 78 Node-Tests bestanden. Die Veröffentlichung wird noch im Browser geprüft.
+Umgesetzt: public/entwurf/gameplay-core.js als reiner Zustand/Regelkern und public/entwurf/gameplay.js für Eingabe/HUD/Platzhalter. blockout.js liefert den Weltadapter (Höhen, Kollision, Strahlprüfung und Wegnavigation). Spiel starten beziehungsweise ?v=13&play=1 öffnet den Solo-Test. Neun neue Kerntests und insgesamt 78 Node-Tests bestanden. Die veröffentlichte Ansicht wurde geprüft: alle 22 Gelände- und acht Spieladapterprüfungen bestanden. Spielstart, Schießen (Munition 6/30 auf 5/30), Nachladen (6/29), Pause/Fortsetzen und Rückkehr zum Layout sichtbar bestätigt. Ein vollständiger manueller Durchlauf der drei Siegel wurde noch nicht durchgeführt.
 
 Geplant für die erste spielbare Übernahme: Bewegung auf neuen Wegen/Hängen, Revolver und Nachladen, einfache Boden-Gegner/Wellen nach den vorhandenen Waffen-/Gegnerwerten, Leben/Tod/Neustart und drei Mondsiegel mit Glockenziel. Modelle bleiben grob. Vollständige Spezialgegner-KI, Händler, Relikte, Wetter, Fahrzeuge und Online-Koop sind damit nicht automatisch übertragen.
 
@@ -63,3 +63,7 @@ Quelländerungen auf codex/village-layout sichern; gh-pages nur mit den öffentl
 - Neue Weltziele: Kirche (90,30), Westmine (-349,-27), Burghof (-251,-100), Glocke (90,27). Vorläufig außen, weil Häuser/Burg/Kirche noch solide Platzhalter ohne Innenräume sind. Bei Claudes Modellen nicht bloß Optik ersetzen: Ein-/Ausgänge und Collider auf dieselben Punkte abstimmen.
 - Erste Übernahme ist bewusst begrenzt: einfache Verfolgung mit Straßenwegen statt sämtlicher Original-KI, keine Sprünge/Fallphysik/Spezialattacken, kein Händler/Reliktsystem, kein Wetter/Fahrzeugcode. Ziel ist die überprüfbare Verbindung zur richtigen Welt. Multiplayer bisher nicht angebunden.
 - Gelände-Editor und Layout bleiben getrennt vom Spielmodus. Solo folgt dem aktuell geladenen lokalen Gelände. Für Koop eine gemeinsame feste Basis festlegen.
+
+### Gesicherter Stand zum Übernehmen
+
+Entwurf 13 läuft auf gh-pages; Quellstand auf codex/village-layout, PR #1 aktualisiert. Im gleichen Branch weiterarbeiten oder davon einen eigenen Branch abzweigen, sonst fehlen Claude diese neuen Dateien. Die aktuelle main-Version enthält sie nicht. Am besten zuerst diesen Stand holen und node --test ausführen. Die Vorabfassung Entwurf 12 wurde durch Entwurf 13 ersetzt (Initialisierung der Weltmatrizen für Strahltests, keine Layoutbeschriftungen im Spiel).
