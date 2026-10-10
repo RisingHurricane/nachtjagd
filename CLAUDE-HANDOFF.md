@@ -10,7 +10,7 @@ Der Nutzer möchte die vorhandene gute Spiellogik der neuesten Altay-Version in 
 
 - Repository: RisingHurricane/nachtjagd. Arbeitsbranch codex/village-layout, PR #1 gegen main.
 - Lokaler Checkout: C:/Users/User/Documents/Codex/2026-10-10/https-github-com-https-github-com/work/nachtjagd.
-- Aktuelle veröffentlichte Layoutvorschau: https://risinghurricane.github.io/nachtjagd/entwurf/?v=12 . Veröffentlichung separat auf gh-pages.
+- Aktuelle veröffentlichte Layoutvorschau: https://risinghurricane.github.io/nachtjagd/entwurf/?v=13 . Veröffentlichung separat auf gh-pages.
 - main bleibt unverändert: Die automatische Freigabe hat die Übernahme zuvor abgelehnt. Kein Merge ohne ausdrückliche Freigabe des Nutzers.
 - AGENTS.md und STATUS.md zuerst lesen. Vor Änderungen aktuellen Remote-Stand holen; nicht andere Agentenänderungen überschreiben.
 
@@ -39,7 +39,7 @@ Grundform bergdorf-seeinsel-2026-10-11-v8; Browser-Speicherschlüssel nachtjagd-
 
 ## Technische Übergabe der laufenden ersten Integration
 
-Umgesetzt: public/entwurf/gameplay-core.js als reiner Zustand/Regelkern und public/entwurf/gameplay.js für Eingabe/HUD/Platzhalter. blockout.js liefert den Weltadapter (Höhen, Kollision, Strahlprüfung und Wegnavigation). Spiel starten beziehungsweise ?v=12&play=1 öffnet den Solo-Test. Neun neue Kerntests und insgesamt 78 Node-Tests bestanden. Die Veröffentlichung wird noch im Browser geprüft.
+Umgesetzt: public/entwurf/gameplay-core.js als reiner Zustand/Regelkern und public/entwurf/gameplay.js für Eingabe/HUD/Platzhalter. blockout.js liefert den Weltadapter (Höhen, Kollision, Strahlprüfung und Wegnavigation). Spiel starten beziehungsweise ?v=13&play=1 öffnet den Solo-Test. Neun neue Kerntests und insgesamt 78 Node-Tests bestanden. Die Veröffentlichung wird noch im Browser geprüft.
 
 Geplant für die erste spielbare Übernahme: Bewegung auf neuen Wegen/Hängen, Revolver und Nachladen, einfache Boden-Gegner/Wellen nach den vorhandenen Waffen-/Gegnerwerten, Leben/Tod/Neustart und drei Mondsiegel mit Glockenziel. Modelle bleiben grob. Vollständige Spezialgegner-KI, Händler, Relikte, Wetter, Fahrzeuge und Online-Koop sind damit nicht automatisch übertragen.
 

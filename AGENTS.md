@@ -77,6 +77,6 @@ Der kostenlose Render-Plan pausiert den Dienst nach 15 Minuten ohne Verkehr, der
 
 Der Server läuft auch hinter einem Reverse Proxy unter einem Unterpfad (Caddy oder nginx entfernen den Pfadpräfix und leiten WebSocket-Verbindungen weiter). Das wird nur gebraucht, falls das Spiel unter `altay.vision/spiel` statt unter einer Subdomain erscheinen soll.
 
-### Erste Spiellogik-Verknüpfung (Entwurf 12)
+### Erste Spiellogik-Verknüpfung (Entwurf 13)
 
 gameplay-core.js enthält einen rendererunabhängigen Solo-Kern nach den Waffen-, Boden-Gegner-, Wellen- und Questregeln aus dem neuesten Altay-Import. gameplay.js verbindet Eingabe, HUD, Gegnerplatzhalter, Beute und Siegel mit der Szene. blockout.js liefert Höhen, Kollisionen, Strahlabfragen auf echte Geometrie und Straßen-Navigation. Start über Spiel starten; Pause/Neustart und Rückkehr zum Layout. Keine Online-Verbindung in diesem Kern. Drei Siegel liegen vor Kirche, in der Westmine und im Burghof; die Glocke ist vorläufig vor der Kirche. Erste/zweitens gesammelte Siegel schalten Schrotflinte/Jagdgewehr frei. Dies ist eine bewusste Layoutanpassung, kein vollständiger Port: Spezialgegner, Händler, Relikte, Wetter, Fahrzeuge und Minentunnel fehlen noch. Neun Kerntests; zusätzliche Weltadapterprüfungen in #game-tests unter ?test=terrain. Vollständige Übergabe in CLAUDE-HANDOFF.md.
