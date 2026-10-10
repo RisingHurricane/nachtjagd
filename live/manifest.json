@@ -1,8 +1,18 @@
 {
   "source": "https://altay.vision/nachtjagd-neu/",
-  "fetched_at": "2026-10-10T16:45:04.473988+00:00",
-  "scope": "public frontend, no MP3, no private backend; dynamically loaded assets may require a second pass",
+  "fetched_at": "2026-10-10T16:46:08.511409+00:00",
+  "scope": "public frontend, including referenced snow and limestone textures; no MP3, no private backend",
   "files": [
+    {
+      "path": "live/altay.vision/nachtjagd/textures/limestone.png",
+      "bytes": 2469821,
+      "sha256": "e523faf5fbedc8db9027c3a997d29bfa00e4c7f618c0fdc5ae1220457dc5e439"
+    },
+    {
+      "path": "live/altay.vision/nachtjagd/textures/snow.png",
+      "bytes": 2234233,
+      "sha256": "79a9c59703217bf2c6e3e3013e710e5c3353230c5d3e26f2a648b80649a78572"
+    },
     {
       "path": "live/altay.vision/nachtjagd/vendor/font-0.ttf",
       "bytes": 81448,
@@ -36,7 +46,7 @@
     {
       "path": "live/altay.vision/nachtjagd-neu/index.html",
       "bytes": 530759,
-      "sha256": "fac8d53e456d6e64cbba3e515ac762870e33e1eff3a04ec8d0d2999fb743af18"
+      "sha256": "a24f16264cc892fd45001c377feff2674658040f98a774c42061f2bd9e4f076b"
     }
   ]
 }
