@@ -18,6 +18,26 @@ Letzte Aktualisierung: 2026-10-10 (Claude Haiku, Branch `claude/haiku-stufe1-b`)
 - Veröffentlicht: https://risinghurricane.github.io/nachtjagd/ (GitHub Pages, Branch `gh-pages` = Inhalt von `public/`). Live getestet: ein Fenster hostet, ein zweites tritt per `?room=CODE` bei. Quelle ist dieses öffentliche Repository `RisingHurricane/nachtjagd`. Neu veröffentlichen: `git subtree split --prefix public -b gh-pages && git push -f origin gh-pages`.
 - Schwerpunkt ab jetzt: Grafik und Stimmung nach den Referenzbildern (siehe `DESIGN.md`, Abschnitt Referenzbilder). Das Spielprinzip (Monster, Waffen, Kristalle, Fahrzeuge) lässt sich von der Live-Seite `altay.vision/nachtjagd` abschauen und später übernehmen.
 
+## Burgmodelle und Übergabe an Codex (Claude, 11.10.)
+
+Auf dem Branch `claude/burg` liegen zwei grobe, neugotische Burgvarianten als fertige Modellmodule. Sie fassen nur neue Dateien an (`public/models/`, `test/castle.test.js`, in `package.json` die Dev-Abhängigkeit `three@0.170.0` nur für den Test). `world.js`, `level.json`, `main` und `gh-pages` sind unberührt.
+
+- `public/models/castle.js` (`buildCastle`): Palas im Norden, sehr hoher achteckiger Hauptturm im Hof, Bergfried, schräge Flügel, Bogengang, Tor bei x = 4.
+- `public/models/castle2.js` (`buildCastle2`): langer Palas, runder Hauptturm (rund 78 m) am Ostende, 30 Grad gedrehter Fachwerkflügel, Kapelle mit Apsis, Torturm mit Pyramidendach, Tor bei x = -6.
+- `public/models/kit.js`: gemeinsame Bauteile (Türme, Dächer, Spitzbögen, Bogengänge, schräge Flügel mit `frame`, Fenster). Neue Gebäude (Kirche, Häuser) sollen darauf aufbauen.
+- Vorschau: `public/models/preview.html?model=castle2&view=front|back|side|west|aerial|top|court|arcade|tower|gate|free`.
+- Läuft mit Three.js 0.170 und r128 (Build geprüft, r128 nur ohne Rendering).
+
+Vertrag: `buildX(THREE, options)` gibt eine `THREE.Group` zurück, 1 Einheit = 1 m, Ursprung = Mitte am Boden, Eingang nach +z, `userData` mit `footprint`, `height`, `gate` und `colliders`. Collider sind `{type:'box', x, z, w, d, h, rot?}` (rot = Drehung um y) oder `{type:'circle', x, z, r, h}` in lokalen Koordinaten. Beim Platzieren (`group.position`, `group.rotation.y`) müssen die Collider mitgedreht und verschoben werden.
+
+### Nächste Schritte für Codex (Spiellogik verknüpfen)
+
+1. Branch `codex/<thema>` von `main` oder von `codex/village-layout` anlegen und `claude/burg` hineinholen (`git merge origin/claude/burg`). Konflikte sind nur bei `package.json` und `package-lock.json` zu erwarten.
+2. Burg am Felssporn des Weltentwurfs einsetzen: Modul laden, `group.position` und `rotation.y` aus dem Layout setzen, die Collider in Weltkoordinaten umrechnen und der Kollision übergeben. `game.js` kennt bisher nur achsenparallele Boxen und Kreise. Entweder gedrehte Boxen unterstützen (Feld `rot`) oder sie durch Kreise annähern (Radius `hypot(w, d) / 2`).
+3. Spielmechanik aus dem Live-Frontend (Wellen, Monster, Waffen, Kristalle, Fahrzeuge) auf die gemeinsame Spiellogik übertragen. Der Host rechnet (`game.js` über `session.js`), Gäste schicken nur Eingaben, das Protokoll steht in `AGENTS.md`. `fire` und `pitch` werden bisher nicht ausgewertet.
+4. Mehrspieler: `net.js` (PeerJS, Raumcode) ist mit dem Weltentwurf noch nicht verbunden. Alle Teilnehmer brauchen dieselbe Weltversion.
+5. Vor dem Push `npm test` ausführen, eigenen Branch pushen, nicht `main` und nicht `gh-pages` anfassen, danach `STATUS.md` und den Übergabe-Log ergänzen.
+
 ## Nächste Schritte
 
 1. Aufgaben aus `PLAN.md` der Reihe nach umsetzen, mit Haiku, je Sitzung zwei bis drei Aufgaben. Als Nächstes Aufgabe 6 (Nachtstimmung, Schnee, Taschenlampe, Fotos).
@@ -48,3 +68,4 @@ Letzte Aktualisierung: 2026-10-10 (Claude Haiku, Branch `claude/haiku-stufe1-b`)
 - 2026-10-11, Claude Code (Branch `claude/burg`): Burg erweitert um einen hohen achteckigen Mittelturm im Hof und schräge Teile (Kemenate 22°, Kapelle 17°, Rückflügel 26°, drei schräge Mauern). Modellvertrag ergänzt: gedrehte Box-Collider tragen `rot` (Drehung um y, Radiant). `game.js` kennt nur achsenparallele Boxen, beim Einbau in die Welt muss das noch unterstützt werden (oder die Boxen werden durch Kreise angenähert, siehe Kopfkommentar in `castle.js`).
 - 2026-10-11, Claude Code (Branch `claude/burg`): Hauptturm im Hof vergrößert (achteckig, zwei Stufen, rund 60 m, bündig an der Palasfront), Zwerchgiebel verschoben, alle Teile stehen auf einem gemeinsamen Felsumriss statt auf einzelnen Platten. Vorschau hat neue Ansichten `top`, `court`, `west`. Footprint jetzt 52 x 42 m, Höhe 62 m.
 - 2026-10-11, Claude Code (Branch `claude/burg`): Hauptturm schlank und rund 80 m hoch (Höhe des Modells 85 m), alle Dächer steiler (Satteldächer 10 bis 17 m Anstieg, Kegel 11 bis 26 m), Spitzbogentor, Spitzbogenfenster, Bogengang links vom Tor (`arcadeSeg`, `arcadePanel`). Vorschau: neue Ansichten `arcade` und `tower`, Kamera skaliert mit der Modellhöhe.
+- 2026-10-11, Claude Code (Branch `claude/burg`): Baukasten `kit.js` aus `castle.js` herausgelöst (Geometrie unverändert), zweite Burgvariante `castle2.js` (anderer Grundriss, Fachwerkflügel, Torturm mit Pyramidendach), Tests für beide Burgen (44 Tests grün), Übergabe an Codex (siehe Abschnitt oben). Footprint von `castle.js` auf 52 x 49 m korrigiert.

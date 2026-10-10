@@ -21,6 +21,8 @@ Das Projekt nutzt ES-Module (`"type": "module"` in `package.json`).
 - `public/net.js`: Mehrspieler ohne Server. Ohne `?room=CODE` in der Adresse hostet der Spieler einen neuen Raum (die Spielberechnung läuft in seinem Browser), mit Code tritt er bei. Verbindung über WebRTC, Vermittler ist PeerJS (`https://unpkg.com/peerjs@1.5.4`, öffentlicher Dienst, kein Konto). Tests: `?peerhost=localhost&peerport=9000` mit einem lokalen `peer`-Server. `?mode=ws` nutzt stattdessen `server.js` per WebSocket.
 - Veröffentlichung: statisch über GitHub Pages, Inhalt des Ordners `public/` (Branch `gh-pages`). Der Host muss sein Fenster offen und sichtbar lassen, sonst bremst der Browser die Spielberechnung.
 - `test/server.test.js`: Tests für Server und Protokoll mit dem eingebauten Node-Testrunner.
+- `public/models/`: Gebäudemodule für die Welt (`castle.js`, `castle2.js`, gemeinsamer Baukasten `kit.js`, Vorschau `preview.html`). Vertrag: `buildX(THREE, options)` liefert eine `THREE.Group` (1 Einheit = 1 m, Ursprung Bodenmitte, Eingang +z, `userData.colliders` mit optionalem `rot`). Details in `STATUS.md`.
+- `test/castle.test.js`: Tests für die Burgmodelle (braucht `three` als Dev-Abhängigkeit).
 
 ### Nachrichtenprotokoll (JSON über WebSocket)
 

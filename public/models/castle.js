@@ -1,5 +1,7 @@
 'use strict';
 
+import { createKit, PALETTE } from './kit.js';
+
 // Burg im neugotischen Stil (um 1880 bis 1920), grobe Fassung aus Quadern, Zylindern, Kegeln,
 // Pyramiden und Prismen. Sie ersetzt später die Schlossboxen in world.js.
 //
@@ -7,10 +9,12 @@
 //   buildCastle(THREE, options) gibt eine THREE.Group zurück.
 //   - THREE wird übergeben, damit dieselbe Datei mit Three.js r128 (Live-Frontend) und 0.170 läuft.
 //   - Maßstab 1 Einheit = 1 Meter. Ursprung = Mitte der Burg auf Bodenhöhe (y = 0).
-//   - Das Tor liegt an der +z-Seite (Süden) bei x = 4, ein hoher Mittelturm steht im Hof vor dem
-//     Palas, der Bergfried (Eckturm mit Pyramidendach) im Nordosten. Der Grundriss ist bewusst unsymmetrisch (Gipfelburg wie Neuschwanstein,
-//     Wernigerode): Palas im Norden, Kapelle im Westen, Kemenate im Osten, niedrige Mauern ohne Zinnen.
-//   - Außenmaß etwa 46 x 40 m, Tor 6 m breit.
+//   - Das Tor liegt an der +z-Seite (Süden) bei x = 4, ein hoher Hauptturm steht im Hof vor dem
+//     Palas, der Bergfried (Eckturm mit Pyramidendach) im Nordosten. Der Grundriss ist bewusst
+//     unsymmetrisch (Gipfelburg wie Neuschwanstein, Wernigerode): Palas im Norden, Kapelle im
+//     Westen, Kemenate im Osten, niedrige Mauern ohne Zinnen.
+//   - Außenmaß etwa 52 x 49 m, Höhe 85 m, Tor 6 m breit.
+//   - Gemeinsame Bauteile (Türme, Dächer, Spitzbögen, Bogengänge) stehen in kit.js.
 //   - group.userData.colliders: Liste der festen Körper in lokalen Koordinaten, damit das Layout
 //     die Kollision aus dem Modell übernehmen kann:
 //       { type: 'box', x, z, w, d, h } oder { type: 'circle', x, z, r, h }
@@ -21,214 +25,20 @@
 //     hypot(w, d) / 2 annähern.
 //   - Platzieren: group.position.set(x, bodenhoehe, z); group.rotation.y = drehung.
 
-const DEFAULTS = {
-  windowColor: 0xe0a050, // warmes Licht aus der Palette in DESIGN.md
-  stone: 0x596b74,
-  stoneDark: 0x4e4e4b,
-  stoneLight: 0x7e868c,
-  roofSlate: 0x2f3d4a,
-  roofCopper: 0x6e4637,
-  snow: 0xdfe6ec,
-};
-
 export function buildCastle(THREE, options = {}) {
-  const opt = { ...DEFAULTS, ...options };
+  const opt = { ...PALETTE, ...options };
   const group = new THREE.Group();
   group.name = 'castle';
-  const colliders = [];
 
-  const mat = (color, extra = {}) =>
-    new THREE.MeshStandardMaterial({ color, roughness: 0.95, metalness: 0, flatShading: true, ...extra });
-  const M = {
-    stone: mat(opt.stone),
-    stoneDark: mat(opt.stoneDark),
-    stoneLight: mat(opt.stoneLight),
-    slate: mat(opt.roofSlate, { roughness: 0.85 }),
-    copper: mat(opt.roofCopper, { roughness: 0.85 }),
-    snow: mat(opt.snow, { roughness: 1 }),
-    dark: mat(0x0b1116),
-    glow: new THREE.MeshStandardMaterial({
-      name: 'windowGlow',
-      color: opt.windowColor,
-      emissive: opt.windowColor,
-      emissiveIntensity: 1.1,
-      roughness: 1,
-    }),
-  };
-
-  // Teilbereiche (Flügel) lassen sich gegen die Achsen drehen. frame(x, z, rot, fn) baut fn() in
-  // lokalen Koordinaten um (x, z); Fenster und Collider werden in Weltkoordinaten umgerechnet.
-  let F = { x: 0, z: 0, rot: 0, g: group };
-  function frame(x, z, rot, fn) {
-    const prev = F;
-    const g = new THREE.Group();
-    g.position.set(x, 0, z);
-    g.rotation.y = rot;
-    group.add(g);
-    F = { x, z, rot, g };
-    fn();
-    F = prev;
-  }
-  const toWorld = (x, z) => ({
-    x: F.x + x * Math.cos(F.rot) + z * Math.sin(F.rot),
-    z: F.z - x * Math.sin(F.rot) + z * Math.cos(F.rot),
-  });
-  const col = {
-    box(x, z, w, d, h) {
-      const p = toWorld(x, z);
-      const c = { type: 'box', x: p.x, z: p.z, w, d, h };
-      if (F.rot !== 0) c.rot = F.rot;
-      colliders.push(c);
-    },
-    circle(x, z, r, h) {
-      const p = toWorld(x, z);
-      colliders.push({ type: 'circle', x: p.x, z: p.z, r, h });
-    },
-  };
-
-  function add(mesh, x, y, z) {
-    mesh.position.set(x, y, z);
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
-    F.g.add(mesh);
-    return mesh;
-  }
-
-  // Quader, Unterkante bei y0.
-  function box(w, h, d, x, y0, z, material) {
-    return add(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material), x, y0 + h / 2, z);
-  }
-
-  // Runder Turm mit Kegeldach. roofMat bestimmt die Dachfarbe, segs die Seitenzahl.
-  function roundTower(x, z, r, h, roofH, roofMat, stoneMat, y0 = 0, segs = 12) {
-    add(new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.08, h, segs), stoneMat), x, y0 + h / 2, z);
-    // Auskragung unter dem Dach
-    add(new THREE.Mesh(new THREE.CylinderGeometry(r * 1.18, r * 1.0, 1.1, segs), M.stoneDark), x, y0 + h + 0.55, z);
-    add(new THREE.Mesh(new THREE.ConeGeometry(r * 1.3, roofH, segs), roofMat), x, y0 + h + 1.1 + roofH / 2, z);
-    // Turmspitze
-    add(new THREE.Mesh(new THREE.ConeGeometry(0.18, 1.8, 6), M.dark), x, y0 + h + 1.1 + roofH + 0.7, z);
-  }
-
-  // Vierseitige Pyramide über einem quadratischen Grundriss mit Seitenlänge s.
-  function pyramid(s, h, x, y0, z, material) {
-    const m = new THREE.Mesh(new THREE.ConeGeometry(s * Math.SQRT1_2, h, 4), material);
-    m.rotation.y = Math.PI / 4;
-    return add(m, x, y0 + h / 2, z);
-  }
-
-  // Satteldach (dreieckiges Prisma). ridgeAlongX: Firstrichtung entlang x, sonst entlang z.
-  function gable(w, d, rise, overhang, x, y0, z, ridgeAlongX, material) {
-    const span = (ridgeAlongX ? d : w) + overhang * 2;
-    const length = (ridgeAlongX ? w : d) + overhang * 2;
-    const shape = new THREE.Shape();
-    shape.moveTo(-span / 2, 0);
-    shape.lineTo(span / 2, 0);
-    shape.lineTo(0, rise);
-    shape.lineTo(-span / 2, 0);
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: length, bevelEnabled: false });
-    geo.translate(0, 0, -length / 2);
-    const m = new THREE.Mesh(geo, material);
-    if (ridgeAlongX) {
-      m.rotation.y = Math.PI / 2;
-    }
-    return add(m, x, y0, z);
-  }
-
-  const windows = []; // { x, y, z, face, w, h, rot } in Weltkoordinaten
-
-  function pushWin(x, y, z, face, w, h) {
-    const p = toWorld(x, z);
-    windows.push({ x: p.x, y, z: p.z, face, w, h, rot: F.rot });
-  }
-
-  // Dachgaube: kleiner Kasten mit Giebel, schaut in Richtung dir ('+z' oder '-z').
-  function dormer(x, y0, z, dir) {
-    const s = dir === '+z' ? 1 : -1;
-    box(1.8, 1.8, 1.8, x, y0, z, M.stone);
-    gable(1.8, 1.8, 2.6, 0.15, x, y0 + 1.8, z, false, M.slate);
-    pushWin(x, y0 + 0.9, z + s * 0.92, dir, 0.7, 1.0);
-  }
-
-  // Fensterreihe an einer Wandfläche. face: '+z' '-z' '+x' '-x'. (cx, cz) ist die Mitte der Reihe
-  // auf der Wandfläche selbst, die Fenster sitzen um offset davor.
-  function windowRow(cx, cz, face, count, spacing, y, w = 0.8, h = 1.8, offset = 0.08) {
-    const start = -((count - 1) * spacing) / 2;
-    for (let i = 0; i < count; i++) {
-      const t = start + i * spacing;
-      if (face === '+z') pushWin(cx + t, y, cz + offset, face, w, h);
-      else if (face === '-z') pushWin(cx + t, y, cz - offset, face, w, h);
-      else if (face === '+x') pushWin(cx + offset, y, cz + t, face, w, h);
-      else pushWin(cx - offset, y, cz + t, face, w, h);
-    }
-  }
-
-  // Wandscheibe mit Spitzbogenöffnungen bis zum Boden (Bogengang, Tor). Mitte der Scheibe bei (x, z),
-  // t = Tiefe. n Öffnungen der Breite bw, Pfeiler dazwischen und außen je pw breit.
-  function arcadePanel(n, bw, pw, h, spring, apex, t, x, z, material) {
-    const W = n * bw + (n + 1) * pw;
-    const shape = new THREE.Shape();
-    shape.moveTo(-W / 2, 0);
-    shape.lineTo(-W / 2, h);
-    shape.lineTo(W / 2, h);
-    shape.lineTo(W / 2, 0);
-    for (let i = n - 1; i >= 0; i--) {
-      const x0 = -W / 2 + pw + i * (bw + pw);
-      shape.lineTo(x0 + bw, 0);
-      shape.lineTo(x0 + bw, spring);
-      shape.lineTo(x0 + bw / 2, apex);
-      shape.lineTo(x0, spring);
-      shape.lineTo(x0, 0);
-    }
-    shape.lineTo(-W / 2, 0);
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: t, bevelEnabled: false });
-    geo.translate(0, 0, -t / 2);
-    return add(new THREE.Mesh(geo, material), x, 0, z);
-  }
-
-  // Bogengang von (ax, az) nach (bx, bz): Rückwand, Spitzbogenreihe zur linken Seite der Laufrichtung
-  // (zum Hof), steiles Pultdach aus Kupfer. Schräg erlaubt.
-  function arcadeSeg(ax, az, bx, bz, h, t) {
-    const dx = bx - ax;
-    const dz = bz - az;
-    const len = Math.hypot(dx, dz);
-    frame((ax + bx) / 2, (az + bz) / 2, Math.atan2(-dz, dx), () => {
-      const bw = 2.6;
-      const n = Math.max(1, Math.round((len - 1) / (bw + 1)));
-      const pw = (len - n * bw) / (n + 1);
-      box(len, h, 0.7, 0, 0, t / 2 - 0.35, M.stone); // Rückwand
-      arcadePanel(n, bw, pw, h, h * 0.55, h * 0.88, 0.9, 0, -t / 2 + 0.45, M.stoneLight);
-      gable(len, t, 4.5, 0.4, 0, h, 0, true, M.copper);
-      col.box(0, 0, len, t, h + 0.5);
-    });
-  }
-
-  // Niedrige Mauer ohne Zinnen von (ax, az) nach (bx, bz), schräg erlaubt, mit Deckplatte.
-  function wallSeg(ax, az, bx, bz, h, t = 2) {
-    const dx = bx - ax;
-    const dz = bz - az;
-    const len = Math.hypot(dx, dz);
-    frame((ax + bx) / 2, (az + bz) / 2, Math.atan2(-dz, dx), () => {
-      box(len, h, t, 0, 0, 0, M.stone);
-      box(len + 0.4, 0.5, t + 0.4, 0, h, 0, M.stoneLight);
-      col.box(0, 0, len, t, h + 0.5);
-    });
-  }
+  const kit = createKit(THREE, group, opt);
+  const { M, colliders, add, box, roundTower, pyramid, gable, dormer, windowRow, arcadePanel, arcadeSeg, wallSeg, frame, col, oct } = kit;
 
   // ---------- Felssockel: ein unregelmäßiger Umriss unter allen Gebäuden, 0,4 m über dem Boden ----------
-  {
-    const outline = [
-      [-24, -6], [-21, -13], [-12, -19], [-6, -24.5], [4, -24.5], [8, -19], [14, -18], [15, -12],
-      [23, -10], [28, 0], [27.5, 13], [26, 21.5], [17, 23.8], [8, 23.5], [-2, 23.3], [-12, 23.8],
-      [-18, 23], [-24, 17], [-24.5, 4],
-    ];
-    const shape = new THREE.Shape();
-    outline.forEach(([x, z], i) => (i === 0 ? shape.moveTo(x, z) : shape.lineTo(x, z)));
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: 2, bevelEnabled: false });
-    geo.rotateX(Math.PI / 2); // Umriss in die x-z-Ebene, Tiefe nach unten
-    const rock = new THREE.Mesh(geo, M.stoneDark);
-    rock.position.y = 0.4;
-    group.add(rock);
-  }
+  kit.rock([
+    [-24, -6], [-21, -13], [-12, -19], [-6, -24.5], [4, -24.5], [8, -19], [14, -18], [15, -12],
+    [23, -10], [28, 0], [27.5, 13], [26, 21.5], [17, 23.8], [8, 23.5], [-2, 23.3], [-12, 23.8],
+    [-18, 23], [-24, 17], [-24.5, 4],
+  ]);
 
   // ---------- Palas (Haupthaus) im Norden: langer Bau mit steilem Dach und Zwerchgiebeln ----------
   box(24, 13, 9, -4, 0, -6, M.stone);
@@ -261,10 +71,6 @@ export function buildCastle(THREE, options = {}) {
   {
     const cx = -3.5;
     const cz = 2.6; // Nordfläche liegt bündig an der Palasfront (z = -1.5)
-    const oct = (geo) => {
-      geo.rotateY(Math.PI / 8); // Fläche statt Kante zeigt nach +z
-      return geo;
-    };
     add(new THREE.Mesh(oct(new THREE.CylinderGeometry(4.0, 4.4, 34, 8)), M.stone), cx, 17, cz);
     add(new THREE.Mesh(oct(new THREE.CylinderGeometry(5.2, 4.0, 1.2, 8)), M.stoneDark), cx, 34.6, cz);
     add(new THREE.Mesh(oct(new THREE.CylinderGeometry(3.2, 3.2, 14, 8)), M.stoneLight), cx, 42.2, cz);
@@ -375,35 +181,11 @@ export function buildCastle(THREE, options = {}) {
   wallSeg(15.5, 20.5, 24, 12, 5); // Südost, schräg zur Kemenate
   wallSeg(-20, -4.5, -23, 3.5, 5); // West, zwischen Rundturm und Kapelle
 
-  // ---------- Fenster als InstancedMesh ----------
-  const tmp = new THREE.Object3D();
-  // Spitzbogenfenster: Rechteck mit aufgesetztem Dreieck, Maße 1 x 1 (werden pro Fenster skaliert)
-  const winShape = new THREE.Shape();
-  winShape.moveTo(-0.5, -0.5);
-  winShape.lineTo(0.5, -0.5);
-  winShape.lineTo(0.5, 0.15);
-  winShape.lineTo(0, 0.5);
-  winShape.lineTo(-0.5, 0.15);
-  winShape.lineTo(-0.5, -0.5);
-  const winGeo = new THREE.ExtrudeGeometry(winShape, { depth: 0.18, bevelEnabled: false });
-  winGeo.translate(0, 0, -0.09);
-  const win = new THREE.InstancedMesh(winGeo, M.glow, windows.length);
-  windows.forEach((w, i) => {
-    tmp.position.set(w.x, w.y, w.z);
-    const base = w.face === '+x' ? Math.PI / 2 : w.face === '-x' ? -Math.PI / 2 : w.face === '-z' ? Math.PI : 0;
-    tmp.rotation.set(0, base + w.rot, 0);
-    tmp.scale.set(w.w, w.h, 1);
-    tmp.updateMatrix();
-    win.setMatrixAt(i, tmp.matrix);
-  });
-  tmp.rotation.set(0, 0, 0);
-  tmp.scale.set(1, 1, 1);
-  win.name = 'windows';
-  group.add(win);
+  kit.finish();
 
   group.userData = {
     kind: 'castle',
-    footprint: { w: 52, d: 42 },
+    footprint: { w: 52, d: 49 },
     height: 85,
     gate: { x: gateX, z: gateZ, w: 6, facing: '+z' },
     colliders,
