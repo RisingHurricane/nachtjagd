@@ -1,10 +1,10 @@
 # Bergdorf nach Nutzerskizze
 
-Vorschau Entwurf 06: https://risinghurricane.github.io/nachtjagd/entwurf/?v=06
+Vorschau Entwurf 07: https://risinghurricane.github.io/nachtjagd/entwurf/?v=07
 
-Norden ist -z: Burg westlich auf freiem Felssporn, großer Südwestsee, ummauertes Hangdorf rechts der Mitte. Ein innerer Ring weicher Mittelberge (110–165 m) und eine äußere Reihe schroffer Hochgipfel (290–420 m) umschließen die Welt. Unebene Vorberge füllen die Lücke hinter dem Dorf. world-layout.js enthält Orte, Grundhöhen, See, Wald und Häuser; blockout.js erzeugt die Szene. Kein Build-Schritt.
+Norden ist -z: Burg westlich auf freiem Felssporn, großer Südwestsee, ummauertes Hangdorf rechts der Mitte. Ein innerer Ring weicher Mittelberge (103–208 m) und eine äußere Reihe schroffer Hochgipfel (235–436 m) umschließen die Welt. Unebene Vorberge füllen die Lücke hinter dem Dorf. Beide Bergtypen variieren reproduzierbar in Höhe, Breite, Tiefe, Ausrichtung und Abständen. 136 zusätzliche Bäume stehen in lockeren Gruppen an niedrigen, nicht zu steilen Hängen. world-layout.js enthält Orte, Grundhöhen, See, Wald und Häuser; blockout.js erzeugt die Szene. Kein Build-Schritt.
 
-28 Häuser in vier groben Volumenformen stehen versetzt und unterschiedlich gedreht in kleinen Gruppen. Kirche, Höfe, Mauer mit drei Toren und zwei begehbare Treppenwege. Wald auf 3300 Bäume aufgelichtet, mit größeren Stammabständen, kleineren Kronen, Lichtungen, einzelnen Baumgruppen und niedrigem Bewuchs. Kronen beginnen mindestens 4 m über dem Boden; nur Stämme kollidieren. Modelle bleiben bewusst Quader und Kegel.
+28 Häuser in vier groben Volumenformen stehen versetzt und unterschiedlich gedreht in kleinen Gruppen. Kirche, Höfe, Mauer mit drei Toren und zwei begehbare Treppenwege. Aufgelichteter Wald mit rund 3400 Bäumen, mit größeren Stammabständen, kleineren Kronen, Lichtungen, einzelnen Baumgruppen und niedrigem Bewuchs. Kronen beginnen mindestens 4 m über dem Boden; nur Stämme kollidieren. Modelle bleiben bewusst Quader und Kegel.
 
 road-layout.js beschreibt 13 Straßen/Gassen einschließlich der beiden Treppen. road-profile.js verbindet Kreuzungen und begrenzt Längsneigungen auf 18 %. Fahrbahnen sind quer waagerecht; der Boden erhält weiche Einschnitte und Aufschüttungen. stairs.js erzeugt waagerechte Trittflächen mit höchstens 20 cm Stufenhöhe; dieselben Tritte setzen die Augenhöhe. Das siebenbogige Viadukt bleibt rund 135 m lang und begehbar; Brüstungen/Pfeiler blockieren, offene Bögen lassen sich unten durchqueren.
 
@@ -14,11 +14,11 @@ Ansichten: Dorf, Hochebene, Draufsicht, Burg, Viadukt und Rundgänge auf Brücke
 
 Berge formen öffnet Anheben, Absenken, Glätten und Ebnen. Links ziehen malt, rechts dreht, Alt + links verschiebt. Radius/Stärke sind einstellbar. Ebnen übernimmt die Höhe beim Strichbeginn. Bauplätze, Burg, Ufer und Straßen sind standardmäßig geschützt; die Schutzmaske ist abschaltbar. Straßenprofile, Tritte und Widerlager bleiben eben; Häuser, Vegetation und Treppensockel folgen dem bearbeiteten Gelände. 24 Schritte Undo/Redo.
 
-Das Gelände nutzt 321×281 Punkte bei 5 m Rasterweite, Grundform bergdorf-vorberge-dorf-2026-10-10-v4 und Browser-Schlüssel nachtjagd-bergdorf-vorberge-dorf-v4. Änderungen bleiben lokal und verändern weder GitHub noch andere Spieler. Datei speichern exportiert nachtjagd-berge.json; Datei laden prüft Format v2, Grundform, Raster und Werte. Andere Grundformen werden abgewiesen; vorherige Browserstände bleiben erhalten.
+Das Gelände nutzt 321×281 Punkte bei 5 m Rasterweite, Grundform bergdorf-bergvariation-2026-10-11-v5 und Browser-Schlüssel nachtjagd-bergdorf-bergvariation-v5. Änderungen bleiben lokal und verändern weder GitHub noch andere Spieler. Datei speichern exportiert nachtjagd-berge.json; Datei laden prüft Format v2, Grundform, Raster und Werte. Andere Grundformen werden abgewiesen; vorherige Browserstände bleiben erhalten.
 
-64 automatisierte Tests: 35 bestehende Server/Client-, neun Editor-, neun Weltlayout-, fünf Straßen-, vier Viadukt- und zwei Treppen-Tests. 16 Browserprüfungen unter ?test=terrain prüfen unter anderem Querneigung, freie Wegverbindungen, Treppen, Gebäudesockel und Geländeanschlüsse. Treppenbewegung und Editor mit Undo/Redo und Wiederherstellung nach Reload sichtbar geprüft.
+65 automatisierte Tests: 35 bestehende Server/Client-, neun Editor-, zehn Weltlayout-, fünf Straßen-, vier Viadukt- und zwei Treppen-Tests. 17 Browserprüfungen unter ?test=terrain prüfen unter anderem Querneigung, freie Wegverbindungen, Treppen, Gebäudesockel und Geländeanschlüsse. Treppenbewegung und Editor mit Undo/Redo und Wiederherstellung nach Reload sichtbar geprüft.
 
-Die sichtbare Kennung Entwurf 06 und Skriptadressen mit ?v=06 verhindern gemischte alte/neue Dateien. Bei Veröffentlichung Kennung, Direktlink und Skriptzusätze gemeinsam ändern; bei inkompatiblen Grundformänderungen zusätzlich Basis und Speicherschlüssel erhöhen.
+Die sichtbare Kennung Entwurf 07 und Skriptadressen mit ?v=07 verhindern gemischte alte/neue Dateien. Bei Veröffentlichung Kennung, Direktlink und Skriptzusätze gemeinsam ändern; bei inkompatiblen Grundformänderungen zusätzlich Basis und Speicherschlüssel erhöhen.
 
 ## Spielbarer Vergleich
 

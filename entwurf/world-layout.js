@@ -13,7 +13,19 @@ globalThis.NachtjagdLayout = (() => {
     [[-295,-15],[-250,25],[-195,65],[-120,85]],
     [[55,235],[130,275],[225,280],[295,200]]
   ];
+  // Feste, unregelmäßige Bergformen; identisch nach Neuladen und bei allen Spielern.
+  const variation=i=>{ const n=Math.sin(i*127.1+71.7)*43758.5453; return n-Math.floor(n); };
+  const middleSites = [[-370,-293,130],[-270,-315,155],[-155,-285,135],[-50,-329,165],[65,-293,145],[182,-313,155],[310,-280,130],[-475,-185,135],[-465,-50,120],[-480,85,140],[-470,222,125],[-358,342,120],[-205,405,110],[-60,405,130],[82,405,110],[221,395,125],[355,302,140],[390,180,145],[385,42,120],[397,-93,140],[375,-207,130]];
+  const middlePeaks=middleSites.map(([x,z,top],i)=>({x:x+(variation(i+1)-.5)*24,z:z+(variation(i+31)-.5)*20,top:top*(.78+.48*variation(i+61)),rx:105+85*variation(i+91),rz:100+80*variation(i+121),rotation:(variation(i+151)-.5)*1.4}));
+  const highPeaks=Array.from({length:24},(_,i)=>{
+    const angle=(i+(variation(i+181)-.5)*.38)/24*Math.PI*2;
+    const x=-40+(600+40*(variation(i+211)-.5))*Math.cos(angle),z=(540+40*(variation(i+241)-.5))*Math.sin(angle);
+    return {x,z,top:235+180*variation(i+271)+(z<0?30:0),rx:Math.min(105+70*variation(i+301),780-Math.abs(x)),rz:Math.min(100+65*variation(i+331),675-Math.abs(z)),rotation:(variation(i+361)-.5)*1.1};
+  });
+  for(const peak of [...middlePeaks,...highPeaks]) { peak.cos=Math.cos(peak.rotation); peak.sin=Math.sin(peak.rotation); }
+  const foothillGroups=[[-405,-140,48],[-410,65,45],[325,-215,50],[220,-260,48],[25,-245,45],[355,230,45],[40,355,50]];
   const treeGroups = [[-345,-170,24],[-320,20,23],[-235,75,28],[-35,105,24],[15,-65,22],[70,240,30],[210,315,27],[300,-135,30],[320,20,23]];
+  const allTreeGroups=[...treeGroups,...foothillGroups];
   // Kleine Hausgruppen und versetzte Höfe statt gleichmäßiger Zeilen.
   const houseSites = [[19,-5],[41,-3],[63,0],[11,12],[24,17],[48,19],[66,18],[119,-5],[141,-7],[165,-4],[115,16],[141,18],[166,17],[16,76],[37,72],[58,77],[82,74],[102,76],[133,75],[157,74],[174,89],[19,96],[44,94],[70,96],[94,96],[126,100],[143,96],[164,94]];
   const houses = houseSites.map(([x,z],i)=>[x,z,7.5+i%3*1.2,8+i%4,(i%5-2)*.12,6+i%5,i%4]);
@@ -41,7 +53,7 @@ globalThis.NachtjagdLayout = (() => {
   }
   function treeWeight(x,z) {
     let weight=forestWeight(x,z);
-    for(const [cx,cz,r] of treeGroups) weight=Math.max(weight,.8*(1-smooth(r*.55,r,Math.hypot(x-cx,z-cz))));
+    for(const [cx,cz,r] of allTreeGroups) weight=Math.max(weight,.8*(1-smooth(r*.55,r,Math.hypot(x-cx,z-cz))));
     return weight;
   }
   function naturalHeight(x, z) {
@@ -55,17 +67,17 @@ globalThis.NachtjagdLayout = (() => {
     h += foothills*(52*Math.exp(-(((x-145)/140)**2)-(((z+125)/95)**2))+28*Math.exp(-(((x-30)/85)**2)-(((z+210)/85)**2)));
     h += foothills*12*Math.sin(x/37+z/51)*Math.exp(-(((z+125)/140)**2));
     // Der bisherige Ring wird zu weicheren, mittelhohen Bergen.
-    const middlePeaks = [[-370,-293,130],[-270,-315,155],[-155,-285,135],[-50,-329,165],[65,-293,145],[182,-313,155],[310,-280,130],[-475,-185,135],[-465,-50,120],[-480,85,140],[-470,222,125],[-358,342,120],[-205,405,110],[-60,405,130],[82,405,110],[221,395,125],[355,302,140],[390,180,145],[385,42,120],[397,-93,140],[375,-207,130]];
-    for(const [px,pz,top] of middlePeaks) {
-      const r=Math.hypot((x-px)/155,(z-pz)/150);
-      if(r<1) h=Math.max(h,24+(top-24)*(1-smooth(0,1,r)));
+    for(const peak of middlePeaks) {
+      const x0=x-peak.x,z0=z-peak.z,c=peak.cos,s=peak.sin;
+      const r=Math.hypot((x0*c+z0*s)/peak.rx,(-x0*s+z0*c)/peak.rz);
+      if(r<1) h=Math.max(h,24+(peak.top-24)*(1-smooth(0,1,r)));
     }
-    // Eine eigene äußere Reihe hoher, kantiger Gipfel umschließt die Mittelberge.
-    for(let i=0;i<24;i++) {
-      const angle=i/24*Math.PI*2,px=-40+620*Math.cos(angle),pz=550*Math.sin(angle);
-      const top=290+(i%5)*22+(pz<0?45:0);
-      const dx=(x-px)/145,dz=(z-pz)/140,r=Math.max(Math.abs(dx),Math.abs(dz),Math.abs(dx*.72+dz*.63));
-      if(r<1) h=Math.max(h,30+(top-30)*(1-r));
+    // Äußere Hochgipfel unterscheiden sich in Höhe, Fußabdruck und Ausrichtung.
+    for(const peak of highPeaks) {
+      const x0=x-peak.x,z0=z-peak.z,c=peak.cos,s=peak.sin;
+      const dx=(x0*c+z0*s)/peak.rx,dz=(-x0*s+z0*c)/peak.rz;
+      const r=Math.max(Math.abs(dx),Math.abs(dz),Math.abs(dx*.72+dz*.63));
+      if(r<1) h=Math.max(h,30+(peak.top-30)*(1-r));
     }
     // Ein niedriger Widerlagerhügel erhält den bestehenden Brückenanschluss.
     const bridgeHill=Math.hypot((x+120)/55,(z+180)/55);
@@ -84,5 +96,5 @@ globalThis.NachtjagdLayout = (() => {
     // Breiter, sanfter Ufersaum; die Hügel steigen erst hinter dem Strand an.
     return shore < 0 ? Math.max(-7, shore * .25) : shore * .07 * (1-smooth(30,130,shore)) + Math.max(3,h) * smooth(30,130,shore);
   }
-  return { village, castle, lake, houses, forestBands, treeGroups, smooth, segmentDistance, lakeDistance, forestWeight, treeWeight, naturalHeight, basis: 'bergdorf-vorberge-dorf-2026-10-10-v4' };
+  return { village, castle, lake, houses, forestBands, treeGroups, foothillGroups, middlePeaks, highPeaks, smooth, segmentDistance, lakeDistance, forestWeight, treeWeight, naturalHeight, basis: 'bergdorf-bergvariation-2026-10-11-v5' };
 })();
