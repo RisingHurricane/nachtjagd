@@ -10,6 +10,7 @@ Letzte Aktualisierung: 2026-10-10 (Codex, Dorfentwurf auf Basis von `nachtjagd-n
 - Vorschau unter `https://risinghurricane.github.io/nachtjagd/entwurf/` veröffentlicht und im Browser geprüft. Dorfplatz, Übersicht und friedlicher Rundgang sind über die Leiste unten links erreichbar.
 - Online-Koop ist in diesem Entwurf nicht verbunden; der öffentliche Import enthält den privaten Altay-Backendcode nicht. Die bestehende Altay-Version bleibt unverändert. Der spätere gemeinsame Spielstand braucht dieselbe Weltversion für alle Teilnehmer.
 - Referenzen getrennt behandeln: Dorf, Wald, Burg/Schloss außen, Gesamtstimmung/Tal sowie Schlossräume. Bisher hauptsächlich Dorfkern überarbeitet; Bergkulisse, Monster, Wald und Schlossräume sind noch der bisherige Stand.
+- Änderungen gesichert in PR #1 (`codex/village-layout` gegen `main`). Automatische Freigabe hat die Übernahme in `main` ohne ausdrückliche Zustimmung abgelehnt; kein Merge erfolgt. Die separat veröffentlichte Vorschau funktioniert unabhängig davon.
 - Als Nächstes: räumliches Feedback zum Dorf einarbeiten, anschließend die übrigen Bereiche einzeln nach ihren eigenen Referenzen gestalten.
 
 Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` und dessen Server, nicht das neuere monolithische Live-Spiel.
