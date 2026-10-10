@@ -13,7 +13,8 @@ import { createKit, PALETTE } from './kit.js';
 //     Palas, der Bergfried (Eckturm mit Pyramidendach) im Nordosten. Der Grundriss ist bewusst
 //     unsymmetrisch (Gipfelburg wie Neuschwanstein, Wernigerode): Palas im Norden, Kapelle im
 //     Westen, Kemenate im Osten, niedrige Mauern ohne Zinnen.
-//   - Außenmaß etwa 52 x 49 m, Höhe 85 m, Tor 6 m breit.
+//   - Außenmaß etwa 52 x 49 m, Höhe 85 m, Tor 6 m breit. Die Rückseite ist durch Verbindungsbau, Mauern
+//     und Palisaden geschlossen, Strebepfeiler tragen Fialen, Türen sitzen an den Hofseiten.
 //   - Gemeinsame Bauteile (Türme, Dächer, Spitzbögen, Bogengänge) stehen in kit.js.
 //   - group.userData.colliders: Liste der festen Körper in lokalen Koordinaten, damit das Layout
 //     die Kollision aus dem Modell übernehmen kann:
@@ -31,14 +32,14 @@ export function buildCastle(THREE, options = {}) {
   group.name = 'castle';
 
   const kit = createKit(THREE, group, opt);
-  const { M, colliders, add, box, roundTower, pyramid, gable, dormer, windowRow, arcadePanel, arcadeSeg, wallSeg, frame, col, oct } = kit;
+  const { M, colliders, add, box, roundTower, pyramid, gable, dormer, windowRow, arcadePanel, arcadeSeg, wallSeg, frame, col, oct, palisade, fiale, buttress, door } = kit;
 
   // ---------- Felssockel: ein unregelmäßiger Umriss unter allen Gebäuden, 0,4 m über dem Boden ----------
   kit.rock([
     [-24, -6], [-21, -13], [-12, -19], [-6, -24.5], [4, -24.5], [8, -19], [14, -18], [15, -12],
     [23, -10], [28, 0], [27.5, 13], [26, 21.5], [17, 23.8], [8, 23.5], [-2, 23.3], [-12, 23.8],
     [-18, 23], [-24, 17], [-24.5, 4],
-  ]);
+  ], 9); // 9 m tief, damit der Keller im Fels liegt
 
   // ---------- Palas (Haupthaus) im Norden: langer Bau mit steilem Dach und Zwerchgiebeln ----------
   box(24, 13, 9, -4, 0, -6, M.stone);
@@ -61,6 +62,10 @@ export function buildCastle(THREE, options = {}) {
   for (const x of [-12, -6, 0]) dormer(x, 13.4, -9.1, '-z');
   box(1.3, 4.5, 1.3, -8, 28, -6, M.stoneDark);
   box(1.3, 4.5, 1.3, 5.5, 28, -6.4, M.stoneDark);
+  // Strebepfeiler mit Fialen an der Rückwand des Palas (zwischen den Fenstern)
+  for (const x of [-12, -8.4, -4.8, -1.2, 2.4]) buttress(x, -10.5, '-z', 9.5, 4.5);
+  door(-12, 1.5, '+z', 2.2, 3.8);
+  door(5, 1.5, '+z', 2.2, 3.8);
   // Erkerturm am Ostende der Hofseite, auf einem umgekehrten Kegel
   const corbel = new THREE.Mesh(new THREE.ConeGeometry(1.7, 3.2, 8), M.stoneDark);
   corbel.rotation.x = Math.PI;
@@ -119,6 +124,7 @@ export function buildCastle(THREE, options = {}) {
     add(new THREE.Mesh(kit.roofGeo(1.2, 6, 8), M.slate), 9 + dx, 23.6 + 3.5 + 3, -12 + dz);
   }
   add(new THREE.Mesh(new THREE.ConeGeometry(0.2, 3.5, 6), M.dark), 9, 23.6 + 24 + 1.5, -12);
+  door(13, -8.9, '+x', 1.8, 3.4);
   windowRow(13, -12, '+x', 2, 3, 8);
   windowRow(13, -12, '+x', 2, 3, 15);
   windowRow(9, -16, '-z', 2, 3, 8);
@@ -135,6 +141,7 @@ export function buildCastle(THREE, options = {}) {
     windowRow(0, -3.5, '-z', 3, 3, 3.6);
     windowRow(0, -3.5, '-z', 3, 3, 6.6);
     box(1.2, 3.5, 1.2, 2, 15, 0, M.stoneDark);
+    door(-1.5, 3.5, '+z', 1.6, 3.0);
   });
 
   // ---------- Kemenate im Osten, 22 Grad gedreht, mit Ecktürmchen ----------
@@ -142,6 +149,7 @@ export function buildCastle(THREE, options = {}) {
     box(8, 10, 12, 0, 0, 0, M.stoneLight);
     gable(8, 12, 13, 0.6, 0, 10, 0, false, M.slate);
     col.box(0, 0, 8, 12, 10);
+    door(-4, -1.8, '-x', 1.8, 3.4);
     windowRow(-4, 0, '-x', 3, 3.6, 3.6);
     windowRow(-4, 0, '-x', 3, 3.6, 7.2);
     windowRow(0, 6, '+z', 2, 3, 4);
@@ -161,6 +169,9 @@ export function buildCastle(THREE, options = {}) {
     col.circle(0, 7, 3.8, 10);
     roundTower(4.8, -5.5, 1.5, 19, 17, M.slate, M.stoneLight);
     col.circle(4.8, -5.5, 1.5, 19);
+    for (const z of [-1.8, 1.8, 5.4]) buttress(4, z, '+x', 8.2, 3.8, 0.8, 1.1);
+    for (const z of [-3.6, -1.8, 1.8, 3.6, 5.4]) buttress(-4, z, '-x', 8.2, 3.8, 0.8, 1.1);
+    door(0, -7, '-z', 2.6, 4.6);
   });
 
   // ---------- Torhaus (rechts der Mitte) mit Rundturm ----------
@@ -172,14 +183,35 @@ export function buildCastle(THREE, options = {}) {
   gable(11, 5, 11, 0.5, gateX, 10, gateZ, true, M.slate);
   windowRow(gateX - 4.25, gateZ + 2.5, '+z', 1, 1, 6.5, 0.7, 1.5);
   windowRow(gateX + 4.25, gateZ + 2.5, '+z', 1, 1, 6.5, 0.7, 1.5);
+  for (const sx of [-5.2, 5.2]) buttress(gateX + sx, gateZ + 2.5, '+z', 10.2, 4.6, 1.0, 1.0);
   roundTower(12.8, gateZ, 3.2, 15, 17, M.slate, M.stoneLight);
   col.circle(12.8, gateZ, 3.2, 15);
   windowRow(12.8, gateZ + 3.2, '+z', 1, 1, 9, 0.7, 1.5);
 
   // ---------- Niedrige Mauern ohne Zinnen, teils schräg ----------
   arcadeSeg(-13.5, 21, -1.5, 18.6, 7, 3.2); // Bogengang links vom Tor, leicht schräg
-  wallSeg(15.5, 20.5, 24, 12, 5); // Südost, schräg zur Kemenate
+  arcadeSeg(17, 19.8, 24.3, 11.8, 6.5, 3); // zweiter Bogengang rechts vom Torturm, schräg zur Kemenate
+  wallSeg(21.4, 10.4, 24.4, 12.2, 5.5, 1.6); // Anschluss an die Kemenate
+  palisade(26.2, 20.4, 27.2, 14, 3.2); // Palisade am Felsrand im Südosten
   wallSeg(-20, -4.5, -23, 3.5, 5); // West, zwischen Rundturm und Kapelle
+
+  // ---------- Rückseite: Lücken zwischen den Bauten schließen ----------
+  // Verbindungsbau zwischen Begleitturm und Rückflügel, mit Satteldach und Fialen
+  frame(-8.4, -13.6, 0.22, () => {
+    box(5.2, 8, 3.6, 0, 0, 0, M.stoneLight);
+    gable(5.2, 3.6, 6, 0.4, 0, 8, 0, true, M.slate);
+    col.box(0, 0, 5.2, 3.6, 8);
+    windowRow(0, -1.8, '-z', 2, 2.2, 4.5, 0.7, 1.6);
+    windowRow(0, -1.8, '-z', 1, 1, 7, 0.6, 1.2);
+    door(0, -1.8, '-z', 1.5, 3.0);
+    buttress(-2.6, -1.8, '-z', 6.5, 3.6, 0.8, 0.9);
+    buttress(2.6, -1.8, '-z', 6.5, 3.6, 0.8, 0.9);
+  });
+  wallSeg(3.2, -17.4, 5.4, -16.2, 5.5, 1.6); // zwischen Rückflügel und Bergfried
+  palisade(13.4, -8.4, 17, -5.9, 3.2); // zwischen Bergfried und Kemenate
+  palisade(-23, 4.6, -24, 9.5, 2.8); // am Westrand neben der Kapelle
+  // weitere Fialen an den Giebeln des Palas
+  for (const x of [-15.6, 7.6]) fiale(x, 12.2, -6, 4.2, 0.6);
 
   kit.finish();
 

@@ -42,6 +42,14 @@ Vertrag: `buildX(THREE, options)` gibt eine `THREE.Group` zurück, 1 Einheit = 1
 
 `public/models/castle-interior.js` (`buildCastleInterior(THREE)`) liefert fünf Innenräume im selben Koordinatensystem wie `castle.js` (gleiche Position und Drehung verwenden): Rittersaal, Bibliothek, Turmtreppe, Turmzimmer, Kapelle. `userData.rooms` enthält je Raum `id`, `label`, `eye`, `target`, `cutY`, `userData.lights` Lichtvorschläge je Raum. Grenzen: Die Außenhülle hat noch keine Türöffnungen, die Innenräume haben keine Collider. Ein interaktiver Betrachter mit Schnittebene liegt als Artifact vor (Quelle im Arbeitsverzeichnis des Agenten, nicht im Repository). Für andere Werkzeuge ließe sich ein GLB-Export ergänzen.
 
+### Burg: Rückseite, Außendetails, Keller (Claude, 11.10.)
+
+- Rückseite geschlossen: Verbindungsbau zwischen Begleitturm und Rückflügel, Mauerstücke, Palisaden (`kit.palisade`) zwischen Bergfried und Kemenate, am Westrand und am Südostrand.
+- Neue Bauteile in `kit.js`: `palisade`, `fiale`, `buttress` (Strebepfeiler mit Fiale), `door` (Spitzbogentür). Strebepfeiler mit Fialen an Palas, Kapelle, Torhaus und Verbindungsbau, Türen an Hofseiten. Zweiter Bogengang an der Südostmauer. Der Fels unter `castle.js` ist 9 m tief, damit der Keller darin liegt.
+- `castle-interior.js`: jetzt 16 Räume in 6 Gruppen (Palas, Türme, Kapelle, Flügel, Gänge, Keller): neu Kemenate, Schlafgemach, Waffenkammer, Wachstube, Küche, Gästekammer, zwei Bogengänge, Weinkeller, Kellergang, Verlies. Der Keller liegt bis 4,8 m unter dem Boden (Weinkeller unter dem Rittersaal, Kellergang und Verlies Richtung Osten).
+- `tools/export-glb.mjs`: exportiert `burg-aussen.glb`, `burg-innen.glb` und `burg-komplett.glb` (1 Einheit = 1 m). Aufruf `node tools/export-glb.mjs [Ordner]`.
+- Offen: Türen sind noch Zierde, in den Außenwänden gibt es keine Öffnungen und die Innenräume haben keine Collider. Neue Collider (Strebepfeiler, Palisaden, Verbindungsbau, Bogengang) stehen in `userData.colliders`.
+
 ## Nächste Schritte
 
 1. Aufgaben aus `PLAN.md` der Reihe nach umsetzen, mit Haiku, je Sitzung zwei bis drei Aufgaben. Als Nächstes Aufgabe 6 (Nachtstimmung, Schnee, Taschenlampe, Fotos).
@@ -75,3 +83,4 @@ Vertrag: `buildX(THREE, options)` gibt eine `THREE.Group` zurück, 1 Einheit = 1
 - 2026-10-11, Claude Code (Branch `claude/burg`): Baukasten `kit.js` aus `castle.js` herausgelöst (Geometrie unverändert), zweite Burgvariante `castle2.js` (anderer Grundriss, Fachwerkflügel, Torturm mit Pyramidendach), Tests für beide Burgen (44 Tests grün), Übergabe an Codex (siehe Abschnitt oben). Footprint von `castle.js` auf 52 x 49 m korrigiert.
 - 2026-10-11, Claude Code (Branch `claude/burg`): Dächer beider Burgen mit flacherem Rand am Traufrand (etwa 17 Grad, danach die steile Hauptneigung): `kit.gable` mit Knickprofil, neue Funktion `kit.roofGeo` für Kegel- und Pyramidendächer (Lathe-Profil), Dachgauben tiefer gesetzt. Besitzer bevorzugt die erste Burg (`castle.js`), `castle2.js` bleibt als Alternative.
 - 2026-10-11, Claude Code (Branch `claude/burg`): Innenräume der Burg (`castle-interior.js`, 5 Räume, 10 Lichter), Test ergänzt (45 Tests grün), Artifact-Betrachter mit Schnittebene veröffentlicht.
+- 2026-10-11, Claude Code (Branch `claude/burg`): Rückseite der Burg geschlossen, Palisaden, Fialen, Strebepfeiler, Türen, zweiter Bogengang, 16 Innenräume mit Keller, GLB-Export (`tools/export-glb.mjs`). 45 Tests grün.

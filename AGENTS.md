@@ -22,6 +22,7 @@ Das Projekt nutzt ES-Module (`"type": "module"` in `package.json`).
 - Veröffentlichung: statisch über GitHub Pages, Inhalt des Ordners `public/` (Branch `gh-pages`). Der Host muss sein Fenster offen und sichtbar lassen, sonst bremst der Browser die Spielberechnung.
 - `test/server.test.js`: Tests für Server und Protokoll mit dem eingebauten Node-Testrunner.
 - `public/models/`: Gebäudemodule für die Welt (`castle.js`, `castle2.js`, `castle-interior.js` (Innenräume), gemeinsamer Baukasten `kit.js`, Vorschau `preview.html`). Vertrag: `buildX(THREE, options)` liefert eine `THREE.Group` (1 Einheit = 1 m, Ursprung Bodenmitte, Eingang +z, `userData.colliders` mit optionalem `rot`). Details in `STATUS.md`.
+- `tools/export-glb.mjs`: GLB-Export der Burg (`node tools/export-glb.mjs [Ordner]`).
 - `test/castle.test.js`: Tests für die Burgmodelle (braucht `three` als Dev-Abhängigkeit).
 
 ### Nachrichtenprotokoll (JSON über WebSocket)

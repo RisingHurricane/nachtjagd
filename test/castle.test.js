@@ -29,7 +29,7 @@ for (const [name, build] of variants) {
   test(`Burg bleibt innerhalb des Footprints und hat Fensterleuchtmaterial (${name})`, () => {
     const castle = build(THREE);
     const box = new THREE.Box3().setFromObject(castle);
-    assert.ok(box.min.y >= -1.7); // Sockel reicht 1,6 m unter den Boden
+    assert.ok(box.min.y >= (name === 'castle' ? -9 : -1.7)); // Fels reicht bei castle.js 8,6 m unter den Boden (Keller)
     assert.ok(box.max.y <= castle.userData.height + 0.01);
     const { w, d } = castle.userData.footprint;
     assert.ok(box.min.x >= -w / 2 - 3 && box.max.x <= w / 2 + 3);
@@ -72,7 +72,8 @@ test('Burginnenraum liefert Räume mit Kamerapunkten und Lichtern', () => {
   assert.ok(g instanceof THREE.Group);
   assert.equal(g.name, 'castleInterior');
   const { rooms, lights } = g.userData;
-  assert.ok(rooms.length >= 5);
+  assert.ok(rooms.length >= 14);
+  assert.ok(rooms.some((r) => r.group === 'Keller'));
   for (const r of rooms) {
     assert.ok(r.id && r.label);
     assert.equal(r.eye.length, 3);
@@ -81,5 +82,5 @@ test('Burginnenraum liefert Räume mit Kamerapunkten und Lichtern', () => {
     assert.ok(lights.some((l) => l.room === r.id), `Licht für ${r.id}`);
   }
   const box = new THREE.Box3().setFromObject(g);
-  assert.ok(box.min.y >= -1 && box.max.y < 70);
+  assert.ok(box.min.y >= -5.5 && box.max.y < 70); // Keller bis 4,8 m unter dem Boden
 });

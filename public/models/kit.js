@@ -216,11 +216,107 @@ export function createKit(THREE, group, opt) {
     });
   }
 
+
+  // Palisade: Reihe angespitzter Holzpfähle mit zwei Querlatten von (ax, az) nach (bx, bz).
+  function palisade(ax, az, bx, bz, h = 3) {
+    const dx = bx - ax;
+    const dz = bz - az;
+    const len = Math.hypot(dx, dz);
+    frame((ax + bx) / 2, (az + bz) / 2, Math.atan2(-dz, dx), () => {
+      const n = Math.max(2, Math.round(len / 0.5));
+      const stakes = new THREE.InstancedMesh(new THREE.BoxGeometry(0.42, 1, 0.42), M.wood, n);
+      const tips = new THREE.InstancedMesh(new THREE.ConeGeometry(0.3, 0.8, 4), M.wood, n);
+      const t = new THREE.Object3D();
+      for (let i = 0; i < n; i++) {
+        const x = -len / 2 + (len * (i + 0.5)) / n;
+        const hh = h * (0.88 + 0.12 * (((i * 7919) % 13) / 12)); // leicht unterschiedlich hoch
+        t.position.set(x, hh / 2 - 0.2, ((i % 2) - 0.5) * 0.12);
+        t.scale.set(1, hh, 1);
+        t.rotation.set(0, 0, 0);
+        t.updateMatrix();
+        stakes.setMatrixAt(i, t.matrix);
+        t.position.set(x, hh - 0.2 + 0.4, ((i % 2) - 0.5) * 0.12);
+        t.scale.set(1, 1, 1);
+        t.rotation.set(0, Math.PI / 4, 0);
+        t.updateMatrix();
+        tips.setMatrixAt(i, t.matrix);
+      }
+      F.g.add(stakes);
+      F.g.add(tips);
+      box(len, 0.2, 0.16, 0, h * 0.28, 0.3, M.wood);
+      box(len, 0.2, 0.16, 0, h * 0.68, 0.3, M.wood);
+      col.box(0, 0, len, 0.6, h);
+    });
+  }
+
+  // Fiale (Ziertürmchen): Schaft, Kragen, Krabben an den Seiten, Pyramidenspitze. h = Gesamthöhe.
+  function fiale(x, y0, z, h = 4, s = 0.55) {
+    const shaft = h * 0.55;
+    box(s * 1.5, 0.35, s * 1.5, x, y0, z, M.stoneDark);
+    box(s, shaft, s, x, y0 + 0.35, z, M.stoneLight);
+    box(s * 1.35, 0.25, s * 1.35, x, y0 + 0.35 + shaft, z, M.stoneDark);
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      box(0.16, 0.36, 0.16, x + dx * s * 0.58, y0 + 0.35 + shaft * 0.75, z + dz * s * 0.58, M.stoneLight);
+    }
+    const tipH = h - shaft - 0.6;
+    pyramid(s * 1.1, tipH, x, y0 + 0.6 + shaft, z, M.slate);
+    add(new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.6, 5), M.dark), x, y0 + h + 0.2, z);
+  }
+
+  // Strebepfeiler mit Fiale an einer Wand. dir: '+x' '-x' '+z' '-z' (Richtung von der Wand weg),
+  // (x, z) liegt auf der Wandfläche. h = Pfeilerhöhe, fh = Höhe der Fiale darüber.
+  function buttress(x, z, dir, h, fh = 4, w = 0.9, d = 1.2, withCol = true) {
+    const nx = dir === '+x' ? 1 : dir === '-x' ? -1 : 0;
+    const nz = dir === '+z' ? 1 : dir === '-z' ? -1 : 0;
+    const cx = x + (nx * d) / 2;
+    const cz = z + (nz * d) / 2;
+    const sx = nx ? d : w;
+    const sz = nz ? d : w;
+    box(sx, h, sz, cx, 0, cz, M.stone);
+    box(sx + 0.2, 0.3, sz + 0.2, cx, h, cz, M.stoneLight);
+    if (fh > 0) fiale(cx + nx * 0.05, h + 0.3, cz + nz * 0.05, fh, Math.min(0.6, w * 0.65));
+    if (withCol) col.box(cx, cz, sx, sz, h);
+  }
+
+  // Tür im Spitzbogen mit steinerner Laibung, an einer Wandfläche. face: '+z' '-z' '+x' '-x'.
+  // (x, z) ist die Mitte der Türschwelle auf der Wand.
+  function door(x, z, face, w = 2.2, h = 3.8) {
+    const ang = face === '+x' ? Math.PI / 2 : face === '-x' ? -Math.PI / 2 : face === '-z' ? Math.PI : 0;
+    const arch = (aw, spring, apex) => {
+      const sh = new THREE.Shape();
+      sh.moveTo(-aw / 2, 0);
+      sh.lineTo(aw / 2, 0);
+      sh.lineTo(aw / 2, spring);
+      sh.lineTo(0, apex);
+      sh.lineTo(-aw / 2, spring);
+      sh.lineTo(-aw / 2, 0);
+      return sh;
+    };
+    const apex = h;
+    const spring = h * 0.68;
+    const f = new THREE.ExtrudeGeometry(arch(w + 0.7, spring + 0.1, apex + 0.45), { depth: 0.4, bevelEnabled: false });
+    f.translate(0, 0, -0.12);
+    const frameMesh = add(new THREE.Mesh(f, M.stoneLight), x, 0, z);
+    frameMesh.rotation.y = ang;
+    const d = new THREE.ExtrudeGeometry(arch(w, spring, apex), { depth: 0.46, bevelEnabled: false });
+    d.translate(0, 0, -0.12);
+    const doorMesh = add(new THREE.Mesh(d, M.wood), x, 0, z);
+    doorMesh.rotation.y = ang;
+    // Eisenbänder (liegen auf dem Türblatt)
+    for (const y of [h * 0.25, h * 0.55]) {
+      const strap = add(new THREE.Mesh(new THREE.BoxGeometry(w * 0.9, 0.16, 0.08), M.dark), x, y, z);
+      strap.rotation.y = ang;
+      const n = new THREE.Vector3(Math.sin(ang), 0, Math.cos(ang));
+      strap.position.x += n.x * 0.36;
+      strap.position.z += n.z * 0.36;
+    }
+  }
+
   // Ein Felsumriss (Liste von [x, z]) unter allen Gebäuden, 0,4 m über dem Boden, 1,6 m darunter.
-  function rock(outline) {
+  function rock(outline, depth = 2) {
     const shape = new THREE.Shape();
     outline.forEach(([x, z], i) => (i === 0 ? shape.moveTo(x, z) : shape.lineTo(x, z)));
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: 2, bevelEnabled: false });
+    const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false });
     geo.rotateX(Math.PI / 2); // Umriss in die x-z-Ebene, Tiefe nach unten
     const mesh = new THREE.Mesh(geo, M.stoneDark);
     mesh.position.y = 0.4;
@@ -264,6 +360,6 @@ export function createKit(THREE, group, opt) {
 
   return {
     M, colliders, windows, add, box, roundTower, pyramid, gable, roofGeo, dormer, windowRow,
-    arcadePanel, arcadeSeg, wallSeg, frame, col, rock, oct, finish, mat, toWorld,
+    arcadePanel, arcadeSeg, wallSeg, frame, col, rock, oct, finish, mat, toWorld, palisade, fiale, buttress, door,
   };
 }

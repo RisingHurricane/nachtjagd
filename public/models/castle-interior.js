@@ -11,7 +11,7 @@ import { createKit, PALETTE } from './kit.js';
 // sind (BackSide), von außen sieht man weiter die Außenwände der Burg.
 //
 // Rückgabe: THREE.Group mit userData
-//   rooms:  [{ id, label, eye: [x, y, z], target: [x, y, z], cutY }] für Kamerastandorte, cutY ist eine
+//   rooms:  [{ id, label, group, eye: [x, y, z], target: [x, y, z], cutY }] für Kamerastandorte, cutY ist eine
 //           Schnitthöhe, bei der der Raum von oben offen liegt
 //   lights: [{ room, x, y, z, color, intensity, distance }] Lichtvorschläge je Raum, damit der Aufrufer
 //           nur die Lichter des gerade betrachteten Raums einschalten kann
@@ -440,6 +440,358 @@ export function buildCastleInterior(THREE, options = {}) {
     lights.push({ room: 'kapelle', x: ax, y: 2.2, z: az, color: 0xffa050, intensity: 1.2, distance: 8 });
     rooms.push({ id: 'kapelle', label: 'Kapelle', eye: [ex, 1.7, ez], target: [ax, 2.6, az], cutY: 11 });
   }
+
+  // ======================================================================================
+  // Erweiterung: Flügel, Bergfried, Bogengänge und Keller
+  // ======================================================================================
+  const wp = (fx, fz, fr, x, z) => [fx + x * Math.cos(fr) + z * Math.sin(fr), fz - x * Math.sin(fr) + z * Math.cos(fr)];
+  I.steel = mat(0x7d868c, { roughness: 0.5, metalness: 0.4 });
+  I.straw = mat(0x9a8450);
+  I.barrel = mat(0x5a3e28);
+  I.glassBottle = mat(0x2a4a3a, { roughness: 0.4 });
+  I.sack = mat(0x8a7b5e);
+  I.plasterBoth = mat(0x6b645c, { side: THREE.DoubleSide });
+  I.lampIron = mat(0x1b1d20);
+  const chainLamp = (x, yTop, yLamp, z) => {
+    cyl(0.015, 0.015, yTop - yLamp, x, yLamp, z, I.iron, 4);
+    box(0.22, 0.3, 0.22, x, yLamp - 0.3, z, I.lampIron);
+    ball(0.09, x, yLamp - 0.15, z, I.fire);
+  };
+  const sconce = (x, y, z) => {
+    box(0.12, 0.3, 0.12, x, y, z, I.iron);
+    ball(0.1, x, y + 0.38, z, I.fire);
+  };
+  const ladder = (x, z, y0, h, alongX = true) => {
+    const s = 0.3;
+    for (const k of [-1, 1]) box(alongX ? 0.06 : 0.06, h, alongX ? 0.06 : 0.06, x + (alongX ? k * s : 0), y0, z + (alongX ? 0 : k * s), I.wood);
+    for (let y = 0.3; y < h; y += 0.32) box(alongX ? 0.6 : 0.05, 0.05, alongX ? 0.05 : 0.6, x, y0 + y, z, I.wood);
+  };
+  const barrel = (x, y0, z, r = 0.8, len = 1.5, axisX = true) => {
+    const b = cyl(r, r, len, x, y0, z, I.barrel, 10);
+    const bandA = cyl(r * 1.04, r * 1.04, 0.1, x, y0, z, I.iron, 10);
+    const bandB = cyl(r * 1.04, r * 1.04, 0.1, x, y0, z, I.iron, 10);
+    // liegend: Achse entlang x bzw. z
+    for (const m of [b, bandA, bandB]) {
+      if (axisX) m.rotation.z = Math.PI / 2;
+      else m.rotation.x = Math.PI / 2;
+      m.position.y = y0 + r;
+    }
+    const off = len * 0.3;
+    if (axisX) { bandA.position.x = x - off; bandB.position.x = x + off; } else { bandA.position.z = z - off; bandB.position.z = z + off; }
+  };
+  // Spitzbogen-Tonnengewölbe von innen (ohne Stirnkappen), Länge entlang z, Mitte bei x = 0, unten bei y0.
+  const vaultShell = (width, spring, apex, len, y0) => {
+    const v = new THREE.ExtrudeGeometry(archShape(width, spring, apex), { depth: len, bevelEnabled: false });
+    v.translate(0, 0, -len / 2);
+    const g1 = v.groups[1];
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(v.attributes.position.array.slice(g1.start * 3, (g1.start + g1.count) * 3), 3));
+    geo.computeVertexNormals();
+    return add(new THREE.Mesh(geo, I.plasterDark), 0, y0, 0);
+  };
+  // Stirnwand eines Gewölbes bei z, optional mit Durchgang (Spitzbogen) in der Mitte
+  const endWall = (width, spring, apex, z, y0, hole, material) => {
+    const sh = archShape(width, spring, apex);
+    if (hole) {
+      const p = new THREE.Path();
+      p.moveTo(-hole.w / 2, 0.02);
+      p.lineTo(-hole.w / 2, hole.spring);
+      p.lineTo(0, hole.apex);
+      p.lineTo(hole.w / 2, hole.spring);
+      p.lineTo(hole.w / 2, 0.02);
+      p.lineTo(-hole.w / 2, 0.02);
+      sh.holes.push(p);
+    }
+    const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.12, bevelEnabled: false });
+    return add(new THREE.Mesh(geo, material), 0, y0, z);
+  };
+
+  // ---------- Kemenate (Osten, 22 Grad gedreht): Frauengemach unten, Schlafgemach oben ----------
+  {
+    const FX = 18.5, FZ = 1.5, FR = -0.38;
+    const W = (x, z) => wp(FX, FZ, FR, x, z);
+    frame(FX, FZ, FR, () => {
+      shell(6.6, 4.7, 10.6, 0, 0, 0, I.plaster, { noTop: true });
+      box(6.6, 0.06, 10.6, 0, 0, 0, I.floorStone);
+      box(4.2, 0.02, 6.0, -0.3, 0.06, 0.5, I.rug);
+      box(4.9, 0.4, 10.6, -1.65, 4.7, 0, I.woodDark); // Zwischendecke mit Treppenöffnung an der Ostwand
+      box(1.7, 0.4, 4.7, 2.45, 4.7, -2.95, I.woodDark);
+      for (let z = -4; z <= 4; z += 2) box(6.6, 0.3, 0.35, 0, 4.4, z, I.wood);
+      for (let i = 0; i < 14; i++) box(1.2, (i + 1) * 0.335, 0.4, 2.4, 0, 5.0 - i * 0.4, I.stone); // Treppe
+      // Kamin an der Nordwand
+      box(3.0, 3.2, 0.9, 0, 0, -4.85, I.stone);
+      box(2.2, 1.5, 0.7, 0, 3.2, -4.95, I.stone);
+      box(1.4, 0.9, 0.12, 0, 0.2, -4.35, I.fire);
+      box(3.4, 0.15, 1.1, 0, 3.15, -4.8, I.woodDark);
+      // Fenster zur Hofseite (Westwand)
+      for (const z of [-3.6, 0, 3.6]) iwin(-3.28, 3.0, z, Math.PI / 2, 0.9, 2.2, I.moon);
+      for (const z of [-1.5, 1.5]) iwin(z, 3.0, 5.28, Math.PI, 0.8, 2.0, I.moon);
+      // Tisch, Stühle, Webstuhl, Truhe
+      box(1.7, 0.08, 0.9, -0.3, 0.78, 0.8, I.wood);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(0.08, 0.78, 0.08, -0.3 + sx * 0.75, 0, 0.8 + sz * 0.35, I.woodDark);
+      for (const x of [-1.2, 0.6]) { box(0.5, 0.06, 0.5, x, 0.5, 1.8, I.wood); box(0.5, 0.9, 0.06, x, 0.5, 2.05, I.woodDark); }
+      candle(-0.3, 0.86, 0.8, 0.28);
+      box(0.08, 2.0, 0.08, -2.7, 0, -3.3, I.woodDark); box(0.08, 2.0, 0.08, -2.7, 0, -2.3, I.woodDark);
+      box(0.1, 0.1, 1.2, -2.7, 1.9, -2.8, I.woodDark); box(0.05, 1.5, 0.9, -2.7, 0.4, -2.8, I.paper);
+      box(1.4, 0.6, 0.7, -2.4, 0, 4.4, I.woodDark);
+      box(0.06, 2.6, 1.2, -3.26, 1.0, -1.9, I.red); // Wandteppich
+      chandelier(-0.3, 4.6, 3.5, 0.8, 0.8);
+      // Obergeschoss: Schlafgemach
+      const y0 = 5.1;
+      shell(6.6, 4.6, 10.6, 0, y0, 0, I.plasterDark, { noBottom: true });
+      box(4.0, 0.02, 5.6, -0.4, y0, -0.2, I.rug);
+      box(2.0, 0.45, 2.4, -1.5, y0, -3.7, I.wood); // Bett mit Himmel
+      box(1.9, 0.3, 2.3, -1.5, y0 + 0.45, -3.7, I.paper);
+      box(1.9, 0.12, 1.4, -1.5, y0 + 0.74, -3.3, I.red);
+      box(0.8, 0.14, 0.4, -1.5, y0 + 0.74, -4.7, I.paper);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) cyl(0.06, 0.06, 2.5, -1.5 + sx * 1.0, y0, -3.7 + sz * 1.2, I.woodDark, 6);
+      box(2.2, 0.08, 2.6, -1.5, y0 + 2.5, -3.7, I.red);
+      box(1.3, 2.3, 0.6, 2.6, y0, -4.9, I.woodDark); // Schrank
+      box(1.5, 0.6, 0.8, -2.6, y0, 1.6, I.woodDark); // Truhe
+      box(1.4, 0.08, 0.8, -0.2, y0 + 0.75, 3.2, I.wood); candle(-0.2, y0 + 0.83, 3.2, 0.25);
+      box(2.2, 3.0, 0.9, 0, y0, 4.85, I.stone); box(1.2, 1.4, 0.12, 0, y0 + 0.2, 4.35, I.fire); // Kamin Südwand
+      for (const z of [-3.6, 0, 3.6]) iwin(-3.28, y0 + 2.4, z, Math.PI / 2, 0.9, 2.2, I.moon);
+      chandelier(-0.3, y0 + 4.5, y0 + 3.4, 0.5, 0.8);
+    });
+    const [e1x, e1z] = W(-2.4, 4.4), [t1x, t1z] = W(0.4, -3.5);
+    const [e2x, e2z] = W(-2.3, 4.4), [t2x, t2z] = W(0.2, -3.8);
+    const [l1x, l1z] = W(0, 0), [l2x, l2z] = W(0, 1);
+    rooms.push({ id: 'kemenate', label: 'Kemenate', eye: [e1x, 1.7, e1z], target: [t1x, 1.8, t1z], cutY: 4.9 });
+    rooms.push({ id: 'schlafgemach', label: 'Schlafgemach', eye: [e2x, 5.1 + 1.7, e2z], target: [t2x, 7.0, t2z], cutY: 10 });
+    lights.push({ room: 'kemenate', x: l1x, y: 3.2, z: l1z, color: 0xffc27a, intensity: 1.0, distance: 10 });
+    lights.push({ room: 'schlafgemach', x: l2x, y: 8.4, z: l2z, color: 0xffc27a, intensity: 1.0, distance: 10 });
+  }
+
+  // ---------- Bergfried (Nordosten): Waffenkammer unten, Wachstube darüber, Leiter dazwischen ----------
+  // Der Raum liegt in der Nordhälfte des Turms (z -15,3 bis -10,7), damit er nicht in den Rittersaal ragt.
+  {
+    const cx = 9, cz = -13;
+    shell(6.6, 5.4, 4.6, cx, 0, cz, I.plaster, { noTop: true });
+    box(6.6, 0.06, 4.6, cx, 0, cz, I.floorStone);
+    box(5.4, 0.4, 4.6, cx + 0.6, 5.4, cz, I.woodDark); // Zwischendecke mit Leiterloch
+    box(1.2, 0.4, 3.2, cx - 2.7, 5.4, cz + 0.7, I.woodDark);
+    ladder(cx - 2.7, cz - 1.6, 0, 6.8, true);
+    // Waffenkammer
+    for (let i = 0; i < 8; i++) {
+      cyl(0.03, 0.03, 2.5, cx + 2.95, 0.1, cz - 1.6 + i * 0.42, I.iron, 5);
+      add(new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.28, 4), I.steel), cx + 2.95, 2.74, cz - 1.6 + i * 0.42);
+    }
+    box(0.3, 0.1, 3.8, cx + 2.9, 0.1, cz, I.woodDark); box(0.1, 0.1, 3.8, cx + 3.0, 1.6, cz, I.woodDark);
+    [I.red, I.steel, I.gold, I.red].forEach((m, i) => {
+      const sh = cyl(0.45, 0.45, 0.07, cx - 1.8 + i * 1.2, 2.4, cz + 2.25, m, 12);
+      sh.rotation.x = Math.PI / 2;
+    });
+    for (const dx of [-1.8, 0, 1.8]) { // Rüstungsständer an der Nordwand
+      box(0.14, 0.9, 0.14, cx + dx, 0, cz - 1.8, I.woodDark);
+      box(0.55, 0.8, 0.3, cx + dx, 0.9, cz - 1.8, I.steel);
+      ball(0.18, cx + dx, 1.95, cz - 1.8, I.steel);
+      box(0.9, 0.12, 0.12, cx + dx, 1.55, cz - 1.8, I.steel);
+    }
+    box(1.8, 0.08, 1.0, cx, 0.85, cz + 0.5, I.wood);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(0.08, 0.85, 0.08, cx + sx * 0.8, 0, cz + 0.5 + sz * 0.4, I.woodDark);
+    box(1.2, 0.5, 0.7, cx + 2.2, 0, cz + 1.6, I.woodDark);
+    sconce(cx - 3.2, 2.0, cz + 0.5); sconce(cx + 3.2, 2.0, cz + 1.6);
+    iwin(cx + 3.28, 2.6, cz - 0.6, -Math.PI / 2, 0.4, 1.4, I.moon);
+    iwin(cx, 2.6, cz + 2.28, Math.PI, 0.4, 1.4, I.moon);
+    // Wachstube
+    const y0 = 5.8;
+    shell(6.6, 5.6, 4.6, cx, y0, cz, I.plasterDark, { noBottom: true });
+    box(1.0, 0.1, 2.0, cx + 2.6, y0 + 0.5, cz + 0.3, I.wood); box(1.0, 0.1, 2.0, cx + 2.6, y0 + 1.6, cz + 0.3, I.wood);
+    box(0.9, 0.12, 1.8, cx + 2.6, y0 + 0.6, cz + 0.3, I.red); box(0.9, 0.12, 1.8, cx + 2.6, y0 + 1.7, cz + 0.3, I.sack);
+    for (const sz of [-1, 1]) box(0.08, 2.0, 0.08, cx + 3.05, y0, cz + 0.3 + sz * 0.95, I.woodDark);
+    box(1.8, 0.08, 1.0, cx - 0.4, y0 + 0.85, cz + 0.1, I.wood);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(0.08, 0.85, 0.08, cx - 0.4 + sx * 0.8, y0, cz + 0.1 + sz * 0.4, I.woodDark);
+    for (const [x, z] of [[-1.5, 0.1], [0.7, 0.1], [-0.4, 1.3]]) box(0.4, 0.45, 0.4, cx + x, y0, cz + z, I.wood);
+    candle(cx - 0.4, y0 + 0.93, cz + 0.1, 0.25);
+    cyl(0.4, 0.28, 0.5, cx - 2.4, y0, cz + 1.5, I.iron, 8); box(0.5, 0.1, 0.5, cx - 2.4, y0 + 0.5, cz + 1.5, I.fire); // Kohlebecken
+    barrel(cx - 2.5, y0, cz - 1.6, 0.5, 0.9, true);
+    iwin(cx - 3.28, y0 + 2.6, cz + 0.5, Math.PI / 2, 0.4, 1.4, I.moon);
+    iwin(cx, y0 + 2.6, cz - 2.28, 0, 0.4, 1.4, I.moon);
+    iwin(cx + 3.28, y0 + 3.0, cz - 1.2, -Math.PI / 2, 0.4, 1.4, I.moon);
+    chainLamp(cx - 0.4, y0 + 5.4, y0 + 3.6, cz + 0.1);
+    lights.push({ room: 'waffenkammer', x: cx, y: 3.4, z: cz, color: 0xffb060, intensity: 0.9, distance: 9 });
+    lights.push({ room: 'wachstube', x: cx - 0.4, y: y0 + 3.4, z: cz + 0.1, color: 0xffb060, intensity: 0.9, distance: 9 });
+    rooms.push({ id: 'waffenkammer', label: 'Waffenkammer', eye: [cx - 2.6, 1.7, cz + 1.7], target: [cx + 1.5, 1.4, cz - 1.0], cutY: 5.2 });
+    rooms.push({ id: 'wachstube', label: 'Wachstube', eye: [cx - 2.6, y0 + 1.7, cz + 1.7], target: [cx + 1.8, y0 + 1.0, cz - 1.0], cutY: 11.4 });
+  }
+
+  // ---------- Küche im Rückflügel: Herd, Tische, Vorräte; darüber Gästekammer ----------
+  {
+    const FX = -3, FZ = -18, FR = 0.45;
+    const W = (x, z) => wp(FX, FZ, FR, x, z);
+    frame(FX, FZ, FR, () => {
+      shell(8.6, 4.7, 5.6, 0, 0, 0, I.plaster, { noTop: true });
+      box(8.6, 0.06, 5.6, 0, 0, 0, I.floorStone);
+      box(8.6, 0.4, 4.4, 0, 4.7, -0.6, I.woodDark); // Zwischendecke mit Treppenöffnung
+      box(3.8, 0.4, 1.2, -2.4, 4.7, 2.2, I.woodDark);
+      for (let x = -3.6; x <= 3.6; x += 1.8) box(0.3, 0.35, 5.6, x, 4.35, 0, I.wood);
+      for (let i = 0; i < 12; i++) box(0.4, (i + 1) * 0.39, 1.0, -0.2 + i * 0.38, 0, 2.2, I.stone);
+      // Herd und Rauchfang an der Westwand
+      box(1.4, 1.1, 3.8, -3.6, 0, 0, I.stone);
+      box(0.3, 0.8, 2.4, -2.85, 0.3, 0, I.fire);
+      box(1.0, 3.6, 3.4, -3.8, 1.1, 0, I.stone);
+      const kessel = add(new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), I.iron), -2.5, 1.3, -0.4);
+      kessel.rotation.x = Math.PI;
+      cyl(0.03, 0.03, 1.5, -2.5, 1.5, -0.4, I.iron, 4);
+      cyl(0.4, 0.4, 0.5, -2.7, 1.1, 1.2, I.iron, 10); // Topf auf dem Herd
+      // Arbeitstische
+      box(3.6, 0.1, 1.1, 0.6, 0.9, -0.9, I.wood);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(0.1, 0.9, 0.1, 0.6 + sx * 1.7, 0, -0.9 + sz * 0.45, I.woodDark);
+      for (let i = 0; i < 4; i++) cyl(0.12, 0.1, 0.18, -0.4 + i * 0.7, 1.0, -0.9, I.iron, 8);
+      box(1.2, 0.9, 0.8, 3.5, 0, -2.2, I.stone); // Steinbecken
+      // Regale mit Töpfen an der Nordwand, Vorräte
+      for (const y of [1.5, 2.4, 3.3]) {
+        box(3.4, 0.06, 0.4, 0.8, y, -2.55, I.wood);
+        for (let i = 0; i < 6; i++) cyl(0.11, 0.09, 0.22, -0.5 + i * 0.5, y + 0.06, -2.55, I.iron, 8);
+      }
+      for (let i = 0; i < 5; i++) {
+        cyl(0.01, 0.01, 0.5, -2 + i * 1.0, 3.9, 1.0, I.iron, 3);
+        cyl(0.12, 0.08, 0.5, -2 + i * 1.0, 3.4, 1.0, I.red, 6);
+      }
+      barrel(3.6, 0, 1.9, 0.5, 0.9, true);
+      box(0.7, 0.5, 0.5, 3.6, 0, 0.6, I.sack); box(0.6, 0.4, 0.5, 3.0, 0, 0.2, I.sack);
+      for (const x of [-3, 0, 3]) iwin(x, 3.2, -2.78, 0, 0.8, 1.9, I.moon);
+      chainLamp(0.6, 4.5, 3.3, 0.6);
+      // Gästekammer darüber
+      const y0 = 5.1;
+      shell(8.6, 3.6, 5.6, 0, y0, 0, I.plasterDark, { noBottom: true });
+      for (const x of [-3.0, -0.8]) {
+        box(1.1, 0.4, 2.1, x, y0, -1.7, I.wood); box(1.0, 0.25, 2.0, x, y0 + 0.4, -1.7, I.sack); box(1.0, 0.1, 1.2, x, y0 + 0.66, -1.4, I.red);
+        box(0.5, 0.12, 0.35, x, y0 + 0.68, -2.5, I.paper);
+      }
+      box(1.4, 2.2, 0.6, 3.4, y0, -2.4, I.woodDark);
+      box(1.1, 0.08, 0.8, 2.0, y0 + 0.75, -2.2, I.wood); candle(2.0, y0 + 0.83, -2.2, 0.25);
+      box(1.2, 0.55, 0.7, -3.6, y0, 1.8, I.woodDark);
+      for (const x of [-2, 1.5]) iwin(x, y0 + 2.0, -2.78, 0, 0.7, 1.6, I.moon);
+      chainLamp(0, y0 + 3.5, y0 + 2.4, -0.4);
+    });
+    const [e1x, e1z] = W(3.4, -1.9), [t1x, t1z] = W(-2.4, 0.2);
+    const [e2x, e2z] = W(3.4, -1.9), [t2x, t2z] = W(-2.5, -1.3);
+    const [l1x, l1z] = W(0, 0);
+    rooms.push({ id: 'kueche', label: 'Küche', eye: [e1x, 1.7, e1z], target: [t1x, 1.3, t1z], cutY: 4.9 });
+    rooms.push({ id: 'gaestekammer', label: 'Gästekammer', eye: [e2x, 5.1 + 1.6, e2z], target: [t2x, 6.2, t2z], cutY: 8.9 });
+    lights.push({ room: 'kueche', x: l1x, y: 3.2, z: l1z, color: 0xffb060, intensity: 1.1, distance: 10 });
+    lights.push({ room: 'gaestekammer', x: l1x, y: 7.6, z: l1z, color: 0xffb060, intensity: 0.8, distance: 9 });
+  }
+
+  // ---------- Bogengänge: Flur hinter den Spitzbogenreihen der Hofmauer ----------
+  function arcadeInterior(ax, az, bx, bz, h, t, id, label) {
+    const dx = bx - ax, dz = bz - az;
+    const len = Math.hypot(dx, dz);
+    const rot = Math.atan2(-dz, dx);
+    const cx = (ax + bx) / 2, cz = (az + bz) / 2;
+    const zi0 = -t / 2 + 0.9, zi1 = t / 2 - 0.7, wi = zi1 - zi0, zc = (zi0 + zi1) / 2;
+    frame(cx, cz, rot, () => {
+      box(len, 0.12, wi + 0.3, 0, 0, zc, I.floorStone);
+      for (let x = -len / 2 + 1; x < len / 2; x += 2) box(0.05, 0.02, wi + 0.3, x, 0.12, zc, I.iron);
+      box(len, 0.2, wi + 0.2, 0, h - 0.2, zc, I.woodDark);
+      for (let x = -len / 2 + 0.7; x < len / 2; x += 1.4) box(0.25, 0.3, wi + 0.2, x, h - 0.5, zc, I.wood);
+      box(len, 0.1, 0.5, 0, 0.45, zi1 - 0.3, I.wood); // Bank an der Rückwand
+      for (let x = -len / 2 + 0.6; x < len / 2; x += 2.2) box(0.1, 0.45, 0.45, x, 0, zi1 - 0.3, I.woodDark);
+      for (let x = -len / 2 + 1.8; x < len / 2 - 1; x += 3.3) {
+        box(0.9, 2.2, 0.05, x, 2.2, zi1 - 0.02, I.red);
+        box(0.1, 2.2, 0.06, x, 2.2, zi1 - 0.03, I.gold);
+      }
+      for (let x = -len / 2 + 2.2; x < len / 2 - 1; x += 3.3) chainLamp(x, h - 0.3, h - 1.5, zc - 0.2);
+    });
+    const P = (x, y, z) => { const [px, pz] = wp(cx, cz, rot, x, z); return [px, y, pz]; };
+    rooms.push({ id, label, eye: P(-len / 2 + 0.8, 1.6, zc), target: P(len / 2, 2.2, zc), cutY: h + 0.6 });
+    const l1 = P(-len / 6, h - 2.0, zc), l2 = P(len / 4, h - 2.0, zc);
+    lights.push({ room: id, x: l1[0], y: l1[1], z: l1[2], color: 0xffb060, intensity: 0.8, distance: 9 });
+    lights.push({ room: id, x: l2[0], y: l2[1], z: l2[2], color: 0xffb060, intensity: 0.8, distance: 9 });
+  }
+  arcadeInterior(-13.5, 21, -1.5, 18.6, 7, 3.2, 'bogengang', 'Bogengang West');
+  arcadeInterior(17, 19.8, 24.3, 11.8, 6.5, 3, 'bogengang2', 'Bogengang Ost');
+
+  // ---------- Keller: Weinkeller unter dem Rittersaal, Kellergang, Verlies ----------
+  {
+    const Y0 = -4.8;
+    const KW = 3.4; // Breite des Kellergangs
+    const hole = { w: KW, spring: 2.3, apex: 3.6 };
+    // Weinkeller: Tonnengewölbe entlang x (Rahmen um 90 Grad gedreht: lokales z = Welt-x)
+    frame(-4, -6, Math.PI / 2, () => {
+      vaultShell(7.8, 2.6, 4.5, 22.8, Y0);
+      add(new THREE.Mesh(new THREE.ExtrudeGeometry(archShape(7.8, 2.6, 4.5), { depth: 0.1, bevelEnabled: false }), I.plasterFront), 0, Y0, -11.4);
+      endWall(7.8, 2.6, 4.5, 11.3, Y0, hole, I.plasterBoth);
+      box(7.8, 0.1, 22.8, 0, Y0 - 0.1, 0, I.floorStone);
+      // Fässer an der linken Wand, zwei Lagen zum Westende hin
+      for (let k = 0; k < 8; k++) barrel(-2.7, Y0, -1.5 + k * 1.75, 0.8, 1.5, true);
+      for (let k = 0; k < 3; k++) barrel(-2.7, Y0 + 1.5, -1.0 + k * 1.75, 0.75, 1.4, true);
+      // Weinregale an der rechten Wand mit Flaschen als Instanzen
+      const bottles = [];
+      for (const rz of [-0.2, 3.4, 7.0]) {
+        box(0.5, 2.4, 3.0, 3.6, Y0, rz, I.wood);
+        for (let r = 0; r < 6; r++) {
+          box(0.52, 0.05, 3.0, 3.6, Y0 + 0.2 + r * 0.4, rz, I.woodDark);
+          for (let z = rz - 1.4; z <= rz + 1.4; z += 0.14) bottles.push([3.55, Y0 + 0.4 + r * 0.4, z]);
+        }
+      }
+      const bm = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.05, 0.05, 0.42, 6), I.glassBottle, bottles.length);
+      const o = new THREE.Object3D();
+      bottles.forEach((b, i) => {
+        o.position.set(...b);
+        o.rotation.set(0, 0, Math.PI / 2);
+        o.updateMatrix();
+        bm.setMatrixAt(i, o.matrix);
+      });
+      add(bm, 0, 0, 0);
+      // Tisch mit Hockern und Kerzen
+      box(2.6, 0.1, 1.0, 0.2, Y0 + 0.85, -6.8, I.wood);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(0.1, 0.85, 0.1, 0.2 + sx * 1.2, Y0, -6.8 + sz * 0.4, I.woodDark);
+      for (const x of [-1.0, 1.4]) cyl(0.25, 0.22, 0.5, x, Y0, -5.7, I.wood, 8);
+      candle(0.2, Y0 + 0.95, -6.8, 0.25);
+      for (let i = 0; i < 14; i++) box(1.2, (i + 1) * 0.31, 0.4, 2.3, Y0, -5.0 - i * 0.4, I.stone); // Kellertreppe nach oben
+      for (const z of [-7, 0, 7]) chainLamp(0, Y0 + 4.5, Y0 + 3.2, z);
+    });
+    // Kellergang entlang x unter den Hof, Länge 7 m (x 7,4 bis 14,4)
+    frame(10.9, -6, Math.PI / 2, () => {
+      vaultShell(KW, 2.3, 3.6, 7.0, Y0);
+      box(KW, 0.1, 7.0, 0, Y0 - 0.1, 0, I.floorStone);
+      for (const z of [-2.2, 1.2]) { sconce(-1.55, Y0 + 1.6, z); sconce(1.55, Y0 + 1.6, z + 1.0); }
+      for (let z = -3; z <= 3; z += 1.5) box(KW - 0.2, 0.12, 0.14, 0, Y0 + 0.02, z, I.iron);
+    });
+    // Verlies: Gewölbe entlang x (x 14,4 bis 22,4), links zwei Zellen mit Gitter, rechts Folterbank
+    frame(18.4, -6, Math.PI / 2, () => {
+      vaultShell(6.4, 2.6, 4.4, 8.0, Y0);
+      endWall(6.4, 2.6, 4.4, -4.0, Y0, hole, I.plasterBoth);
+      endWall(6.4, 2.6, 4.4, 3.9, Y0, null, I.plasterFront);
+      box(6.4, 0.1, 8.0, 0, Y0 - 0.1, 0, I.floorStone);
+      for (const [z0, z1] of [[-3.6, -0.1], [0.1, 3.6]]) {
+        for (let z = z0; z <= z1 + 0.01; z += 0.2) cyl(0.03, 0.03, 2.9, -0.9, Y0, z, I.iron, 5);
+        for (const y of [0.3, 1.5, 2.8]) box(0.06, 0.06, z1 - z0, -0.9, Y0 + y, (z0 + z1) / 2, I.iron);
+        box(2.0, 0.08, (z1 - z0) - 0.4, -2.1, Y0, (z0 + z1) / 2, I.straw);
+        box(0.9, 0.4, 0.5, -2.8, Y0, (z0 + z1) / 2 - 0.9, I.stone);
+      }
+      box(2.1, 2.9, 0.2, -2.0, Y0, 0, I.stone); // Trennwand der Zellen
+      for (const z of [-2.2, 2.2]) { box(0.05, 0.5, 0.4, -3.14, Y0 + 1.9, z, I.iron); box(0.05, 0.3, 0.05, -3.14, Y0 + 1.0, z, I.iron); }
+      // rechte Seite: Streckbank, Kohlebecken, Werkzeugbrett, Knochen
+      box(0.9, 0.2, 2.4, 2.2, Y0 + 0.5, -1.2, I.woodDark);
+      for (const sz of [-1, 1]) box(0.14, 0.5, 0.14, 2.2, Y0, -1.2 + sz * 1.0, I.woodDark);
+      cyl(0.35, 0.25, 0.5, 2.4, Y0, 1.8, I.iron, 8); box(0.45, 0.1, 0.45, 2.4, Y0 + 0.5, 1.8, I.fire);
+      box(1.4, 0.08, 0.3, 2.9, Y0 + 1.5, -3.5, I.wood);
+      for (let i = 0; i < 6; i++) box(0.08, 0.35, 0.05, 2.3 + i * 0.2, Y0 + 1.2, -3.55, I.steel);
+      for (let i = 0; i < 7; i++) box(0.3, 0.07, 0.1, 1.2 + (i % 3) * 0.3, Y0 + 0.04 + (i % 2) * 0.07, 1.9 + (i % 4) * 0.2, I.paper);
+      sconce(2.9, Y0 + 1.7, -2.0); sconce(-2.9, Y0 + 1.7, 3.2);
+    });
+    const P1 = (fx, fz, fr, x, y, z) => { const [px, pz] = wp(fx, fz, fr, x, z); return [px, y, pz]; };
+    const wk = (x, y, z) => P1(-4, -6, Math.PI / 2, x, y, z);
+    const kg = (x, y, z) => P1(10.9, -6, Math.PI / 2, x, y, z);
+    const vl = (x, y, z) => P1(18.4, -6, Math.PI / 2, x, y, z);
+    rooms.push({ id: 'weinkeller', label: 'Weinkeller', eye: wk(-0.9, Y0 + 1.7, -10.4), target: wk(0.4, Y0 + 1.9, 6), cutY: -0.15 });
+    rooms.push({ id: 'kellergang', label: 'Kellergang', eye: kg(0, Y0 + 1.7, -3.2), target: kg(0, Y0 + 1.6, 3.4), cutY: -0.15 });
+    rooms.push({ id: 'verlies', label: 'Verlies', eye: vl(0.3, Y0 + 1.7, -3.4), target: vl(-0.5, Y0 + 1.3, 3.5), cutY: -0.15 });
+    for (const [x, z] of [[-3, -6], [4, -6]]) lights.push({ room: 'weinkeller', x: wk(0, 0, 0)[0] + x * 1.4, y: Y0 + 3.0, z: -6, color: 0xffa860, intensity: 1.0, distance: 11 });
+    { const p = kg(0, Y0 + 2.6, 0); lights.push({ room: 'kellergang', x: p[0], y: p[1], z: p[2], color: 0xff9a50, intensity: 0.9, distance: 8 }); }
+    { const p = vl(0, Y0 + 2.6, 0); lights.push({ room: 'verlies', x: p[0], y: p[1], z: p[2], color: 0xff8a40, intensity: 1.0, distance: 9 }); }
+  }
+
+  // Gruppen für die Raumauswahl im Betrachter
+  const groupOf = {
+    saal: 'Palas', bibliothek: 'Palas', treppe: 'Türme', turmzimmer: 'Türme', waffenkammer: 'Türme',
+    wachstube: 'Türme', kapelle: 'Kapelle', kemenate: 'Flügel', schlafgemach: 'Flügel', kueche: 'Flügel',
+    gaestekammer: 'Flügel', bogengang: 'Gänge', bogengang2: 'Gänge', weinkeller: 'Keller', kellergang: 'Keller', verlies: 'Keller',
+  };
+  rooms.forEach((r) => { r.group = groupOf[r.id] || 'Sonstige'; });
 
   group.userData = {
     kind: 'castleInterior',
