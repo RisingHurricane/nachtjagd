@@ -11,9 +11,9 @@
 </style>
 </head>
 <body>
-<header><h1>Nachtjagd · Bergdorf</h1><p>Hochebene · Berge · Wege · Grobe Baukörper</p><div id="status" role="status">Ansicht wird geladen …</div></header>
+<header><h1>Nachtjagd · Bergdorf</h1><p>Deine Skizze · Grober Weltentwurf</p><div id="status" role="status">Ansicht wird geladen …</div></header>
 <div id="legend"><span class="houses"></span>Gebäude / Würfel<br><span class="forest"></span>Wald / Kegel<br><span class="paths"></span>Wege und Plätze<br><span class="castle"></span>Burg / Baukörper</div>
-<nav aria-label="Ansichten"><button data-view="village" aria-pressed="false">Dorf</button><button data-view="world" aria-pressed="true">Hochebene</button><button data-view="castle" aria-pressed="false">Burg</button><button data-view="forest" aria-pressed="false">Waldweg</button><button data-view="walk" aria-pressed="false">Durchlaufen</button><button id="edit-toggle" aria-pressed="false">Berge formen</button></nav>
+<nav aria-label="Ansichten"><button data-view="village" aria-pressed="false">Dorf</button><button data-view="world" aria-pressed="true">Hochebene</button><button data-view="map" aria-pressed="false">Draufsicht</button><button data-view="castle" aria-pressed="false">Burg</button><button data-view="forest" aria-pressed="false">Waldweg</button><button data-view="walk" aria-pressed="false">Durchlaufen</button><button id="edit-toggle" aria-pressed="false">Berge formen</button></nav>
 <aside id="editor" aria-label="Gelände modellieren" hidden>
 <h2>Gelände modellieren</h2><div id="edit-status" role="status">Ausgangsform geladen.</div><div class="tools"><button data-tool="raise" aria-pressed="true">Anheben</button><button data-tool="lower" aria-pressed="false">Absenken</button><button data-tool="smooth" aria-pressed="false">Glätten</button><button data-tool="flatten" aria-pressed="false">Ebnen</button></div>
 <label for="brush-radius">Pinselgröße: <output id="radius-value">45 m</output></label><input id="brush-radius" type="range" min="10" max="160" step="5" value="45">
@@ -26,5 +26,5 @@
 <p>Ebnen übernimmt die Höhe beim ersten Klick. Änderungen bleiben in diesem Browser. Mit „Datei speichern“ kannst du mir deinen Entwurf geben.</p>
 </aside>
 <div id="help">Ziehen: drehen · Mausrad: Abstand · Rechte Maustaste: verschieben</div><div id="error" hidden></div>
-<script src="./vendor/three.min.js"></script><script src="./terrain-editor.js"></script><script src="./blockout.js"></script>
+<script src="./vendor/three.min.js"></script><script src="./terrain-editor.js"></script><script src="./world-layout.js"></script><script src="./blockout.js"></script>
 </body></html>

@@ -22,8 +22,8 @@
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#cbd8dc');
   const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, .1, 2200);
-  scene.add(new THREE.HemisphereLight(0xf9fbff, 0x6d786c, .85));
-  const sun = new THREE.DirectionalLight(0xfff7e5, .85);
+  scene.add(new THREE.HemisphereLight(0xf9fbff, 0x6d786c, .7));
+  const sun = new THREE.DirectionalLight(0xfff7e5, .7);
   sun.position.set(-80, 180, 110);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -39,37 +39,18 @@
   const colliders = [], roadSegments = [], anchors = [], roadMeshes = [], labelAnchors = [], treePlacements = [];
   const labels = new THREE.Group();
   scene.add(labels);
-  const houses = [
-    [-36,-4,9,10,.025],[-23,-6,8,9,-.035],[20,-7,9,10,-.025],[32,-4,8,9,.025],[44,-2,10,9,-.08],
-    [-33,20,10,10,.045],[-20,21,8,9,-.035],[24,23,11,11,-.025],[39,21,9,10,.035],
-    [111,-39,9,8,0],[122,-17,10,8,0],[-129,81,8,7,0],[100,117,8,7,0],
-    [-16,-23,8,9,Math.PI/2+.02],[9,-26,8,9,-Math.PI/2-.025],[-16,-37,8,9,Math.PI/2-.025],[9,-40,7,9,-Math.PI/2+.025],[-4,27,10,9,.02]
-  ];
+  const layout = NachtjagdLayout;
+  const { houses, village, castle, naturalHeight } = layout;
   function smooth(a, b, value) {
     const t = THREE.MathUtils.clamp((value - a) / (b - a), 0, 1);
     return t * t * (3 - 2 * t);
   }
-  function naturalHeight(x, z) {
-    const mound = (cx, cz, rx, rz, h) => h * Math.exp(-(((x - cx) / rx) ** 2) - ((z - cz) / rz) ** 2);
-    let h = 3 + mound(-420,-100,110,250,95) + mound(235,-80,100,260,85)
-      + mound(-100,-385,240,95,140) + mound(-425,-330,110,100,100)
-      + mound(230,-335,120,100,100) + mound(-180,260,180,90,42);
-    h += 3 * Math.sin(x / 51) * Math.cos(z / 67);
-    h = THREE.MathUtils.lerp(2 + 4 * smooth(15, 45, -z), h, smooth(52, 110, Math.hypot(x, z)));
-    const basin = Math.hypot((x + 35) / 110, (z + 171) / 60);
-    return THREE.MathUtils.lerp(-5, h, smooth(.92, 1.45, basin));
-  }
   // Bauplätze sind eben; weiche Übergänge verbinden sie mit dem Hang.
-  const pads = houses.map(h => ({ x: h[0], z: h[1], w: Math.max(h[2], h[3]) / 2 + 2, d: Math.max(h[2], h[3]) / 2 + 2, y: naturalHeight(h[0], h[1]), blend: 7 }));
+  const pads = houses.map(h => ({ x: h[0], z: h[1], w: Math.max(h[2], h[3]) / 2 + 1, d: Math.max(h[2], h[3]) / 2 + 1, y: naturalHeight(h[0], h[1]), blend: 3 }));
   pads.push(
-    { x: 0, z: 4, w: 18, d: 17, y: 2, blend: 10 },
-    { x: -5, z: -55, w: 11, d: 17, y: 6, blend: 15 },
-    { x: 130, z: -60, w: 9, d: 9, y: naturalHeight(130, -60), blend: 10 },
-    { x: -120, z: 104, w: 9, d: 11, y: naturalHeight(-120, 104), blend: 10 },
-    { x: 70, z: 45, w: 9, d: 8, y: naturalHeight(70, 45), blend: 10 },
-    { x: 168, z: 90, w: 6, d: 6, y: naturalHeight(168, 90), blend: 10 },
-    { x: 118, z: 131, w: 8, d: 7, y: naturalHeight(118, 131), blend: 10 },
-    { x: -320, z: -235, w: 39, d: 33, y: 48, blend: 42 }
+    { x: village.x, z: village.z, w: 13, d: 10, y: naturalHeight(village.x, village.z), blend: 4 },
+    { x: village.x + 1, z: village.z - 39, w: 10, d: 16, y: naturalHeight(village.x + 1, village.z - 39), blend: 4 },
+    { x: castle.x, z: castle.z, w: 34, d: 29, y: castle.height, blend: 9 }
   );
   pads.push(...pads.splice(0, houses.length));
   function terrainHeight(x, z) {
@@ -82,8 +63,8 @@
   }
   const baseHeights = new Float32Array(221 * 201);
   for (let row = 0; row <= 200; row++) for (let col = 0; col <= 220; col++) baseHeights[row * 221 + col] = terrainHeight(col * 5 - 640, row * 5 - 565);
-  const terrainModel = NachtjagdTerrain.create({ width: 221, depth: 201, step: 5, originX: -640, originZ: -565, base: baseHeights });
-  const storageKey = 'nachtjagd-bergdorf-terrain-v1';
+  const terrainModel = NachtjagdTerrain.create({ width: 221, depth: 201, step: 5, originX: -640, originZ: -565, base: baseHeights, basis: layout.basis });
+  const storageKey = 'nachtjagd-bergdorf-skizze-v1';
   let restored = false, storageWarning = '';
   try { const saved = localStorage.getItem(storageKey); if (saved) { terrainModel.load(saved, false); restored = true; } }
   catch { storageWarning = 'Browserstand konnte nicht geladen werden. Du kannst eine Geländedatei laden.'; }
@@ -132,9 +113,9 @@
   for (let i = 0; i < positions.count; i++) {
     const height = baseHeights[i] + terrainModel.offsets[i];
     positions.setY(i, height);
-    const color = new THREE.Color('#d8dfd3').convertSRGBToLinear();
-    color.lerp(new THREE.Color('#8c9da4').convertSRGBToLinear(), smooth(12, 105, height));
-    color.lerp(new THREE.Color('#e7ebe7').convertSRGBToLinear(), smooth(105, 155, height));
+    const color = new THREE.Color('#9eaf92').convertSRGBToLinear();
+    color.lerp(new THREE.Color('#8c9da4').convertSRGBToLinear(), smooth(60, 115, height));
+    color.lerp(new THREE.Color('#e7ebe7').convertSRGBToLinear(), smooth(165, 240, height));
     terrainColors.push(color.r, color.g, color.b);
   }
   groundGeometry.setAttribute('color', new THREE.Float32BufferAttribute(terrainColors, 3));
@@ -154,14 +135,14 @@
   function road(points, width = 6) {
     for (let i = 1; i < points.length; i++) {
       const a = points[i - 1], b = points[i], dx = b[0] - a[0], dz = b[1] - a[1];
-      const length = Math.hypot(dx, dz), count = Math.ceil(length), across = Math.ceil(width);
+      const length = Math.hypot(dx, dz), count = Math.ceil(length * 2), across = Math.ceil(width * 2);
       const vertices = [], indices = [];
       for (let j = 0; j <= count; j++) {
         const x = a[0] + dx * j / count, z = a[1] + dz * j / count;
         for (let k = 0; k <= across; k++) {
           const offset = width * (k / across - .5);
           const px = x + dz / length * offset, pz = z - dx / length * offset;
-          vertices.push(px, groundHeight(px, pz) + .32, pz);
+          vertices.push(px, groundHeight(px, pz) + .4, pz);
           if (j < count && k < across) {
             const index = j * (across + 1) + k, next = index + across + 1;
             indices.push(index, next, index + 1, index + 1, next, next + 1);
@@ -190,33 +171,56 @@
     labels.add(sprite);
     labelAnchors.push({ sprite, x, z, height });
   }
-  // Hauspositionen und Dorfgrundriss aus dem zuletzt erprobten Entwurf.
-  const houseMeshes = houses.map((h, i) => box(...h.slice(0, 4), i === 2 ? 9 : 7 + (i % 3), 'house', h[4]));
-  box(0, 4, 27, 21, .08, 'path', 0, 2.035, false);
-  road([[-57,-10],[-47,9],[-27,9],[0,8],[45,10],[83,20],[100,45]], 7);
-  road([[0,8],[-4,-10],[-4,-31],[-5,-42]], 5.5);
-  road([[10,10],[11,32],[10,60],[12,106],[50,167],[82,199]], 6);
-  road([[83,20],[111,-17],[130,-60]], 5);
-  road([[-27,9],[-68,42],[-129,81],[-120,104]], 5);
-  road([[100,45],[100,117],[118,131]], 4);
-  road([[-57,-10],[-110,-35],[-146,-26],[-177,-38],[-204,-63],[-222,-94],[-239,-128],[-253,-160],[-285,-180],[-320,-185],[-320,-209]], 6);
-  road([[-4,-52],[-10,-88],[-10,-111],[23,-130]], 4);
-  box(7, -3, 2.5, 2.5, 1.2, 'castle'); box(-5, 3, 2, 2, .35, 'landmark');
-  box(-5, -57, 13, 23, 13, 'landmark'); box(-5, -43, 7, 7, 25, 'landmark');
-  box(130, -60, 13, 12, 13, 'landmark'); box(-120, 104, 12, 16, 10, 'landmark');
-  box(70, 45, 13, 11, 7, 'landmark'); box(168, 90, 7, 7, 20, 'castle'); box(118, 131, 11, 9, 3, 'landmark');
-  label('Dorfplatz', 0, 10, 3, 14); label('Kirchgasse', -4, -30, 11, 15); label('Kirche', -5, -57, 28, 14);
-  label('Mühle', 130, -60, 19, 17); label('Scheune', -120, 104, 15, 20); label('Wachturm', 168, 90, 25, 23);
-  const lake = new THREE.Mesh(new THREE.CircleGeometry(1, 64), materials.water);
-  lake.rotation.x = -Math.PI / 2; lake.scale.set(145, 82, 1); lake.position.set(-35, .09, -171);
-  scene.add(lake); label('See', -35, -171, 1, 25);
-  // Die Burg wird vorerst nur als erhöhtes Ensemble mit Hof dargestellt.
-  const castleFloor = box(-320, -235, 62, 53, .25, 'castle', 0, 48, false);
-  box(-340, -235, 12, 51, 15, 'castle', 0, 48.25); box(-300, -235, 12, 51, 18, 'castle', 0, 48.25);
-  box(-320, -257, 31, 10, 21, 'castle', 0, 48.25);
-  box(-326, -213, 5, 8, 13, 'castle', 0, 48.25); box(-314, -213, 5, 8, 13, 'castle', 0, 48.25);
-  box(-338, -254, 10, 10, 29, 'castle', 0, 48.25);
-  label('Burg / Schlosshof', -320, -235, 39, 40);
+  // Quader, L-Formen und einfache gestaffelte Volumen statt fertiger Hausmodelle.
+  const houseMeshes = houses.map(([x,z,w,d,rotation,height,type]) => {
+    const mesh = box(x, z, w, d, height, type === 3 ? 'landmark' : 'house', rotation);
+    const top = mesh.position.y + mesh.scale.y / 2;
+    if (type === 1) box(x, z, w * .65, d * .72, 3.5, 'house', rotation, top, false);
+    if (type === 2) {
+      const dx = Math.cos(rotation) * w * .53, dz = -Math.sin(rotation) * w * .53;
+      box(x + dx, z + dz, w * .55, d * .52, height * .7, 'house', rotation);
+    }
+    if (type === 3) box(x, z, w * .72, d * .85, 1.8, 'landmark', rotation, top, false);
+    return mesh;
+  });
+  const castleRoute = [[90,45],[-5,45],[-50,30],[-85,-15],[-100,-64],[-160,-73],[-210,-80],[-225,-100],[-236,-100],[-248,-100]];
+  const shoreRoute = [[-5,45],[-25,70],[-38,105],[-65,135],[-90,162],[-110,170]];
+  road(castleRoute, 6);
+  road(shoreRoute, 4);
+  road([[90,45],[185,45],[221,60],[245,99]], 7);
+  road([[90,45],[90,25]], 5);
+  road([[90,45],[115,45],[115,112],[110,143],[140,174],[200,185]], 5);
+  road([[10,33],[60,33],[90,25],[145,33],[178,33]], 3.5);
+  road([[10,57],[60,57],[115,57],[178,57]], 3.5);
+  box(82, 41, 2.5, 2.5, 1.2, 'castle');
+  box(91, 6, 13, 23, 13, 'landmark'); box(91, 21, 7, 7, 25, 'landmark');
+  // Kurze Mauerstücke passen sich dem Hang an; drei Öffnungen bleiben als Tore frei.
+  function wall(a, b) {
+    const length = Math.hypot(b[0] - a[0], b[1] - a[1]), count = Math.ceil(length / 5);
+    const rotation = -Math.atan2(b[1] - a[1], b[0] - a[0]);
+    for (let i = 0; i < count; i++) {
+      const t = (i + .5) / count;
+      box(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, length / count + .12, 2.3, 4.8, 'castle', rotation);
+    }
+  }
+  wall([-5,-20],[185,-20]); wall([-5,-20],[-5,39]); wall([-5,51],[-5,112]);
+  wall([185,-20],[185,39]); wall([185,51],[185,112]); wall([-5,112],[109,112]); wall([121,112],[185,112]);
+  for (const [x,z] of [[-5,-20],[185,-20],[-5,112],[185,112]]) box(x,z,7,7,10,'castle');
+  label('Bergdorf', 92, 49, 35, 50);
+  const lakeShape = new THREE.Shape(layout.lake.map(([x,z]) => new THREE.Vector2(x, -z)));
+  const lake = new THREE.Mesh(new THREE.ShapeGeometry(lakeShape), materials.water);
+  lake.rotation.x = -Math.PI / 2; lake.position.y = .09;
+  scene.add(lake); label('See', -210, 220, 4, 48);
+  const cx = castle.x, cz = castle.z, ch = castle.height;
+  const castleFloor = box(cx, cz, 62, 53, .25, 'castle', 0, ch, false);
+  box(cx - 25, cz, 11, 51, 18, 'castle', 0, ch + .25);
+  box(cx, cz - 22, 40, 10, 22, 'castle', 0, ch + .25);
+  box(cx, cz + 22, 40, 8, 14, 'castle', 0, ch + .25);
+  box(cx + 25, cz - 17, 10, 15, 16, 'castle', 0, ch + .25);
+  box(cx + 25, cz + 17, 10, 15, 16, 'castle', 0, ch + .25);
+  box(cx - 23, cz - 19, 13, 13, 34, 'castle', 0, ch + .25);
+  label('Burg · Felssporn', cx, cz, 46, 58);
+  label('Hochgebirge · Norden', -20, -300, 28, 100);
   // Reproduzierbarer Wald; Wege, See und Gebäuderänder bleiben frei.
   let seed = 71;
   function random() { seed = (1664525 * seed + 1013904223) >>> 0; return seed / 4294967296; }
@@ -225,23 +229,26 @@
     const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz)));
     return Math.hypot(x - a[0] - t * dx, z - a[1] - t * dz);
   }
-  const forest = new THREE.InstancedMesh(coneGeometry, materials.forest, 420), dummy = new THREE.Object3D();
+  const forest = new THREE.InstancedMesh(coneGeometry, materials.forest, 2400), dummy = new THREE.Object3D();
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 6), materials.landmark, 2400);
   let treeCount = 0;
-  for (let i = 0; i < 2500 && treeCount < 420; i++) {
-    const x = -252 + random() * 450, z = -110 + random() * 290;
-    if ((x / 65) ** 2 + (z / 65) ** 2 < 1) continue;
-    if (((x + 35) / 118) ** 2 + ((z + 171) / 69) ** 2 < 1) continue;
-    if (groundHeight(x, z) < .5) continue;
-    if (colliders.some(c => Math.hypot(x - c.x, z - c.z) < Math.max(c.w, c.d) + 8)) continue;
-    if (roadSegments.some(s => segmentDistance(x, z, s.a, s.b) < s.width / 2 + 6)) continue;
-    const height = 10 + random() * 8;
-    dummy.position.set(x, groundHeight(x, z) + height / 2, z); dummy.scale.set(2.6 + random() * 1.6, height, 2.6 + random() * 1.6); dummy.updateMatrix();
-    forest.setMatrixAt(treeCount++, dummy.matrix);
-    treePlacements.push({ x, z, height, rx: dummy.scale.x, rz: dummy.scale.z });
-    colliders.push({ x, z, w: 1, d: 1, rotation: 0 });
+  for (let i = 0; i < 28000 && treeCount < 2400; i++) {
+    const x = -210 + random() * 530, z = -215 + random() * 490;
+    if (random() > layout.forestWeight(x, z)) continue;
+    if (x > -17 && x < 197 && z > -32 && z < 124) continue;
+    if (layout.lakeDistance(x, z) < 14 || groundHeight(x,z) > 115) continue;
+    if (colliders.some(c => Math.hypot(x - c.x, z - c.z) < Math.max(c.w, c.d) + (c.tree ? 3.5 : 3))) continue;
+    if (roadSegments.some(s => segmentDistance(x, z, s.a, s.b) < s.width / 2 + 1.5)) continue;
+    const height = 12 + random() * 10, clearance = 4 + random() * 1.5, rx = 3.7 + random() * 2, rz = 3.7 + random() * 2;
+    dummy.position.set(x, groundHeight(x, z) + clearance + height / 2, z); dummy.scale.set(rx, height, rz); dummy.updateMatrix();
+    forest.setMatrixAt(treeCount, dummy.matrix);
+    dummy.position.y = groundHeight(x, z) + (clearance + 2) / 2; dummy.scale.set(.4, clearance + 2, .4); dummy.updateMatrix();
+    trunks.setMatrixAt(treeCount++, dummy.matrix);
+    treePlacements.push({ x, z, height, clearance, rx, rz });
+    colliders.push({ x, z, w: .4, d: .4, rotation: 0, tree: true });
   }
-  forest.count = treeCount; forest.castShadow = true; scene.add(forest);
-  label('Waldweg zur Burg', -160, -27, 15, 36); label('10 m Raster', 60, 65, .7, 20);
+  forest.count = trunks.count = treeCount; forest.castShadow = trunks.castShadow = true; scene.add(forest, trunks);
+  label('Wald', -88, -126, 32, 45);
 
   const target = new THREE.Vector3();
   let yaw, polar, distance, mode, walkingYaw = Math.PI, pitch = 0;
@@ -256,18 +263,20 @@
   brushCursor.visible = false; brushCursor.renderOrder = 10; scene.add(brushCursor);
   const keys = new Set();
   const views = {
-    village: { target: [0,4,-14], distance: 165, yaw: .68, polar: 1.03, name: 'Bergdorf · Kirchterrasse · Raster 10 m' },
-    world: { target: [-92,28,-110], distance: 840, yaw: .37, polar: .85, name: 'Hochebene · Bergdorf, See und Burgberg' },
-    castle: { target: [-320,52,-235], distance: 185, yaw: .55, polar: 1.02, name: 'Burgberg · 48 m über dem See · Zufahrt' },
-    forest: { target: [-150,groundHeight(-150,-32),-32], distance: 120, yaw: 1.4, polar: 1.18, name: 'Waldweg · Anstieg zur Burg' }
+    village: { target: [90,groundHeight(90,45),45], distance: 230, yaw: .38, polar: .92, name: 'Bergdorf am Hang · 28 Häuser · drei Tore' },
+    world: { target: [-30,45,-20], distance: 930, yaw: 0, polar: .74, name: 'Nach deiner Skizze · Norden im Hintergrund' },
+    map: { target: [-30,45,-20], distance: 990, yaw: 0, polar: .12, name: 'Draufsicht · Norden oben · 10 m Raster' },
+    castle: { target: [castle.x,castle.height,castle.z], distance: 205, yaw: -.65, polar: 1.05, name: 'Burg auf freiem Felssporn · Zugang über den Bergrücken' }
   };
   function setView(view) {
-    if (view === 'walk' && editing) toggleEditor(false);
-    mode = view; keys.clear(); labels.visible = view !== 'walk' && !editing;
+    const walking = view === 'walk' || view === 'forest';
+    if (walking && editing) toggleEditor(false);
+    mode = walking ? 'walk' : view; keys.clear(); labels.visible = !walking && !editing; grid.visible = editing || view === 'map';
     document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
-    if (view === 'walk') {
-      camera.position.set(0, groundHeight(0, 13) + 1.75, 13); walkingYaw = Math.PI; pitch = 0;
-      status.textContent = 'Im Dorf · Augenhöhe 1,75 m';
+    if (walking) {
+      const x = view === 'forest' ? 221 : 90, z = view === 'forest' ? 60 : 45;
+      camera.position.set(x, groundHeight(x,z) + 1.75, z); walkingYaw = view === 'forest' ? .55 : Math.PI; pitch = 0;
+      status.textContent = view === 'forest' ? 'Im Wald · unter den Baumkronen · Augenhöhe 1,75 m' : 'Im Dorf · Augenhöhe 1,75 m';
       help.textContent = 'WASD / Pfeiltasten: gehen · Ziehen: umsehen · Shift: schneller · Esc: Übersicht';
     } else {
       const preset = views[view]; target.fromArray(preset.target); ({ yaw, polar, distance } = preset);
@@ -317,7 +326,7 @@
   addEventListener('blur', () => { keys.clear(); drag = null; finishStroke(); });
   addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
   function blocked(x, z) {
-    if (x < -385 || x > 210 || z < -285 || z > 205) return true;
+    if (x < -390 || x > 340 || z < -340 || z > 310) return true;
     if (groundHeight(x, z) < .35) return true;
     return colliders.some(c => {
       const dx = x - c.x, dz = z - c.z, cosine = Math.cos(c.rotation), sine = Math.sin(c.rotation);
@@ -325,11 +334,11 @@
     });
   }
   function refreshTerrain() {
-    const low = new THREE.Color('#d8dfd3').convertSRGBToLinear(), rock = new THREE.Color('#8c9da4').convertSRGBToLinear(), snow = new THREE.Color('#e7ebe7').convertSRGBToLinear(), color = new THREE.Color();
+    const low = new THREE.Color('#9eaf92').convertSRGBToLinear(), rock = new THREE.Color('#8c9da4').convertSRGBToLinear(), snow = new THREE.Color('#e7ebe7').convertSRGBToLinear(), color = new THREE.Color();
     const colors = groundGeometry.attributes.color;
     for (let i = 0; i < positions.count; i++) {
       const height = baseHeights[i] + terrainModel.offsets[i]; positions.setY(i, height);
-      color.copy(low).lerp(rock, smooth(12, 105, height)).lerp(snow, smooth(105, 155, height)); colors.setXYZ(i, color.r, color.g, color.b);
+      color.copy(low).lerp(rock, smooth(60, 115, height)).lerp(snow, smooth(165, 240, height)); colors.setXYZ(i, color.r, color.g, color.b);
     }
     positions.needsUpdate = true; colors.needsUpdate = true;
     groundGeometry.computeVertexNormals(); groundGeometry.computeBoundingSphere();
@@ -344,16 +353,18 @@
     }
     for (const mesh of roadMeshes) {
       const p = mesh.geometry.attributes.position;
-      for (let i = 0; i < p.count; i++) p.setY(i, groundHeight(p.getX(i), p.getZ(i)) + .32);
+      for (let i = 0; i < p.count; i++) p.setY(i, groundHeight(p.getX(i), p.getZ(i)) + .4);
       p.needsUpdate = true; mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere();
     }
     const gp = grid.geometry.attributes.position;
     for (let i = 0; i < gp.count; i++) gp.setY(i, groundHeight(gp.getX(i), gp.getZ(i)) + .04);
     gp.needsUpdate = true;
     treePlacements.forEach((tree, i) => {
-      dummy.position.set(tree.x, groundHeight(tree.x, tree.z) + tree.height / 2, tree.z); dummy.scale.set(tree.rx, tree.height, tree.rz); dummy.updateMatrix(); forest.setMatrixAt(i, dummy.matrix);
+      dummy.position.set(tree.x, groundHeight(tree.x, tree.z) + tree.clearance + tree.height / 2, tree.z); dummy.scale.set(tree.rx, tree.height, tree.rz); dummy.updateMatrix(); forest.setMatrixAt(i, dummy.matrix);
+      dummy.position.y = groundHeight(tree.x,tree.z) + (tree.clearance + 2) / 2; dummy.scale.set(.4, tree.clearance + 2, .4); dummy.updateMatrix(); trunks.setMatrixAt(i, dummy.matrix);
     });
     forest.instanceMatrix.needsUpdate = true;
+    trunks.instanceMatrix.needsUpdate = true;
     for (const anchor of labelAnchors) anchor.sprite.position.y = Math.max(0, groundHeight(anchor.x, anchor.z)) + anchor.height;
     updateCursor();
   }
@@ -369,7 +380,7 @@
   function toggleEditor(enabled) {
     finishStroke(); editing = enabled; editor.hidden = !enabled; editToggle.setAttribute('aria-pressed', String(enabled));
     if (enabled && mode === 'walk') setView('world');
-    labels.visible = !enabled && mode !== 'walk'; brushCursor.visible = false;
+    labels.visible = !enabled && mode !== 'walk'; grid.visible = enabled || mode === 'map'; brushCursor.visible = false;
     help.textContent = enabled ? 'Links ziehen: modellieren · Rechts ziehen: drehen · Alt + links: verschieben' : 'Ziehen: drehen · Mausrad: Abstand · Rechte Maustaste: verschieben';
   }
   function locateBrush(event) {
@@ -390,7 +401,7 @@
     p.needsUpdate = true; cursorGeometry.computeBoundingSphere();
   }
   function protection(x, z) {
-    let weight = smooth(1.45, 1.8, Math.hypot((x + 35) / 110, (z + 171) / 60));
+    let weight = smooth(8, 28, layout.lakeDistance(x, z));
     for (const pad of pads) {
       const delta = Math.max(Math.abs(x - pad.x) - pad.w, Math.abs(z - pad.z) - pad.d, 0);
       weight = Math.min(weight, smooth(0, 18, delta));
@@ -450,7 +461,7 @@
       if (!blocked(camera.position.x + dx, camera.position.z)) camera.position.x += dx;
       if (!blocked(camera.position.x, camera.position.z + dz)) camera.position.z += dz;
       camera.position.y = groundHeight(camera.position.x, camera.position.z) + 1.75;
-      if (Math.abs(camera.position.x + 320) < 31 && Math.abs(camera.position.z + 235) < 26.5) camera.position.y = Math.max(camera.position.y, castleFloor.position.y + castleFloor.scale.y / 2 + 1.75);
+      if (Math.abs(camera.position.x - castle.x) < 31 && Math.abs(camera.position.z - castle.z) < 26.5) camera.position.y = Math.max(camera.position.y, castleFloor.position.y + castleFloor.scale.y / 2 + 1.75);
       camera.lookAt(camera.position.x + Math.sin(walkingYaw) * Math.cos(pitch), camera.position.y + Math.sin(pitch), camera.position.z + Math.cos(walkingYaw) * Math.cos(pitch));
     } else {
       camera.position.set(target.x + distance * Math.sin(polar) * Math.sin(yaw), target.y + distance * Math.cos(polar), target.z + distance * Math.sin(polar) * Math.cos(yaw));
@@ -464,9 +475,19 @@
     const check = (name, passed, value) => checks.push({ name, passed, value });
     const heightValues = Array.from(positions.array).filter((value, i) => i % 3 === 1);
     check('Gelände hat Höhenunterschiede', Math.max(...heightValues) - Math.min(...heightValues) > 100, [Math.min(...heightValues), Math.max(...heightValues)]);
-    check('Dorfplatz liegt auf 2 m', Math.abs(groundHeight(0, 4) - 2) < .01, groundHeight(0, 4));
-    check('Burghof liegt auf 48 m', Math.abs(groundHeight(-320, -235) - 48) < .01, groundHeight(-320, -235));
-    check('See hat ein abgesenktes Bett', groundHeight(-35, -171) < -4, groundHeight(-35, -171));
+    const villageHeights = houses.map(h => groundHeight(h[0],h[1]));
+    check('Dorf am Hang mit mehr Hausformen', houses.length >= 28 && Math.max(...villageHeights) - Math.min(...villageHeights) > 8, { houses: houses.length, heightSpan: Math.max(...villageHeights) - Math.min(...villageHeights) });
+    check('Burghof auf Felssporn', Math.abs(groundHeight(castle.x,castle.z) - castle.height) < .01, groundHeight(castle.x,castle.z));
+    check('Großer See im Südwesten mit abgesenktem Bett', groundHeight(-210,220) < -4 && layout.lakeDistance(-310,130) < 0, groundHeight(-210,220));
+    check('Dichter Wald mit freiem Raum unter den Kronen', treeCount > 1400 && treePlacements.every(t => t.clearance >= 4), treeCount);
+    check('Mauern blockieren; Tore bleiben frei', blocked(-5,0) && !blocked(-5,45) && !blocked(185,45) && !blocked(115,112), null);
+    let routeBlocked = 0;
+    for (const route of [castleRoute,shoreRoute]) for (let i = 1; i < route.length; i++) {
+      const a = route[i-1], b = route[i], count = Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1]) * 2);
+      for (let j = 0; j <= count; j++) if (blocked(a[0]+(b[0]-a[0])*j/count,a[1]+(b[1]-a[1])*j/count)) routeBlocked++;
+    }
+    check('Verbindungen Dorf–Burg und Dorf–See sind begehbar', routeBlocked === 0, routeBlocked);
+    check('Zwischen Stamm und Kronenrand ist Platz zum Gehen', treePlacements.some(t => !blocked(t.x + 2,t.z) && blocked(t.x,t.z)), null);
     let houseError = 0;
     for (const [index, [x, z, w, d, rotation]] of houses.entries()) {
       const mesh = houseMeshes[index], base = mesh.position.y - mesh.scale.y / 2;
