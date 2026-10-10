@@ -4,6 +4,10 @@ Letzte Aktualisierung: 2026-10-10 (Codex, grober Weltentwurf auf Basis von `nach
 
 ## Aktueller grober Weltentwurf
 
+- Aktueller Nutzerbegriff: Hochebene/Bergdorf. Ein Gelände-Editor mit Anheben, Absenken, Glätten, Ebnen, Pinselgröße/Stärke und Schutzmaske ist eingebaut. Linke Maustaste malt, rechte dreht, Alt + links verschiebt. Rückgängig/Wiederholen, lokaler Browserstand und JSON-Export/-Import sind vorhanden. Änderungen sind lokal, keine automatische Übernahme nach GitHub oder in Multiplayer.
+- Sieben neue Editor-Tests bestanden; im Browser Pinsel, Undo/Redo, Wiederherstellung nach Reload, Datei-Export und erneutes Laden mit unverändertem Teststand geprüft. Der Teststand wird nicht veröffentlicht.
+- AUSSTEHEND: Nutzer hat eine Skizze angekündigt und darum gebeten, auf sie zu warten. Neue Platzierung erst danach: größerer See auf der anderen Seite; Dorf am Hang, mehr unterschiedliche Häuser und Umfassungsmauer; dichterer unterlaufbarer Wald; Burg auf Felssporn statt Felsnische; hügelige und schroffe Landschaftsbereiche mit Burgberg/Bergspitzen. See-Richtung noch nicht festgelegt. Bis dahin nur den Editor fertigstellen.
+
 - Entwurf 02: Die bisher flache Studie hat jetzt Höhenzüge, einen Talboden, ein abgesenktes Seebecken und ein Burgplateau auf 48 m über Wasser. Der Dorfplatz liegt auf 2 m; die Kirchgasse steigt zur Terrasse an. Wege, Bäume, Gebäudesockel und Augenhöhe folgen dem sichtbaren Höhenmodell. Die Gesamtansicht ist die neue Startansicht. Burgzufahrt und offener Hof sind begehbar; Innenräume bleiben offen.
 - Sechs geometrische Browserprüfungen unter `?test=terrain` bestanden: Relief, Platzniveau, Burgniveau, Seebett, Gebäudesockel und Weganschlüsse. Hangbewegung sowie Tal- und Burgansicht sichtbar geprüft; 35/35 vorhandene Repository-Tests grün.
 
@@ -52,6 +56,8 @@ Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` un
 - Die Berge am Kartenrand ragen stellenweise ein Stück auf die Karte hinein (Kulisse). Das lässt sich verschieben, wenn es stört.
 
 ## Übergabe-Log
+
+- 2026-10-10, Codex: Gelände-Editor für das Bergdorf ergänzt. Sieben Editor-Tests und Browserprüfung von Pinsel, Verlauf, lokaler Wiederherstellung und Datei-Export/-Import bestanden. Weltumstellung wartet auf angekündigte Nutzerskizze.
 
 - 2026-10-10, Codex: Auf Nutzerhinweis das flache Gelände durch eine grobe Talform ersetzt. Ansteigende Wege, See im Becken, Burgplateau und höhenabhängige Bewegung ergänzt. Sechs geometrische Browserprüfungen und 35 Repository-Tests bestanden. Modelle bleiben Quader und Kegel.
 

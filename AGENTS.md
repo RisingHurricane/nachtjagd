@@ -34,6 +34,8 @@ Der WebSocket-Endpunkt akzeptiert jeden Pfad. Der Client verbindet sich relativ 
 
 ## Befehle
 
+Der Gelände-Editor unter `public/entwurf/` nutzt `terrain-editor.js` als unabhängigen Höhenpinsel mit Undo/Redo und validiertem JSON-Dateiformat. `blockout.js` hält das feste 221×201-Raster (5 m), aktualisiert Szene und Anker und speichert Änderungen am Strichende lokal im Browser. Die Grundform auf GitHub bleibt unverändert; Layoutänderungen nach der angekündigten Nutzerskizze vornehmen. Bei Änderung des Grundrasters oder einer inkompatiblen Grundform Dateiversion und Browser-Speicherschlüssel prüfen. Tests: `test/terrain-editor.test.js`.
+
 - `npm install`: Abhängigkeiten installieren
 - `npm start`: Server starten (Port 3000, änderbar mit der Umgebungsvariable `PORT`)
 - `npm test`: Tests ausführen

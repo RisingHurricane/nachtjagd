@@ -1,4 +1,12 @@
-# Grober Weltentwurf 02
+# Bergdorf und Gelände-Editor
+
+Der Nutzer beschreibt die Welt als Hochebene/Bergdorf. Über **Berge formen** lässt sich das Gelände direkt modellieren: Anheben, Absenken, Glätten und Ebnen. Linke Maustaste malt, rechte dreht die Ansicht, Alt + links verschiebt. Pinselradius und Stärke sind einstellbar. Ebnen übernimmt die Höhe am Beginn des Pinselstrichs. Dorf, Burg und See sind standardmäßig über eine Schutzmaske geschützt; die Maske kann ausgeschaltet werden. Ein Pinselstrich ist eine rückgängig machbare Änderung; 24 Schritte bleiben im Verlauf. Wege, Gebäude, Bäume und Augenhöhe folgen der geänderten Oberfläche.
+
+Änderungen werden am Ende eines Strichs lokal in diesem Browser gespeichert. Sie ändern weder die veröffentlichte Grundform noch andere Spieler. **Datei speichern** exportiert `nachtjagd-berge.json`; **Datei laden** prüft Version, Raster, Anzahl und Wertebereich vor der Übernahme. Laden und Zurücksetzen sind rückgängig machbar. Bei nicht verfügbarem Browser-Speicher weist der Editor auf die Dateisicherung hin. Der Höhenpinsel und das Dateiformat liegen in `terrain-editor.js`, die Darstellung und Bedienung in `blockout.js`.
+
+Validierung des Editors: sieben Tests für Pinsel, Schutzmaske, Glätten/Ebnen, Verlauf, Dateiformat und Zurücksetzen. Im Browser Pinselstrich, Rückgängig/Wiederholen, Wiederherstellung nach Reload sowie Datei-Export und erneutes Laden geprüft. Der Bearbeitungsstand blieb mit 248 geänderten Rasterpunkten erhalten. Der Testentwurf wird nicht veröffentlicht.
+
+Neue Weltanordnung wartet auf die vom Nutzer angekündigte Skizze. Gewünscht: größerer See auf der anderen Seite, Dorf am Hang mit mehr unterschiedlichen Häusern und Umfassungsmauer, dichterer unterlaufbarer Wald, Burg auf freistehendem Felssporn, weiche Hügel sowie schroffer Burgberg und Bergspitzen. Keine Richtungsannahme für den See treffen.
 
 Das Gelände bildet jetzt einen Talboden mit beidseitigen Höhenzügen, einem eingesenkten Seebecken und einem Burgplateau auf 48 m über dem Wasserspiegel. Der Dorfplatz liegt auf 2 m, die Kirchgasse steigt zur Kirchterrasse an. Bauplätze sind geglättet; einfache Gebäudesockel schließen an die Geländeoberfläche an. Wege und Bäume folgen dem Höhenmodell. Die Vorschau startet in der Talübersicht. Beim Durchlaufen folgt die Augenhöhe dem sichtbaren Geländedreieck; auch die Burgzufahrt und der offene Hof sind zugänglich.
 

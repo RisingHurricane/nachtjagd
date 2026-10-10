@@ -6,11 +6,25 @@
 <style>
 *{box-sizing:border-box}body{margin:0;background:#cbd8dc;color:#203038;font:14px system-ui,sans-serif;overflow:hidden}canvas{display:block;touch-action:none}header,nav,#help,#legend{position:fixed;z-index:2;background:#fafbf5ed;border:1px solid #bec8c5;border-radius:8px;padding:12px 16px}header{top:16px;left:16px}h1{font-size:18px;margin:0 0 4px}p{margin:0;color:#536367;font-size:12px}nav{bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:6px;padding:8px;white-space:nowrap}button{font:inherit;border:1px solid #bdc7c3;border-radius:5px;background:#fff;color:#203038;padding:8px 12px;cursor:pointer}button[aria-pressed=true]{background:#284d48;color:#fff;border-color:#284d48}button:hover{border-color:#284d48}#help{bottom:84px;left:50%;transform:translateX(-50%);font-size:12px;text-align:center;white-space:nowrap;padding:8px 12px}#legend{top:16px;right:16px;font-size:12px;line-height:1.8}#legend span{display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:2px}.houses{background:#d6ba92}.forest{background:#658777}.paths{background:#b9a78b}.castle{background:#8a9aab}#error{position:fixed;inset:35% 15%;z-index:4;background:white;padding:24px;border-radius:8px}#status{font-size:12px;color:#536367;margin-top:5px}@media(max-width:650px){#legend{display:none}header{top:10px;left:10px;right:10px}nav{bottom:10px;max-width:98%;flex-wrap:wrap;justify-content:center;white-space:normal}button{padding:8px;font-size:12px}#help{bottom:104px;max-width:94%;white-space:normal}}
 </style>
+<style>
+#editor{position:fixed;z-index:3;top:120px;left:16px;width:270px;max-height:calc(100vh - 225px);overflow:auto;background:#fafbf5f5;border:1px solid #bec8c5;border-radius:8px;padding:14px}#editor[hidden]{display:none}#editor h2{font-size:16px;margin:0 0 10px}#editor .tools{display:grid;grid-template-columns:1fr 1fr;gap:5px}#editor label{display:block;margin:14px 0 5px;font-size:12px}#editor input[type=range]{width:100%;accent-color:#284d48}#editor .actions{display:flex;gap:5px;margin-top:10px}#editor .actions button{flex:1;padding:7px;font-size:12px}#editor p{line-height:1.5;margin-top:10px}#edit-status{font-size:12px;line-height:1.5;margin-top:12px;color:#284d48}button:disabled{opacity:.4;cursor:default}#editor input[type=checkbox]{accent-color:#284d48}@media(max-width:650px){#editor{top:115px;left:10px;width:240px;max-height:calc(100vh - 240px)}}
+</style>
 </head>
 <body>
-<header><h1>Nachtjagd · Weltentwurf 02</h1><p>Talform · Höhen · Wege · Grobe Baukörper</p><div id="status" role="status">Ansicht wird geladen …</div></header>
+<header><h1>Nachtjagd · Bergdorf</h1><p>Hochebene · Berge · Wege · Grobe Baukörper</p><div id="status" role="status">Ansicht wird geladen …</div></header>
 <div id="legend"><span class="houses"></span>Gebäude / Würfel<br><span class="forest"></span>Wald / Kegel<br><span class="paths"></span>Wege und Plätze<br><span class="castle"></span>Burg / Baukörper</div>
-<nav aria-label="Ansichten"><button data-view="village" aria-pressed="true">Dorf</button><button data-view="world" aria-pressed="false">Ganzes Tal</button><button data-view="castle" aria-pressed="false">Burg</button><button data-view="forest" aria-pressed="false">Waldweg</button><button data-view="walk" aria-pressed="false">Durchlaufen</button></nav>
+<nav aria-label="Ansichten"><button data-view="village" aria-pressed="false">Dorf</button><button data-view="world" aria-pressed="true">Hochebene</button><button data-view="castle" aria-pressed="false">Burg</button><button data-view="forest" aria-pressed="false">Waldweg</button><button data-view="walk" aria-pressed="false">Durchlaufen</button><button id="edit-toggle" aria-pressed="false">Berge formen</button></nav>
+<aside id="editor" aria-label="Gelände modellieren" hidden>
+<h2>Gelände modellieren</h2><div id="edit-status" role="status">Ausgangsform geladen.</div><div class="tools"><button data-tool="raise" aria-pressed="true">Anheben</button><button data-tool="lower" aria-pressed="false">Absenken</button><button data-tool="smooth" aria-pressed="false">Glätten</button><button data-tool="flatten" aria-pressed="false">Ebnen</button></div>
+<label for="brush-radius">Pinselgröße: <output id="radius-value">45 m</output></label><input id="brush-radius" type="range" min="10" max="160" step="5" value="45">
+<label for="brush-strength">Stärke: <output id="strength-value">20</output></label><input id="brush-strength" type="range" min="2" max="40" step="2" value="20">
+<label><input id="protect-places" type="checkbox" checked> Dorf, Burg und See schützen</label>
+<div class="actions"><button id="terrain-undo" disabled>Rückgängig</button><button id="terrain-redo" disabled>Wiederholen</button></div>
+<div class="actions"><button id="terrain-save">Datei speichern</button><button id="terrain-load">Datei laden</button></div><input id="terrain-file" type="file" accept=".json,application/json" hidden>
+<div class="actions"><button id="terrain-reset">Zur Ausgangsform</button></div>
+<p>Links ziehen: modellieren<br>Rechts ziehen: Ansicht drehen<br>Alt + links ziehen: verschieben<br>Mausrad: näher / weiter</p>
+<p>Ebnen übernimmt die Höhe beim ersten Klick. Änderungen bleiben in diesem Browser. Mit „Datei speichern“ kannst du mir deinen Entwurf geben.</p>
+</aside>
 <div id="help">Ziehen: drehen · Mausrad: Abstand · Rechte Maustaste: verschieben</div><div id="error" hidden></div>
-<script src="./vendor/three.min.js"></script><script src="./blockout.js"></script>
+<script src="./vendor/three.min.js"></script><script src="./terrain-editor.js"></script><script src="./blockout.js"></script>
 </body></html>
