@@ -18,7 +18,7 @@
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   document.body.prepend(renderer.domElement);
-  renderer.domElement.setAttribute('aria-label', 'Dreidimensionaler Blockout des Dorfs und des Tals');
+  renderer.domElement.setAttribute('aria-label', 'Dreidimensionaler Blockout des Bergdorfs auf der Hochebene');
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#cbd8dc');
   const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, .1, 2200);
@@ -36,7 +36,7 @@
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1), coneGeometry = new THREE.ConeGeometry(1, 1, 7);
   const edgeGeometry = new THREE.EdgesGeometry(boxGeometry);
   const edgeMaterial = new THREE.LineBasicMaterial({ color: '#526266', transparent: true, opacity: .3 });
-  const colliders = [], roadSegments = [];
+  const colliders = [], roadSegments = [], anchors = [], roadMeshes = [], labelAnchors = [], treePlacements = [];
   const labels = new THREE.Group();
   scene.add(labels);
   const houses = [
@@ -80,14 +80,27 @@
     }
     return h;
   }
+  const baseHeights = new Float32Array(221 * 201);
+  for (let row = 0; row <= 200; row++) for (let col = 0; col <= 220; col++) baseHeights[row * 221 + col] = terrainHeight(col * 5 - 640, row * 5 - 565);
+  const terrainModel = NachtjagdTerrain.create({ width: 221, depth: 201, step: 5, originX: -640, originZ: -565, base: baseHeights });
+  const storageKey = 'nachtjagd-bergdorf-terrain-v1';
+  let restored = false, storageWarning = '';
+  try { const saved = localStorage.getItem(storageKey); if (saved) { terrainModel.load(saved, false); restored = true; } }
+  catch { storageWarning = 'Browserstand konnte nicht geladen werden. Du kannst eine Geländedatei laden.'; }
+  function vertexHeight(col, row) {
+    col = THREE.MathUtils.clamp(col, 0, 220); row = THREE.MathUtils.clamp(row, 0, 200);
+    const index = row * 221 + col;
+    return baseHeights[index] + terrainModel.offsets[index];
+  }
   // Dieselben Dreiecke wie im sichtbaren Boden bestimmen Wege und Augenhöhe.
   function groundHeight(x, z) {
     const ix = Math.floor((x + 640) / 5), iz = Math.floor((z + 565) / 5);
     const x0 = ix * 5 - 640, z0 = iz * 5 - 565, tx = (x - x0) / 5, tz = (z - z0) / 5;
-    const a = terrainHeight(x0, z0), b = terrainHeight(x0 + 5, z0), c = terrainHeight(x0, z0 + 5), d = terrainHeight(x0 + 5, z0 + 5);
+    const a = vertexHeight(ix, iz), b = vertexHeight(ix + 1, iz), c = vertexHeight(ix, iz + 1), d = vertexHeight(ix + 1, iz + 1);
     return tx + tz <= 1 ? a + (b - a) * tx + (c - a) * tz : d + (c - d) * (1 - tx) + (b - d) * (1 - tz);
   }
   function box(x, z, w, d, h, material = 'house', rotation = 0, floor, solid = true) {
+    const anchor = { x, z, w, d, h, rotation, automatic: floor === undefined, offset: floor === undefined ? 0 : floor - groundHeight(x, z) };
     if (floor === undefined) {
       const heights = [];
       for (const a of [-w / 2, w / 2]) for (const b of [-d / 2, d / 2]) {
@@ -104,6 +117,7 @@
     mesh.castShadow = solid;
     mesh.receiveShadow = true;
     scene.add(mesh);
+    anchors.push({ ...anchor, mesh });
     if (solid) {
       mesh.add(new THREE.LineSegments(edgeGeometry, edgeMaterial));
       colliders.push({ x, z, w: w / 2, d: d / 2, rotation });
@@ -116,7 +130,7 @@
   const positions = groundGeometry.attributes.position;
   const terrainColors = [];
   for (let i = 0; i < positions.count; i++) {
-    const height = terrainHeight(positions.getX(i), positions.getZ(i));
+    const height = baseHeights[i] + terrainModel.offsets[i];
     positions.setY(i, height);
     const color = new THREE.Color('#d8dfd3').convertSRGBToLinear();
     color.lerp(new THREE.Color('#8c9da4').convertSRGBToLinear(), smooth(12, 105, height));
@@ -158,6 +172,7 @@
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); geometry.setIndex(indices); geometry.computeVertexNormals();
       const mesh = new THREE.Mesh(geometry, materials.path);
       mesh.receiveShadow = true; scene.add(mesh);
+      roadMeshes.push(mesh);
       roadSegments.push({ a, b, width });
     }
   }
@@ -173,6 +188,7 @@
     const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false }));
     sprite.position.set(x, Math.max(0, groundHeight(x, z)) + height, z); sprite.scale.set(size, size / 5.12, 1);
     labels.add(sprite);
+    labelAnchors.push({ sprite, x, z, height });
   }
   // Hauspositionen und Dorfgrundriss aus dem zuletzt erprobten Entwurf.
   const houseMeshes = houses.map((h, i) => box(...h.slice(0, 4), i === 2 ? 9 : 7 + (i % 3), 'house', h[4]));
@@ -195,7 +211,7 @@
   lake.rotation.x = -Math.PI / 2; lake.scale.set(145, 82, 1); lake.position.set(-35, .09, -171);
   scene.add(lake); label('See', -35, -171, 1, 25);
   // Die Burg wird vorerst nur als erhöhtes Ensemble mit Hof dargestellt.
-  box(-320, -235, 62, 53, .25, 'castle', 0, 48, false);
+  const castleFloor = box(-320, -235, 62, 53, .25, 'castle', 0, 48, false);
   box(-340, -235, 12, 51, 15, 'castle', 0, 48.25); box(-300, -235, 12, 51, 18, 'castle', 0, 48.25);
   box(-320, -257, 31, 10, 21, 'castle', 0, 48.25);
   box(-326, -213, 5, 8, 13, 'castle', 0, 48.25); box(-314, -213, 5, 8, 13, 'castle', 0, 48.25);
@@ -221,6 +237,7 @@
     const height = 10 + random() * 8;
     dummy.position.set(x, groundHeight(x, z) + height / 2, z); dummy.scale.set(2.6 + random() * 1.6, height, 2.6 + random() * 1.6); dummy.updateMatrix();
     forest.setMatrixAt(treeCount++, dummy.matrix);
+    treePlacements.push({ x, z, height, rx: dummy.scale.x, rz: dummy.scale.z });
     colliders.push({ x, z, w: 1, d: 1, rotation: 0 });
   }
   forest.count = treeCount; forest.castShadow = true; scene.add(forest);
@@ -228,15 +245,25 @@
 
   const target = new THREE.Vector3();
   let yaw, polar, distance, mode, walkingYaw = Math.PI, pitch = 0;
+  let editing = false, sculpting = false, brushPoint = null, flattenLevel = 0, lastSculpt = 0;
+  let tool = 'raise';
+  const editor = document.querySelector('#editor'), editToggle = document.querySelector('#edit-toggle'), editStatus = document.querySelector('#edit-status');
+  const radiusInput = document.querySelector('#brush-radius'), strengthInput = document.querySelector('#brush-strength');
+  const undoButton = document.querySelector('#terrain-undo'), redoButton = document.querySelector('#terrain-redo');
+  const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
+  const cursorGeometry = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(64 * 3), 3));
+  const brushCursor = new THREE.LineLoop(cursorGeometry, new THREE.LineBasicMaterial({ color: '#246f4e', depthTest: false }));
+  brushCursor.visible = false; brushCursor.renderOrder = 10; scene.add(brushCursor);
   const keys = new Set();
   const views = {
-    village: { target: [0,4,-14], distance: 165, yaw: .68, polar: 1.03, name: 'Dorf im Tal · Kirchterrasse · Raster 10 m' },
-    world: { target: [-92,28,-110], distance: 840, yaw: .37, polar: .85, name: 'Talboden, See, Burgberg und Höhenzüge' },
+    village: { target: [0,4,-14], distance: 165, yaw: .68, polar: 1.03, name: 'Bergdorf · Kirchterrasse · Raster 10 m' },
+    world: { target: [-92,28,-110], distance: 840, yaw: .37, polar: .85, name: 'Hochebene · Bergdorf, See und Burgberg' },
     castle: { target: [-320,52,-235], distance: 185, yaw: .55, polar: 1.02, name: 'Burgberg · 48 m über dem See · Zufahrt' },
     forest: { target: [-150,groundHeight(-150,-32),-32], distance: 120, yaw: 1.4, polar: 1.18, name: 'Waldweg · Anstieg zur Burg' }
   };
   function setView(view) {
-    mode = view; keys.clear(); labels.visible = view !== 'walk';
+    if (view === 'walk' && editing) toggleEditor(false);
+    mode = view; keys.clear(); labels.visible = view !== 'walk' && !editing;
     document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
     if (view === 'walk') {
       camera.position.set(0, groundHeight(0, 13) + 1.75, 13); walkingYaw = Math.PI; pitch = 0;
@@ -245,17 +272,27 @@
     } else {
       const preset = views[view]; target.fromArray(preset.target); ({ yaw, polar, distance } = preset);
       status.textContent = preset.name;
-      help.textContent = 'Ziehen: drehen · Mausrad: Abstand · Rechte Maustaste: verschieben';
+      help.textContent = editing ? 'Links ziehen: modellieren · Rechts ziehen: drehen · Alt + links: verschieben' : 'Ziehen: drehen · Mausrad: Abstand · Rechte Maustaste: verschieben';
     }
   }
   document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
   let drag = null;
   const canvas = renderer.domElement;
   canvas.addEventListener('contextmenu', event => event.preventDefault());
-  canvas.addEventListener('pointerdown', event => { drag = { x: event.clientX, y: event.clientY, pan: event.button === 2 || event.shiftKey }; canvas.setPointerCapture(event.pointerId); });
-  canvas.addEventListener('pointerup', () => { drag = null; });
-  canvas.addEventListener('pointercancel', () => { drag = null; });
+  canvas.addEventListener('pointerdown', event => {
+    canvas.setPointerCapture(event.pointerId);
+    if (editing && event.button === 0 && !event.altKey) {
+      locateBrush(event);
+      if (brushPoint) { sculpting = true; flattenLevel = brushPoint.y; terrainModel.begin(); applySculpt(.12); }
+      return;
+    }
+    drag = { x: event.clientX, y: event.clientY, pan: editing ? event.altKey || event.shiftKey : event.button === 2 || event.shiftKey };
+  });
+  canvas.addEventListener('pointerup', () => { drag = null; finishStroke(); });
+  canvas.addEventListener('pointercancel', () => { drag = null; finishStroke(); });
+  canvas.addEventListener('pointerleave', () => { if (!sculpting) { brushCursor.visible = false; brushPoint = null; } });
   canvas.addEventListener('pointermove', event => {
+    if (editing && !drag) locateBrush(event);
     if (!drag) return;
     const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
     drag.x = event.clientX; drag.y = event.clientY;
@@ -268,12 +305,16 @@
   });
   canvas.addEventListener('wheel', event => { event.preventDefault(); if (mode !== 'walk') distance = THREE.MathUtils.clamp(distance * Math.exp(event.deltaY * .001), 20, 1000); }, { passive: false });
   addEventListener('keydown', event => {
+    if (event.target.matches('input,textarea,select')) return;
+    if (editing && (event.ctrlKey || event.metaKey) && ['z','y'].includes(event.key.toLowerCase())) {
+      event.preventDefault(); changeHistory(event.key.toLowerCase() === 'y' || event.shiftKey); return;
+    }
     if (event.key === 'Escape') setView('village');
     const key = event.key.toLowerCase();
     if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','shift'].includes(key)) { keys.add(key); event.preventDefault(); }
   });
   addEventListener('keyup', event => keys.delete(event.key.toLowerCase()));
-  addEventListener('blur', () => { keys.clear(); drag = null; });
+  addEventListener('blur', () => { keys.clear(); drag = null; finishStroke(); });
   addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
   function blocked(x, z) {
     if (x < -385 || x > 210 || z < -285 || z > 205) return true;
@@ -283,10 +324,123 @@
       return Math.abs(cosine * dx - sine * dz) < c.w + .45 && Math.abs(sine * dx + cosine * dz) < c.d + .45;
     });
   }
+  function refreshTerrain() {
+    const low = new THREE.Color('#d8dfd3').convertSRGBToLinear(), rock = new THREE.Color('#8c9da4').convertSRGBToLinear(), snow = new THREE.Color('#e7ebe7').convertSRGBToLinear(), color = new THREE.Color();
+    const colors = groundGeometry.attributes.color;
+    for (let i = 0; i < positions.count; i++) {
+      const height = baseHeights[i] + terrainModel.offsets[i]; positions.setY(i, height);
+      color.copy(low).lerp(rock, smooth(12, 105, height)).lerp(snow, smooth(105, 155, height)); colors.setXYZ(i, color.r, color.g, color.b);
+    }
+    positions.needsUpdate = true; colors.needsUpdate = true;
+    groundGeometry.computeVertexNormals(); groundGeometry.computeBoundingSphere();
+    for (const anchor of anchors) {
+      let floor = groundHeight(anchor.x, anchor.z) + anchor.offset, height = anchor.h;
+      if (anchor.automatic) {
+        const heights = [];
+        for (const a of [-anchor.w / 2, anchor.w / 2]) for (const b of [-anchor.d / 2, anchor.d / 2]) heights.push(groundHeight(anchor.x + Math.cos(anchor.rotation) * a + Math.sin(anchor.rotation) * b, anchor.z - Math.sin(anchor.rotation) * a + Math.cos(anchor.rotation) * b));
+        floor = Math.min(...heights) - .08; height += Math.max(...heights) - floor;
+      }
+      anchor.mesh.position.y = floor + height / 2; anchor.mesh.scale.y = height;
+    }
+    for (const mesh of roadMeshes) {
+      const p = mesh.geometry.attributes.position;
+      for (let i = 0; i < p.count; i++) p.setY(i, groundHeight(p.getX(i), p.getZ(i)) + .32);
+      p.needsUpdate = true; mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere();
+    }
+    const gp = grid.geometry.attributes.position;
+    for (let i = 0; i < gp.count; i++) gp.setY(i, groundHeight(gp.getX(i), gp.getZ(i)) + .04);
+    gp.needsUpdate = true;
+    treePlacements.forEach((tree, i) => {
+      dummy.position.set(tree.x, groundHeight(tree.x, tree.z) + tree.height / 2, tree.z); dummy.scale.set(tree.rx, tree.height, tree.rz); dummy.updateMatrix(); forest.setMatrixAt(i, dummy.matrix);
+    });
+    forest.instanceMatrix.needsUpdate = true;
+    for (const anchor of labelAnchors) anchor.sprite.position.y = Math.max(0, groundHeight(anchor.x, anchor.z)) + anchor.height;
+    updateCursor();
+  }
+  function updateEditorStatus(message) {
+    undoButton.disabled = !terrainModel.canUndo; redoButton.disabled = !terrainModel.canRedo;
+    editStatus.dataset.changed = String(terrainModel.changedCount);
+    editStatus.textContent = message || (terrainModel.changedCount ? 'Dein Gelände ist in diesem Browser gespeichert.' : 'Ausgangsform geladen.');
+  }
+  function persistTerrain() {
+    try { localStorage.setItem(storageKey, terrainModel.serialize()); updateEditorStatus(); }
+    catch { updateEditorStatus('Browser-Speicher nicht verfügbar. Bitte deinen Entwurf als Datei speichern.'); }
+  }
+  function toggleEditor(enabled) {
+    finishStroke(); editing = enabled; editor.hidden = !enabled; editToggle.setAttribute('aria-pressed', String(enabled));
+    if (enabled && mode === 'walk') setView('world');
+    labels.visible = !enabled && mode !== 'walk'; brushCursor.visible = false;
+    help.textContent = enabled ? 'Links ziehen: modellieren · Rechts ziehen: drehen · Alt + links: verschieben' : 'Ziehen: drehen · Mausrad: Abstand · Rechte Maustaste: verschieben';
+  }
+  function locateBrush(event) {
+    const rect = canvas.getBoundingClientRect();
+    pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1);
+    raycaster.setFromCamera(pointer, camera);
+    const hit = raycaster.intersectObject(ground, false)[0];
+    brushPoint = hit ? hit.point : null; updateCursor();
+  }
+  function updateCursor() {
+    brushCursor.visible = Boolean(editing && brushPoint);
+    if (!brushCursor.visible) return;
+    const radius = Number(radiusInput.value), p = cursorGeometry.attributes.position;
+    for (let i = 0; i < 64; i++) {
+      const angle = i / 64 * Math.PI * 2, x = brushPoint.x + Math.cos(angle) * radius, z = brushPoint.z + Math.sin(angle) * radius;
+      p.setXYZ(i, x, groundHeight(x, z) + .65, z);
+    }
+    p.needsUpdate = true; cursorGeometry.computeBoundingSphere();
+  }
+  function protection(x, z) {
+    let weight = smooth(1.45, 1.8, Math.hypot((x + 35) / 110, (z + 171) / 60));
+    for (const pad of pads) {
+      const delta = Math.max(Math.abs(x - pad.x) - pad.w, Math.abs(z - pad.z) - pad.d, 0);
+      weight = Math.min(weight, smooth(0, 18, delta));
+    }
+    return weight;
+  }
+  function applySculpt(seconds) {
+    if (!brushPoint) return;
+    const protect = document.querySelector('#protect-places').checked ? protection : () => 1;
+    if (terrainModel.brush({ x: brushPoint.x, z: brushPoint.z, radius: Number(radiusInput.value), strength: Number(strengthInput.value), seconds, tool, level: flattenLevel, protect })) {
+      refreshTerrain(); updateEditorStatus('Gelände wird geformt …');
+    }
+  }
+  function finishStroke() {
+    if (!sculpting) return;
+    sculpting = false; if (terrainModel.end()) persistTerrain();
+  }
+  function changeHistory(redo) {
+    finishStroke(); if (redo ? terrainModel.redo() : terrainModel.undo()) { refreshTerrain(); persistTerrain(); }
+  }
+  editToggle.addEventListener('click', () => toggleEditor(!editing));
+  document.querySelectorAll('[data-tool]').forEach(button => button.addEventListener('click', () => {
+    tool = button.dataset.tool; document.querySelectorAll('[data-tool]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+    brushCursor.material.color.set(tool === 'lower' ? '#a64d31' : '#246f4e');
+  }));
+  radiusInput.addEventListener('input', () => { document.querySelector('#radius-value').textContent = radiusInput.value + ' m'; updateCursor(); });
+  strengthInput.addEventListener('input', () => { document.querySelector('#strength-value').textContent = strengthInput.value; });
+  undoButton.addEventListener('click', () => changeHistory(false)); redoButton.addEventListener('click', () => changeHistory(true));
+  document.querySelector('#terrain-reset').addEventListener('click', () => { finishStroke(); if (terrainModel.reset()) { refreshTerrain(); persistTerrain(); } });
+  document.querySelector('#terrain-save').addEventListener('click', () => {
+    finishStroke(); const url = URL.createObjectURL(new Blob([terrainModel.serialize()], { type: 'application/json' }));
+    const link = document.createElement('a'); link.href = url; link.download = 'nachtjagd-berge.json'; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000); updateEditorStatus('Geländedatei zum Herunterladen erstellt.');
+  });
+  const fileInput = document.querySelector('#terrain-file');
+  document.querySelector('#terrain-load').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0]; if (!file) return;
+    try {
+      if (file.size > 2000000) throw new Error('Die Geländedatei ist zu groß.');
+      finishStroke(); terrainModel.load(await file.text()); refreshTerrain(); persistTerrain(); updateEditorStatus('Geländedatei geladen und in diesem Browser gespeichert.');
+    } catch (error) { updateEditorStatus(error.message); }
+    fileInput.value = '';
+  });
+  updateEditorStatus(storageWarning || (restored ? 'Dein gespeichertes Gelände wurde wieder geladen.' : 'Ausgangsform geladen.'));
   let previous = performance.now();
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.min((now - previous) / 1000, .05); previous = now;
+    if (sculpting && now - lastSculpt >= 50) { applySculpt(Math.min((now - lastSculpt) / 1000, .1)); lastSculpt = now; }
     if (mode === 'walk') {
       const forward = Number(keys.has('w') || keys.has('arrowup')) - Number(keys.has('s') || keys.has('arrowdown'));
       const side = Number(keys.has('d') || keys.has('arrowright')) - Number(keys.has('a') || keys.has('arrowleft'));
@@ -296,7 +450,7 @@
       if (!blocked(camera.position.x + dx, camera.position.z)) camera.position.x += dx;
       if (!blocked(camera.position.x, camera.position.z + dz)) camera.position.z += dz;
       camera.position.y = groundHeight(camera.position.x, camera.position.z) + 1.75;
-      if (Math.abs(camera.position.x + 320) < 31 && Math.abs(camera.position.z + 235) < 26.5) camera.position.y = 48.25 + 1.75;
+      if (Math.abs(camera.position.x + 320) < 31 && Math.abs(camera.position.z + 235) < 26.5) camera.position.y = Math.max(camera.position.y, castleFloor.position.y + castleFloor.scale.y / 2 + 1.75);
       camera.lookAt(camera.position.x + Math.sin(walkingYaw) * Math.cos(pitch), camera.position.y + Math.sin(pitch), camera.position.z + Math.cos(walkingYaw) * Math.cos(pitch));
     } else {
       camera.position.set(target.x + distance * Math.sin(polar) * Math.sin(yaw), target.y + distance * Math.cos(polar), target.z + distance * Math.sin(polar) * Math.cos(yaw));
