@@ -81,19 +81,35 @@ export function createKit(THREE, group, opt) {
     return add(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material), x, y0 + h / 2, z);
   }
 
+  // Spitzes Dach (Kegel oder Pyramide) mit flacherem Rand am Fuß: Der Rand ist etwa 17 Grad geneigt
+  // und geht nach der Randbreite in die steile Hauptneigung über. Maße und Mittelpunkt wie bei einer
+  // ConeGeometry(R, h, segs), also ersetzt dieser Aufruf einen Kegel ohne Änderung der Position.
+  function roofGeo(R, h, segs) {
+    const kick = Math.min(R * 0.3, 1.3);
+    const pts = [
+      new THREE.Vector2(0.001, 0),
+      new THREE.Vector2(R, 0),
+      new THREE.Vector2(R - kick, kick * 0.3),
+      new THREE.Vector2(0.001, h),
+    ];
+    const geo = new THREE.LatheGeometry(pts, segs);
+    geo.translate(0, -h / 2, 0);
+    return geo;
+  }
+
   // Runder Turm mit Kegeldach. roofMat bestimmt die Dachfarbe, segs die Seitenzahl.
   function roundTower(x, z, r, h, roofH, roofMat, stoneMat, y0 = 0, segs = 12) {
     add(new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.08, h, segs), stoneMat), x, y0 + h / 2, z);
     // Auskragung unter dem Dach
     add(new THREE.Mesh(new THREE.CylinderGeometry(r * 1.18, r * 1.0, 1.1, segs), M.stoneDark), x, y0 + h + 0.55, z);
-    add(new THREE.Mesh(new THREE.ConeGeometry(r * 1.3, roofH, segs), roofMat), x, y0 + h + 1.1 + roofH / 2, z);
+    add(new THREE.Mesh(roofGeo(r * 1.3, roofH, segs), roofMat), x, y0 + h + 1.1 + roofH / 2, z);
     // Turmspitze
     add(new THREE.Mesh(new THREE.ConeGeometry(0.18, 1.8, 6), M.dark), x, y0 + h + 1.1 + roofH + 0.7, z);
   }
 
   // Vierseitige Pyramide über einem quadratischen Grundriss mit Seitenlänge s.
   function pyramid(s, h, x, y0, z, material) {
-    const m = new THREE.Mesh(new THREE.ConeGeometry(s * Math.SQRT1_2, h, 4), material);
+    const m = new THREE.Mesh(roofGeo(s * Math.SQRT1_2, h, 4), material);
     m.rotation.y = Math.PI / 4;
     return add(m, x, y0 + h / 2, z);
   }
@@ -102,10 +118,14 @@ export function createKit(THREE, group, opt) {
   function gable(w, d, rise, overhang, x, y0, z, ridgeAlongX, material) {
     const span = (ridgeAlongX ? d : w) + overhang * 2;
     const length = (ridgeAlongX ? w : d) + overhang * 2;
+    // Flacher Rand am Traufrand (etwa 17 Grad), danach die steile Hauptneigung bis zum First.
+    const kick = Math.min(1.6, span * 0.2);
     const shape = new THREE.Shape();
     shape.moveTo(-span / 2, 0);
     shape.lineTo(span / 2, 0);
+    shape.lineTo(span / 2 - kick, kick * 0.3);
     shape.lineTo(0, rise);
+    shape.lineTo(-span / 2 + kick, kick * 0.3);
     shape.lineTo(-span / 2, 0);
     const geo = new THREE.ExtrudeGeometry(shape, { depth: length, bevelEnabled: false });
     geo.translate(0, 0, -length / 2);
@@ -243,7 +263,7 @@ export function createKit(THREE, group, opt) {
   }
 
   return {
-    M, colliders, windows, add, box, roundTower, pyramid, gable, dormer, windowRow,
+    M, colliders, windows, add, box, roundTower, pyramid, gable, roofGeo, dormer, windowRow,
     arcadePanel, arcadeSeg, wallSeg, frame, col, rock, oct, finish,
   };
 }

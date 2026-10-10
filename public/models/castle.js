@@ -58,7 +58,7 @@ export function buildCastle(THREE, options = {}) {
   windowRow(5, 1.5, '+z', 2, 2.4, 9);
   windowRow(-3, -10.5, '-z', 5, 3.6, 4);
   windowRow(-3, -10.5, '-z', 5, 3.6, 9);
-  for (const x of [-12, -6, 0]) dormer(x, 16.3, -9.1, '-z');
+  for (const x of [-12, -6, 0]) dormer(x, 13.4, -9.1, '-z');
   box(1.3, 4.5, 1.3, -8, 28, -6, M.stoneDark);
   box(1.3, 4.5, 1.3, 5.5, 28, -6.4, M.stoneDark);
   // Erkerturm am Ostende der Hofseite, auf einem umgekehrten Kegel
@@ -75,12 +75,12 @@ export function buildCastle(THREE, options = {}) {
     add(new THREE.Mesh(oct(new THREE.CylinderGeometry(5.2, 4.0, 1.2, 8)), M.stoneDark), cx, 34.6, cz);
     add(new THREE.Mesh(oct(new THREE.CylinderGeometry(3.2, 3.2, 14, 8)), M.stoneLight), cx, 42.2, cz);
     add(new THREE.Mesh(oct(new THREE.CylinderGeometry(4.2, 3.2, 1, 8)), M.stoneDark), cx, 49.7, cz);
-    add(new THREE.Mesh(oct(new THREE.ConeGeometry(4.3, 26, 8)), M.copper), cx, 50.2 + 13, cz);
+    add(new THREE.Mesh(oct(kit.roofGeo(4.3, 26, 8)), M.copper), cx, 50.2 + 13, cz);
     add(new THREE.Mesh(new THREE.ConeGeometry(0.25, 5, 6), M.dark), cx, 50.2 + 26 + 2.2, cz);
     // vier Erkertürmchen auf dem unteren Kragen
     for (const [dx, dz] of [[-3.1, -3.1], [3.1, -3.1], [-3.1, 3.1], [3.1, 3.1]]) {
       add(new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 5, 8), M.stoneLight), cx + dx, 35.2 + 2.5, cz + dz);
-      add(new THREE.Mesh(new THREE.ConeGeometry(1.1, 6, 8), M.slate), cx + dx, 40.2 + 3, cz + dz);
+      add(new THREE.Mesh(kit.roofGeo(1.1, 6, 8), M.slate), cx + dx, 40.2 + 3, cz + dz);
     }
     col.circle(cx, cz, 4.4, 81);
     // Tür und Fenster an den Flächen (Radius nimmt nach oben leicht ab, Fläche = 0,924 x Radius)
@@ -116,7 +116,7 @@ export function buildCastle(THREE, options = {}) {
   pyramid(8.6, 24, 9, 23.6, -12, M.copper);
   for (const [dx, dz] of [[-4.1, -4.1], [4.1, -4.1], [-4.1, 4.1], [4.1, 4.1]]) {
     add(new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 3.5, 8), M.stoneLight), 9 + dx, 23.6 + 1.75, -12 + dz);
-    add(new THREE.Mesh(new THREE.ConeGeometry(1.2, 6, 8), M.slate), 9 + dx, 23.6 + 3.5 + 3, -12 + dz);
+    add(new THREE.Mesh(kit.roofGeo(1.2, 6, 8), M.slate), 9 + dx, 23.6 + 3.5 + 3, -12 + dz);
   }
   add(new THREE.Mesh(new THREE.ConeGeometry(0.2, 3.5, 6), M.dark), 9, 23.6 + 24 + 1.5, -12);
   windowRow(13, -12, '+x', 2, 3, 8);
@@ -157,7 +157,7 @@ export function buildCastle(THREE, options = {}) {
     col.box(0, 0, 8, 14, 10);
     windowRow(4, 0, '+x', 3, 3.6, 5, 1.0, 3.2);
     add(new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.9, 10, 10), M.stone), 0, 5, 7);
-    add(new THREE.Mesh(new THREE.ConeGeometry(4.5, 13, 10), M.copper), 0, 16.5, 7);
+    add(new THREE.Mesh(kit.roofGeo(4.5, 13, 10), M.copper), 0, 16.5, 7);
     col.circle(0, 7, 3.8, 10);
     roundTower(4.8, -5.5, 1.5, 19, 17, M.slate, M.stoneLight);
     col.circle(4.8, -5.5, 1.5, 19);
