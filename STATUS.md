@@ -4,17 +4,13 @@ Letzte Aktualisierung: 2026-10-10 (Codex, grober Weltentwurf auf Basis von `nach
 
 ## Aktueller grober Weltentwurf
 
-- Aktueller Nutzerbegriff: Hochebene/Bergdorf. Ein Gelände-Editor mit Anheben, Absenken, Glätten, Ebnen, Pinselgröße/Stärke und Schutzmaske ist eingebaut. Linke Maustaste malt, rechte dreht, Alt + links verschiebt. Rückgängig/Wiederholen, lokaler Browserstand und JSON-Export/-Import sind vorhanden. Änderungen sind lokal, keine automatische Übernahme nach GitHub oder in Multiplayer.
-- Sieben neue Editor-Tests bestanden; im Browser Pinsel, Undo/Redo, Wiederherstellung nach Reload, Datei-Export und erneutes Laden mit unverändertem Teststand geprüft. Der Teststand wird nicht veröffentlicht.
-- AUSSTEHEND: Nutzer hat eine Skizze angekündigt und darum gebeten, auf sie zu warten. Neue Platzierung erst danach: größerer See auf der anderen Seite; Dorf am Hang, mehr unterschiedliche Häuser und Umfassungsmauer; dichterer unterlaufbarer Wald; Burg auf Felssporn statt Felsnische; hügelige und schroffe Landschaftsbereiche mit Burgberg/Bergspitzen. See-Richtung noch nicht festgelegt. Bis dahin nur den Editor fertigstellen.
-
-- Entwurf 02: Die bisher flache Studie hat jetzt Höhenzüge, einen Talboden, ein abgesenktes Seebecken und ein Burgplateau auf 48 m über Wasser. Der Dorfplatz liegt auf 2 m; die Kirchgasse steigt zur Terrasse an. Wege, Bäume, Gebäudesockel und Augenhöhe folgen dem sichtbaren Höhenmodell. Die Gesamtansicht ist die neue Startansicht. Burgzufahrt und offener Hof sind begehbar; Innenräume bleiben offen.
-- Sechs geometrische Browserprüfungen unter `?test=terrain` bestanden: Relief, Platzniveau, Burgniveau, Seebett, Gebäudesockel und Weganschlüsse. Hangbewegung sowie Tal- und Burgansicht sichtbar geprüft; 35/35 vorhandene Repository-Tests grün.
-
-- Nutzerkorrektur: zunächst ausschließlich das grobe Layout, Quader als Gebäude und Kegel als Bäume. `public/entwurf/index.html` mit `blockout.js` ist deshalb die neue Standardansicht. Dorfplatz, Hauptstraße, Kirchgasse und Verbindungen zu Wald, See und Burg sind räumlich dargestellt.
-- Fünf Ansichten: Dorf, ganzes Tal, Burg, Waldweg und Durchlaufen. Übersicht drehen/verschieben/zoomen; Rundgang mit WASD, Mausziehen und Gebäudekollision. Kein Kampf oder Koop in dieser Studie. Gelände bleibt eine grobe Studie; Burginnenräume sind noch offen.
-- Der vorherige spielbare Dorfentwurf ist als `public/entwurf/spiel.html` erhalten. `tools/build-village-preview.mjs` erzeugt diesen Vergleich, nicht mehr die Standardseite. Der ursprüngliche Import unter `live/` bleibt unverändert.
-- JavaScript-Syntax, Browseransichten und Dorfbewegung geprüft; 35/35 vorhandene Tests des älteren getrennten Servers/Clients bestanden. Veröffentlichung weiterhin unter demselben Vorschaupfad. Als Nächstes: Feedback zu Abständen, Straßenführung, Sichtachsen und Verteilung der Orte, erst danach Modelle ausarbeiten.
+- Nutzerskizze umgesetzt: Hochgebirge im Norden, Burg westlich auf freiem Felssporn, großer unregelmäßiger See im Südwesten, Dorf rechts der Mitte. Wald als nördlicher/östlicher/südlicher Bogen und zentraler westlicher Streifen. Norden ist -z. `world-layout.js` hält Orte, Grundhöhen, See und Waldmasken gemeinsam.
+- 28 Häuser mit vier einfachen Volumenformen stehen am Hang (rund 28 m Höhenunterschied zwischen Hausplätzen). Nur einzelne Bauplätze sind geglättet. Umfassungsmauer mit drei offenen Toren, Kirche und Wege zur Burg, zum See und in den Wald. Burg auf 102 m auf einem steilen kantigen Sporn, östlich über einen schmalen Rücken erreichbar. Weiche Hügel und kantige hohe Bergspitzen bilden zwei Landschaftsarten.
+- 2400 instanzierte Bäume mit dünnen Stämmen und Kronen ab 4 m; nur die Stämme kollidieren. Waldweg startet direkt als Rundgang unter den Kronen. Draufsicht mit Norden oben zum Skizzenvergleich. Modelle bleiben ausdrücklich Quader und Kegel.
+- Gelände-Editor bleibt vorhanden: Anheben, Absenken, Glätten, Ebnen, Schutzmaske, Undo/Redo, Browserstand und JSON-Dateien. Neue Grundform hat eigenen Browser-Schlüssel und Grundformkennung im Dateiformat v2; alte Dateien werden ohne Änderung abgewiesen. Vorherige Browserstände bleiben erhalten.
+- Validierung: 47 Repository-Tests bestanden (35 älterer Server/Client, acht Editor-, vier Weltlayout-Tests). Zehn geometrische Browserprüfungen bestanden: Relief, Hangdorf, Burghof, Seebett, Wald/Kronenfreiheit, Mauern/Tore, begehbare Dorf–Burg/See-Verbindungen, Stammkollision, Gebäudesockel und Wegoberflächen. Ansichten und Waldbewegung sichtbar geprüft. Pinsel, Undo/Redo und Wiederherstellung nach Reload erneut geprüft; lokaler Prüfstand zurückgesetzt.
+- Vorschau weiterhin unter `https://risinghurricane.github.io/nachtjagd/entwurf/`. Kein Kampf oder Koop in der Layoutstudie; Schlossinnenräume sind offen. Spielbarer Vergleich `spiel.html` und ursprünglicher Import unter `live/` bleiben erhalten. Keine neue Abhängigkeit und keine privaten Referenzfotos veröffentlicht.
+- Als Nächstes: räumliches Feedback zur Skizzenumsetzung; danach endgültige Modelle und Grafik ausarbeiten. Multiplayer für 1–4 bleibt ein späterer eigener Schritt.
 
 ### Bisheriger spielbarer Vergleich
 
@@ -56,6 +52,8 @@ Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` un
 - Die Berge am Kartenrand ragen stellenweise ein Stück auf die Karte hinein (Kulisse). Das lässt sich verschieben, wenn es stört.
 
 ## Übergabe-Log
+
+- 2026-10-10, Codex: Nutzerskizze als neuen Weltblockout umgesetzt: Nordgebirge, westlicher Burgsporn, südwestlicher See, ummauertes Hangdorf und dichter unterlaufbarer Wald. Grundformkennung für Geländedateien ergänzt. 47 Tests und zehn geometrische Browserprüfungen bestanden. Keine neue Abhängigkeit.
 
 - 2026-10-10, Codex: Gelände-Editor für das Bergdorf ergänzt. Sieben Editor-Tests und Browserprüfung von Pinsel, Verlauf, lokaler Wiederherstellung und Datei-Export/-Import bestanden. Weltumstellung wartet auf angekündigte Nutzerskizze.
 

@@ -1,26 +1,26 @@
-# Bergdorf und Gelände-Editor
+# Bergdorf nach Nutzerskizze
 
-Der Nutzer beschreibt die Welt als Hochebene/Bergdorf. Über **Berge formen** lässt sich das Gelände direkt modellieren: Anheben, Absenken, Glätten und Ebnen. Linke Maustaste malt, rechte dreht die Ansicht, Alt + links verschiebt. Pinselradius und Stärke sind einstellbar. Ebnen übernimmt die Höhe am Beginn des Pinselstrichs. Dorf, Burg und See sind standardmäßig über eine Schutzmaske geschützt; die Maske kann ausgeschaltet werden. Ein Pinselstrich ist eine rückgängig machbare Änderung; 24 Schritte bleiben im Verlauf. Wege, Gebäude, Bäume und Augenhöhe folgen der geänderten Oberfläche.
+Vorschau: https://risinghurricane.github.io/nachtjagd/entwurf/
 
-Änderungen werden am Ende eines Strichs lokal in diesem Browser gespeichert. Sie ändern weder die veröffentlichte Grundform noch andere Spieler. **Datei speichern** exportiert `nachtjagd-berge.json`; **Datei laden** prüft Version, Raster, Anzahl und Wertebereich vor der Übernahme. Laden und Zurücksetzen sind rückgängig machbar. Bei nicht verfügbarem Browser-Speicher weist der Editor auf die Dateisicherung hin. Der Höhenpinsel und das Dateiformat liegen in `terrain-editor.js`, die Darstellung und Bedienung in `blockout.js`.
+Norden ist -z: kantiges Hochgebirge im Norden, Burg westlich auf freiem Felssporn, großer unregelmäßiger See im Südwesten, Bergdorf rechts der Mitte. Wald folgt dem grünen Bogen im Norden, Osten und Süden sowie dem zentralen westlichen Streifen der Skizze. `world-layout.js` enthält Orte, Höhen, Uferkontur, Waldmasken und Hauspositionen. `blockout.js` baut daraus die grobe Szene. Kein Build-Schritt.
 
-Validierung des Editors: sieben Tests für Pinsel, Schutzmaske, Glätten/Ebnen, Verlauf, Dateiformat und Zurücksetzen. Im Browser Pinselstrich, Rückgängig/Wiederholen, Wiederherstellung nach Reload sowie Datei-Export und erneutes Laden geprüft. Der Bearbeitungsstand blieb mit 248 geänderten Rasterpunkten erhalten. Der Testentwurf wird nicht veröffentlicht.
+28 Häuser in vier einfachen Volumenformen, Kirche und Umfassungsmauer mit drei Toren. Kleine Bauplätze sind geglättet, das übrige Dorf bleibt hügelig; zwischen Hausplätzen liegen rund 28 m Höhenunterschied. Die Burg liegt auf einem kantigen 102 m hohen Sporn mit Zufahrt über einen schmalen Rücken. 2400 instanzierte Bäume haben dünne Stämme und Kegelkronen ab 4 m. Nur Stämme blockieren den Rundgang. Modelle bleiben Quader und Kegel.
 
-Neue Weltanordnung wartet auf die vom Nutzer angekündigte Skizze. Gewünscht: größerer See auf der anderen Seite, Dorf am Hang mit mehr unterschiedlichen Häusern und Umfassungsmauer, dichterer unterlaufbarer Wald, Burg auf freistehendem Felssporn, weiche Hügel sowie schroffer Burgberg und Bergspitzen. Keine Richtungsannahme für den See treffen.
+Ansichten: Dorf, Hochebene, Draufsicht mit Norden oben, Burg sowie Rundgänge im Wald und Dorf. Ziehen dreht, Mausrad zoomt, rechts ziehen verschiebt. Rundgang: WASD/Pfeiltasten, Ziehen zum Umsehen, Shift schneller, Esc zurück. Haus-, Mauer-, Stamm- und Wasserkollisionen. Die Studie besitzt keine Kämpfe oder Koop-Verbindung; Schlossinnenräume sind noch offen.
 
-Das Gelände bildet jetzt einen Talboden mit beidseitigen Höhenzügen, einem eingesenkten Seebecken und einem Burgplateau auf 48 m über dem Wasserspiegel. Der Dorfplatz liegt auf 2 m, die Kirchgasse steigt zur Kirchterrasse an. Bauplätze sind geglättet; einfache Gebäudesockel schließen an die Geländeoberfläche an. Wege und Bäume folgen dem Höhenmodell. Die Vorschau startet in der Talübersicht. Beim Durchlaufen folgt die Augenhöhe dem sichtbaren Geländedreieck; auch die Burgzufahrt und der offene Hof sind zugänglich.
+## Gelände modellieren
 
-Die Standardvorschau unter `/entwurf/` ist eine räumliche Blockout-Studie: Quader als Gebäude, Kegel als Bäume, einfache Flächen als Wege und Plätze. Das Raster hat 10 m Abstand. Dorfplatz, Marktstraße und Kirchgasse übernehmen die zuletzt erprobten Hauspositionen. Die übrigen Orte bleiben grobe Massen zur Beurteilung der Verbindungen.
+**Berge formen** öffnet Anheben, Absenken, Glätten und Ebnen. Links ziehen malt, rechts dreht, Alt + links verschiebt. Radius/Stärke sind einstellbar. Ebnen übernimmt die Höhe am Strichbeginn. Bauplätze, Burg und Ufer sind standardmäßig geschützt; Schutzmaske abschaltbar. 24 Schritte Undo/Redo. Wege, Häuser, Bäume und Augenhöhe folgen der Oberfläche.
 
-`index.html` lädt `blockout.js` mit Layout, Höhenmodell und Bedienung. Ansichten: Dorf, ganzes Tal, Burg, Waldweg und Durchlaufen. Ziehen dreht, Mausrad ändert den Abstand, rechts ziehen verschiebt. Im Rundgang: WASD oder Pfeiltasten, Ziehen zum Umsehen, Shift schneller, Esc zurück. Kollisionen an Hauskörpern, Baumstämmen und See. Schlossräume sind noch nicht angelegt.
+Änderungen bleiben lokal im Browser und ändern weder GitHub noch andere Spieler. **Datei speichern** exportiert `nachtjagd-berge.json`; **Datei laden** prüft Format v2, Grundformkennung, Raster und Werte vor Übernahme. Laden und Zurücksetzen sind rückgängig. Die Skizzenwelt nutzt `nachtjagd-bergdorf-skizze-v1`; vorheriger Browserstand bleibt unter seinem alten Schlüssel erhalten. Dateien der alten Grundform passen nicht auf die neue Karte und werden abgewiesen. Bei Änderungen der Basis `world-layout.js:basis` und Speicherschlüssel aktualisieren.
 
-Die Vorlage in `live/` bleibt unverändert. Der bisherige spielbare Dorfentwurf bleibt separat als `spiel.html` erhalten. `node tools/build-village-preview.mjs` erzeugt nur diesen Vergleich, ohne den Blockout zu überschreiben. Keine neuen Abhängigkeiten und keine Fotos aus dem privaten Referenzordner hochgeladen.
+47 Tests: 35 bestehende Server/Client-, acht Editor- und vier Weltlayout-Tests. Zehn Browserprüfungen unter `?test=terrain` prüfen Relief, Hangdorf, Burg, See, Baumfreiheit, Tore/Kollisionen, Wegverbindungen und Oberflächenanschlüsse. Alle bestehen. Waldbewegung und Ansichten sichtbar geprüft. Pinsel, Undo/Redo und Wiederherstellung nach Reload auf der neuen Karte geprüft; Teständerungen zurückgesetzt. Datei-Export/-Import im vorherigen Editor geprüft, das neue Grundformformat zusätzlich automatisiert.
 
-Die Layout-Studie enthält keine Kämpfe oder Koop-Verbindung. Der spielbare Vergleich besitzt weiterhin Wellen und Interaktionen.
+## Spielbarer Vergleich
 
-Online-Koop ist in dieser Vorschau bewusst nicht verbunden: Dem gesicherten öffentlichen Frontend fehlt sein privater Altay-Backendcode. Eine geänderte Welt darf außerdem nicht mit alten Räumen gemischt werden. MP3-Dateien werden nicht übernommen; die Vorschau spielt keine Musikaufnahmen ab. Die bisherige Altay-Version bleibt erreichbar.
+`spiel.html` bleibt als bisheriger spielbarer Dorfentwurf erhalten; `node tools/build-village-preview.mjs` erzeugt ausschließlich diesen Vergleich. Der ursprüngliche Import unter `live/` bleibt unverändert. Keine privaten Referenzfotos oder Musikdateien hochgeladen, keine neue Abhängigkeit.
 
-Validierung: JavaScript-Syntax, Dorf-, Tal- und Burgansicht sowie Bewegung am Dorfhang im Browser geprüft. Unter `?test=terrain` prüfen sechs geometrische Kontrollen das Höhenrelief, Platzniveau, Burgplateau, Seebett, Gebäudesockel und die Wegoberflächen. Alle sechs bestehen. Die 35 vorhandenen Tests des separaten älteren Servers/Clients bestehen. Frühere 21 Bewegungsprüfungen gelten für `spiel.html`, nicht für den Blockout.
+Der öffentliche Import des neuesten Altay-Frontends enthält seinen privaten Koop-Backendcode nicht. Eine gemeinsame Spielwelt für 1–4 Teilnehmer ist ein späterer eigener Schritt. Die Altay-Version bleibt unverändert.
 
 ## Referenzen getrennt verwenden
 
@@ -31,4 +31,4 @@ Validierung: JavaScript-Syntax, Dorf-, Tal- und Burgansicht sowie Bewegung am Do
 - Schloss innen: `int.jpg`, `int2.jpg`, `int3.jpg`, `lobby-lounge.jpg`; Deckenreferenz separat.
 - Weitere einzelne Bauwerke und Monster bleiben eigene Referenzen.
 
-Dieser erste Entwurf bearbeitet hauptsächlich den Dorfkern. Wald, Burg, Schlossräume und Bergkulisse erhalten später jeweils eine eigene Überarbeitung.
+Der Blockout legt die räumliche Verteilung fest. Endgültige Hausmodelle, Waldgrafik, Burgdetails und Schlossräume folgen nach dem Layoutfeedback.

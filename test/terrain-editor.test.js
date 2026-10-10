@@ -54,3 +54,12 @@ test('Zurücksetzen ist rückgängig; neuer Pinselstrich ersetzt den Vorwärtsve
   terrain.undo(); assert.equal(terrain.offsets[40], 10);
   terrain.begin(); terrain.brush(brush); terrain.end(); assert.equal(terrain.canRedo, false);
 });
+test('Dateien einer anderen Grundform werden ohne Änderung abgewiesen', () => {
+  const terrain = model(); terrain.brush(brush);
+  const wrongBase = JSON.parse(terrain.serialize()); wrongBase.basis = 'alte-welt';
+  assert.throws(() => terrain.load(JSON.stringify(wrongBase)));
+  assert.equal(terrain.offsets[40], 10);
+  wrongBase.basis = 'default'; wrongBase.version = 1;
+  assert.throws(() => terrain.load(JSON.stringify(wrongBase)));
+  assert.equal(terrain.offsets[40], 10);
+});
