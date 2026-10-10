@@ -779,8 +779,9 @@
       return null;
     }
   };
+  scene.updateMatrixWorld(true);
   world.checks=[{name:'Dorfstart frei',passed:!blocked(90,45,gameFloor(90,45))},...world.objectives.map(o=>({name:o.name+'-Siegel erreichbar',passed:!blocked(o.x,o.z,gameFloor(o.x,o.z))})),{name:'Glockenplatz frei',passed:!blocked(world.bell.x,world.bell.z,gameFloor(world.bell.x,world.bell.z))}];
-  gameplay=NachtjagdPlay.create({THREE,scene,camera,canvas,world,onExit:()=>setView('village')});
+  gameplay=NachtjagdPlay.create({THREE,scene,camera,canvas,world,onStart:()=>{ toggleEditor(false); labels.visible=false; grid.visible=false; keys.clear(); drag=null; },onExit:()=>setView('village')});
   if(new URLSearchParams(location.search).has('test')) {
     for(const [name,start,end] of [['Spielfigur steigt die Dorftreppe hinauf',[120,57],[120,87]],['Spielfigur überquert das Viadukt',viaduct.b,viaduct.a]]) {
       const probe=NachtjagdGame.create({world:{...world,spawn:start,spawnEnemy:()=>null}}); probe.start();

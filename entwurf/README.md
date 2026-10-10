@@ -1,6 +1,6 @@
 # Bergdorf nach Nutzerskizze
 
-Vorschau Entwurf 12: https://risinghurricane.github.io/nachtjagd/entwurf/?v=12
+Vorschau Entwurf 13: https://risinghurricane.github.io/nachtjagd/entwurf/?v=13
 
 Norden ist -z: Burg westlich auf freiem Felssporn, großer Südwestsee, ummauertes Hangdorf rechts der Mitte. Ein innerer Ring weicher Mittelberge (103–208 m) und eine äußere Reihe schroffer Hochgipfel (235–436 m) umschließen die Welt. Unebene Vorberge füllen die Lücke hinter dem Dorf. Beide Bergtypen variieren reproduzierbar in Höhe, Breite, Tiefe, Ausrichtung und Abständen. Gewellte Bergrücken füllen die tiefen Spalten zwischen den Bergreihen. 140 Hangbäume und 140 Bäume auf den Sätteln bilden kleine Gruppen; drei gezielte Lichtungen gleichen sie aus. world-layout.js enthält Orte, Grundhöhen, See, Wald und Häuser; blockout.js erzeugt die Szene. Kein Build-Schritt.
 
@@ -22,7 +22,7 @@ Das Gelände nutzt 321×281 Punkte bei 5 m Rasterweite, Grundform bergdorf-seein
 
 69 automatisierte Tests: 35 bestehende Server/Client-, neun Editor-, vierzehn Weltlayout-, fünf Straßen-, vier Viadukt- und zwei Treppen-Tests. 22 Browserprüfungen unter ?test=terrain prüfen unter anderem Querneigung, freie Wegverbindungen, Treppen, Gebäudesockel und Geländeanschlüsse. Treppenbewegung und Editor mit Undo/Redo und Wiederherstellung nach Reload sichtbar geprüft.
 
-Die sichtbare Kennung Entwurf 12 und Skriptadressen mit ?v=12 verhindern gemischte alte/neue Dateien. Bei Veröffentlichung Kennung, Direktlink und Skriptzusätze gemeinsam ändern; bei inkompatiblen Grundformänderungen zusätzlich Basis und Speicherschlüssel erhöhen.
+Die sichtbare Kennung Entwurf 13 und Skriptadressen mit ?v=13 verhindern gemischte alte/neue Dateien. Bei Veröffentlichung Kennung, Direktlink und Skriptzusätze gemeinsam ändern; bei inkompatiblen Grundformänderungen zusätzlich Basis und Speicherschlüssel erhöhen.
 
 ## Spielbarer Vergleich
 

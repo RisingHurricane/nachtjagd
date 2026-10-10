@@ -2,7 +2,7 @@
 
 // Verbindet den ausgelagerten Spielkern mit der bestätigten Weltstudie.
 globalThis.NachtjagdPlay = {
-  create({THREE,scene,camera,canvas,world,onExit}) {
+  create({THREE,scene,camera,canvas,world,onStart,onExit}) {
     const hud=document.querySelector('#game-hud'),panel=document.querySelector('#game-panel');
     const title=document.querySelector('#game-title'),message=document.querySelector('#game-message');
     const action=document.querySelector('#game-action'),exit=document.querySelector('#game-exit');
@@ -43,6 +43,7 @@ globalThis.NachtjagdPlay = {
       if(phase!=='playing') { clearInput(); releasePointer(); }
     }
     function start() {
+      onStart();
       clearInput(); world.resetNavigation?.(); game=NachtjagdGame.create({world}); current=game.start(); active=true;
       document.body.classList.add('playing'); hud.hidden=false; actors.visible=markers.visible=supplies.visible=weapon.visible=true;
       camera.fov=74; camera.updateProjectionMatrix(); game.setLook(Math.PI,0); current=game.snapshot();
