@@ -73,7 +73,7 @@
   const baseHeights = new Float32Array(321 * 281);
   for (let row = 0; row <= 280; row++) for (let col = 0; col <= 320; col++) baseHeights[row * 321 + col] = unpavedHeight(col * 5 - 800, row * 5 - 705);
   const terrainModel = NachtjagdTerrain.create({ width: 321, depth: 281, step: 5, originX: -800, originZ: -705, base: baseHeights, basis: layout.basis, maxHeight: 650 });
-  const storageKey = 'nachtjagd-bergdorf-entdeckungsorte-v7';
+  const storageKey = 'nachtjagd-bergdorf-seeinsel-v8';
   let restored = false, storageWarning = '';
   try { const saved = localStorage.getItem(storageKey); if (saved) { terrainModel.load(saved, false); restored = true; } }
   catch { storageWarning = 'Browserstand konnte nicht geladen werden. Du kannst eine Geländedatei laden.'; }
@@ -409,7 +409,7 @@
     wind: {target:[270,groundHeight(270,255)+10,255],distance:130,yaw:-2.2,polar:.75,name:'Windrad · grobe Holzwindmühle'},
     stones: {target:[150,groundHeight(150,-90)+5,-90],distance:140,yaw:.2,polar:.85,name:'Steinkreis auf der Anhöhe'},
     ruin: {target:[300,groundHeight(300,120)+5,120],distance:140,yaw:-1.2,polar:.8,name:'Klosterruine · offener Hof und Kapellenreste'},
-    lakeside: {target:[-215,8,115],distance:210,yaw:.2,polar:.85,name:'Seehäuser und kleiner Steg'},
+    lakeside: {target:[-232,6,156],distance:210,yaw:.15,polar:.85,name:'Seehäuser, Steg und kleine Insel'},
     northmine: {target:[-60,groundHeight(-60,-200)+3,-200],distance:100,yaw:.5,polar:.9,name:'Nordmine · kurzer überdachter Stollen'},
     mines: {target:[-345,groundHeight(-345,-22)+3,-22],distance:110,yaw:.6,polar:1.05,name:'Westmine · kurzer überdachter Stollen · zweite Mine im Norden'},
     viaduct: { target: [-165,65,-130], distance: 220, yaw: 1.2, polar: 1.15, name: 'Viadukt · sieben Bögen · begehbarer Burgweg' }
@@ -654,6 +654,7 @@
       return true;
     }),{stones:landmarks.stoneCount,lakeHouses:landmarks.lakeHouseCount,mines:layout.mines.length});
     check('Seesteg besitzt eine begehbare Fläche über Wasser',landmarks.floor(-212,147)===2.3 && !blocked(-212,147,2.3),landmarks.floor(-212,147));
+    check('Kleine Seeinsel trägt drei Bäume und bleibt von Wasser umgeben',landmarks.islandTreeCount===3 && groundHeight(layout.island.x,layout.island.z)>3 && [[-30,0],[30,0],[0,-25],[0,25]].every(([dx,dz])=>groundHeight(layout.island.x+dx,layout.island.z+dz)<-.5),{trees:landmarks.islandTreeCount,height:groundHeight(layout.island.x,layout.island.z)});
     const stairBlocked=stairs.treads.filter(t=>blocked(t.x,t.z,t.top));
     check('Zwei Treppenwege haben freie waagerechte Trittflächen',stairs.treads.length>30 && stairBlocked.length===0,{treads:stairs.treads.length,blocked:stairBlocked.slice(0,4)});
     let crossSlope=0;

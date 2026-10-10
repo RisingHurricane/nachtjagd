@@ -7,6 +7,17 @@ import vm from 'node:vm';
 const context = vm.createContext({});
 vm.runInContext(fs.readFileSync(new URL('../public/entwurf/world-layout.js', import.meta.url), 'utf8'), context);
 const layout = context.NachtjagdLayout;
+test('Seehäuser bilden eine enge Landgruppe; die kleine Insel bleibt ringsum im Wasser',()=>{
+  for(const [x,z,w,d] of layout.lakeHomes) {
+    for(const [a,b] of layout.lakeHomes) assert.ok(Math.hypot(x-a,z-b)<60);
+    for(const dx of [-w/2,w/2]) for(const dz of [-d/2,d/2]) assert.ok(layout.naturalHeight(x+dx,z+dz)>.35);
+  }
+  const {x,z,trees}=layout.island;
+  assert.equal(trees.length,3);
+  assert.ok(layout.lakeDistance(x,z)<-40 && layout.naturalHeight(x,z)>4);
+  for(const [dx,dz] of trees) assert.ok(layout.naturalHeight(x+dx,z+dz)>3);
+  for(const [dx,dz] of [[-30,0],[30,0],[0,-25],[0,25]]) assert.ok(layout.naturalHeight(x+dx,z+dz)<-.5);
+});
 test('Skizzenanordnung: See südwestlich, Burg westlich, Gebirge nördlich des Dorfs', () => {
   assert.ok(layout.lakeDistance(-210,220) < 0);
   assert.ok(layout.lakeDistance(layout.village.x,layout.village.z) > 0);
