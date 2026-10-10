@@ -3,6 +3,11 @@
 // Norden ist -z. Die Orte und Waldflächen folgen der farbigen Nutzerskizze.
 globalThis.NachtjagdLayout = (() => {
   const village = { x: 90, z: 45 };
+  // Unregelmäßiger Dorfrand mit drei ausgesparten Toren, auch Grundlage der Waldkante.
+  const villageOutline=[[-5,51],[-5,39],[-15,15],[0,-14],[36,-30],[76,-26],[115,-18],[150,-28],[180,-10],[198,18],[185,39],[185,51],[198,76],[186,105],[150,124],[121,112],[109,112],[80,126],[42,118],[10,109],[-14,83]];
+  const villageGates=[[-5,45],[185,45],[115,112]];
+  const villageWalls=villageOutline.map((a,i)=>[a,villageOutline[(i+1)%villageOutline.length]])
+    .filter(([a,b])=>!villageGates.some(g=>Math.hypot((a[0]+b[0])/2-g[0],(a[1]+b[1])/2-g[1])<.01));
   const castle = { x: -265, z: -100, height: 102 };
   const lake = [[-418,312],[-405,242],[-375,168],[-334,115],[-317,69],[-293,82],[-268,116],[-213,147],[-149,170],[-81,194],[-12,218],[18,242],[-24,280],[-113,325],[-237,348],[-350,346],[-410,332]];
   const forestBands = [
@@ -23,11 +28,14 @@ globalThis.NachtjagdLayout = (() => {
     return {x,z,top:235+180*variation(i+271)+(z<0?30:0),rx:Math.min(105+70*variation(i+301),780-Math.abs(x)),rz:Math.min(100+65*variation(i+331),675-Math.abs(z)),rotation:(variation(i+361)-.5)*1.1};
   });
   for(const peak of [...middlePeaks,...highPeaks]) { peak.cos=Math.cos(peak.rotation); peak.sin=Math.sin(peak.rotation); }
-  const foothillGroups=[[-405,-140,48],[-410,65,45],[325,-215,50],[220,-260,48],[25,-245,45],[355,230,45],[40,355,50]];
+  const foothillGroups=[[-445,-135,48],[-410,65,45],[325,-215,50],[200,-195,48],[20,-235,45],[305,210,45],[45,365,50]];
+  const ridgeGroups=[[-270,-405,38],[-110,-415,40],[125,-395,38],[350,-305,36],[-535,-20,38],[465,60,40]];
+  // Wenige größere Lichtungen gleichen die neuen Hanggruppen aus.
+  const clearings=[[-95,-105,27,22],[220,120,24,29],[90,255,29,23]];
   const treeGroups = [[-345,-170,24],[-320,20,23],[-235,75,28],[-35,105,24],[15,-65,22],[70,240,30],[210,315,27],[300,-135,30],[320,20,23]];
-  const allTreeGroups=[...treeGroups,...foothillGroups];
+  const allTreeGroups=[...treeGroups,...foothillGroups,...ridgeGroups];
   // Kleine Hausgruppen und versetzte Höfe statt gleichmäßiger Zeilen.
-  const houseSites = [[19,-5],[41,-3],[63,0],[11,12],[24,17],[48,19],[66,18],[119,-5],[141,-7],[165,-4],[115,16],[141,18],[166,17],[16,76],[37,72],[58,77],[82,74],[102,76],[133,75],[157,74],[174,89],[19,96],[44,94],[70,96],[94,96],[126,100],[143,96],[164,94]];
+  const houseSites = [[19,-5],[41,-9],[63,0],[11,12],[24,17],[48,19],[66,18],[119,-5],[141,-13],[165,-4],[115,16],[141,18],[166,17],[16,76],[37,72],[58,77],[82,74],[102,76],[133,75],[157,74],[174,89],[10,89],[39,99],[68,106],[95,98],[130,100],[147,108],[171,96]];
   const houses = houseSites.map(([x,z],i)=>[x,z,7.5+i%3*1.2,8+i%4,(i%5-2)*.12,6+i%5,i%4]);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   function smooth(a, b, v) { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
@@ -36,25 +44,32 @@ globalThis.NachtjagdLayout = (() => {
     const t = clamp(((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz), 0, 1);
     return Math.hypot(x - a[0] - t * dx, z - a[1] - t * dz);
   }
-  // Negativ im Wasser, positiv am Ufer: dieselbe Kontur für Boden, Bäume und Schutzmaske.
-  function lakeDistance(x, z) {
+  // Negativ innerhalb, positiv außerhalb: dieselbe Kontur für Boden und Vegetation.
+  function polygonDistance(polygon,x,z) {
     let inside = false, distance = Infinity;
-    for (let i = 0, j = lake.length - 1; i < lake.length; j = i++) {
-      const a = lake[i], b = lake[j];
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const a = polygon[i], b = polygon[j];
       if ((a[1] > z) !== (b[1] > z) && x < (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]) + a[0]) inside = !inside;
       distance = Math.min(distance, segmentDistance(x, z, a, b));
     }
     return inside ? -distance : distance;
   }
+  const lakeDistance=(x,z)=>polygonDistance(lake,x,z);
+  const villageDistance=(x,z)=>polygonDistance(villageOutline,x,z);
+  function clearingWeight(x,z) {
+    let weight=1;
+    for(const [cx,cz,rx,rz] of clearings) weight=Math.min(weight,smooth(.55,1,Math.hypot((x-cx)/rx,(z-cz)/rz)));
+    return weight;
+  }
   function forestWeight(x, z) {
     let distance = Infinity;
     for (const band of forestBands) for (let i = 1; i < band.length; i++) distance = Math.min(distance, segmentDistance(x, z, band[i - 1], band[i]));
-    return 1 - smooth(35, 68, distance);
+    return (1 - smooth(35, 68, distance))*clearingWeight(x,z);
   }
   function treeWeight(x,z) {
     let weight=forestWeight(x,z);
     for(const [cx,cz,r] of allTreeGroups) weight=Math.max(weight,.8*(1-smooth(r*.55,r,Math.hypot(x-cx,z-cz))));
-    return weight;
+    return weight*clearingWeight(x,z);
   }
   function naturalHeight(x, z) {
     let h = 24 - z * .018 + 18 * Math.sin(x / 95) * Math.cos(z / 73) + 10 * Math.sin((x + z) / 47);
@@ -66,6 +81,12 @@ globalThis.NachtjagdLayout = (() => {
     const foothills=smooth(-35,25,x);
     h += foothills*(52*Math.exp(-(((x-145)/140)**2)-(((z+125)/95)**2))+28*Math.exp(-(((x-30)/85)**2)-(((z+210)/85)**2)));
     h += foothills*12*Math.sin(x/37+z/51)*Math.exp(-(((z+125)/140)**2));
+    // Zusammenhängende, gewellte Bergrücken füllen die tiefen Spalten zwischen den Reihen.
+    // Der innere Bereich bleibt frei: Burgsporn und Viaduktsenke werden nicht angehoben.
+    const ring=Math.hypot((x+40)/600,z/540);
+    const shoulder=smooth(.48,.69,ring)*(1-smooth(.98,1.16,ring));
+    const ridge=112+20*Math.sin(x/85+z/115)+15*Math.cos(z/63-x/130)+9*Math.sin((x+z)/41);
+    h=Math.max(h,24+(ridge-24)*shoulder);
     // Der bisherige Ring wird zu weicheren, mittelhohen Bergen.
     for(const peak of middlePeaks) {
       const x0=x-peak.x,z0=z-peak.z,c=peak.cos,s=peak.sin;
@@ -96,5 +117,5 @@ globalThis.NachtjagdLayout = (() => {
     // Breiter, sanfter Ufersaum; die Hügel steigen erst hinter dem Strand an.
     return shore < 0 ? Math.max(-7, shore * .25) : shore * .07 * (1-smooth(30,130,shore)) + Math.max(3,h) * smooth(30,130,shore);
   }
-  return { village, castle, lake, houses, forestBands, treeGroups, foothillGroups, middlePeaks, highPeaks, smooth, segmentDistance, lakeDistance, forestWeight, treeWeight, naturalHeight, basis: 'bergdorf-bergvariation-2026-10-11-v5' };
+  return { village, villageOutline, villageGates, villageWalls, castle, lake, houses, forestBands, treeGroups, foothillGroups, ridgeGroups, clearings, middlePeaks, highPeaks, smooth, segmentDistance, lakeDistance, villageDistance, clearingWeight, forestWeight, treeWeight, naturalHeight, basis: 'bergdorf-bergruecken-2026-10-11-v6' };
 })();
