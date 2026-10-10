@@ -1,0 +1,10 @@
+# Konfiguration für Render (https://render.com). Beschreibung siehe AGENTS.md, Abschnitt Deployment.
+services:
+  - type: web
+    name: multiplayer-spiel
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /healthz

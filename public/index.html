@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nachtjagd</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: #10141c;
+      color: #e6e9ef;
+      font-family: system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    h1 { margin: 0; font-size: 1.4rem; }
+    #game {
+      display: block;
+      width: 100%;
+      max-width: 960px;
+      aspect-ratio: 16 / 9;
+      height: auto;
+      background: #1c323c;
+      border-radius: 8px;
+      touch-action: none;
+      cursor: pointer;
+    }
+    .bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+    input {
+      background: #1f2a3d;
+      color: inherit;
+      border: 1px solid #33425e;
+      border-radius: 6px;
+      padding: 6px 10px;
+    }
+    button { background: #335165; color: inherit; border: 1px solid #4f5d75; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+    #status, .hint { font-size: 14px; opacity: 0.8; margin: 0; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>Nachtjagd</h1>
+  <div class="bar">
+    <label>Name <input id="name" maxlength="16" placeholder="Dein Name"></label>
+    <span id="status">Verbinde …</span>
+    <button id="share" hidden>Einladungslink kopieren</button>
+  </div>
+  <canvas id="game"></canvas>
+  <p id="hint" class="hint">Klick ins Bild startet die Steuerung. WASD bewegt, Maus dreht, F schaltet die Taschenlampe.</p>
+
+  <!-- PeerJS vermittelt den Verbindungsaufbau zwischen den Spielern (feste Version). -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <!-- Three.js kommt über die Import-Map in fester Version. Kein Build-Schritt. -->
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }
+  </script>
+  <script type="module">
+    // Lädt das Spiel. Schlägt das fehl (etwa wenn das CDN nicht erreichbar ist), erscheint ein Hinweis.
+    import('./main.js').catch(() => {
+      document.getElementById('status').textContent = 'Grafik konnte nicht geladen werden (Three.js).';
+    });
+  </script>
+</body>
+</html>
