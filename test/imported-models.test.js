@@ -18,7 +18,7 @@ T.TextureLoader.prototype.load = function (url, onLoad) {
 vm.runInContext(read('public/entwurf/vendor/GLTFLoader.js').toString(), context);
 const Loader = T.GLTFLoader;
 const names = ['monster.glb', 'stylized_low-poly_wendigo.glb', 'low_poly_forest_tree.glb',
-  'low_poly_forest_tree_pack.glb', 'low-poly_trees.glb', 'willys_jeep_low_poly.glb'];
+  'low_poly_forest_tree_pack.glb', 'low-poly_trees.glb', 'willys_jeep_low_poly.glb', 'mountain_low_poly.glb'];
 const loaded = new Map(await Promise.all(names.map(async name => {
   const bytes = read('public/assets/imported/' + name);
   const data = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
@@ -34,7 +34,7 @@ function api(fail = false) {
   return c.NachtjagdImportedModels;
 }
 
-test('Alle sechs echten GLBs laden; acht Baumvarianten bleiben nach Geländeänderungen am Boden', async () => {
+test('Alle sieben echten GLBs laden; acht Baumvarianten bleiben nach Geländeänderungen am Boden', async () => {
   const models = api(); await models.ready;
   assert.equal(models.errors.length, 0);
   const scene = new T.Scene(), forest = new T.Group(), trunks = new T.Group();
@@ -82,7 +82,7 @@ test('Wendigos haben unabhängige Skelette und Animationen; fehlende Dateien beh
   const forest = new T.Group(), trunks = new T.Group();
   const fallback = missing.buildForest({ scene: new T.Scene(), placements: [], heightAt: () => 0, forest, trunks });
   await missing.ready;
-  assert.equal(missing.errors.length, 6); assert.equal(fallback.root.children.length, 0);
+  assert.equal(missing.errors.length, 7); assert.equal(fallback.root.children.length, 0);
   assert.equal(forest.visible, true); assert.equal(trunks.visible, true);
 });
 
@@ -108,4 +108,66 @@ test('Abstandsstufe: nahe Bäume als Modell, ferne als Kegel, Summe bleibt gleic
   camera.position.x = 5000; result.lod(camera);
   assert.equal(fars[0].count, 60);
   assert.ok(result.root.children.every(m => m.count === 0));
+});
+
+test('Jeep: vier Räder getrennt, Vorderräder lenkbar, Rollachse x, Räder berühren den Boden', async () => {
+  const models = api(); await models.ready;
+  const builders = { jeep: () => { const g = new T.Group(); g.userData = { wheels: [] }; return g; } };
+  models.installJeep(builders);
+  const jeep = builders.jeep(T), { wheels } = jeep.userData;
+  assert.equal(wheels.length, 4);
+  assert.equal(wheels.filter(w => w.steer).length, 2);
+  for (const w of wheels) assert.ok(w.radius > .3 && w.radius < .7, `Radius ${w.radius}`);
+  // Räder liegen vorn und hinten, links und rechts
+  const centers = wheels.map(w => (w.steer || w.spin.parent).position);
+  assert.ok(centers.filter(c => c.z > 0).length === 2 && centers.filter(c => c.x > 0).length === 2);
+  // Rollen um x bewegt die Reifenoberfläche vorwärts-abwärts; die Reifenmitte bleibt am Ort
+  jeep.updateMatrixWorld(true);
+  const w = wheels[0], before = new T.Box3().setFromObject(w.spin).getCenter(new T.Vector3());
+  w.spin.rotation.x = 1.2; jeep.updateMatrixWorld(true);
+  const after = new T.Box3().setFromObject(w.spin).getCenter(new T.Vector3());
+  assert.ok(before.distanceTo(after) < .08, `Radmitte wandert um ${before.distanceTo(after)}`);
+  w.spin.rotation.x = 0; jeep.updateMatrixWorld(true);
+  const lowest = Math.min(...wheels.map(x => new T.Box3().setFromObject(x.spin.parent).min.y));
+  assert.ok(Math.abs(lowest) < .05, `unterste Radkante ${lowest}`);
+});
+
+test('Gegnerdarstellung: Wendigo läuft über Knochen, Wolf schaukelt, fehlende Gegnerart bleibt Platzhalter', async () => {
+  const models = api(); await models.ready;
+  const walker = new T.Group(), rest = new T.Group(), wolf = new T.Group(), hag = new T.Group();
+  models.decorateEnemy(walker, 'villager', { scale: 1 }); models.decorateEnemy(rest, 'villager', { scale: 1 });
+  models.decorateEnemy(wolf, 'wolf', { scale: 1 }); models.decorateEnemy(hag, 'hag', { scale: 1 });
+  assert.ok(walker.userData.imported && wolf.userData.imported); assert.equal(hag.userData.imported, undefined);
+  const heights = [walker, wolf].map(g => new T.Box3().setFromObject(g).getSize(new T.Vector3()).y);
+  assert.ok(heights[0] > 1.7 && heights[0] < 2.3, `Dorfbewohner ${heights[0]}`);
+  const thigh = g => g.userData.rig.bones.LeftUpLeg.quaternion;
+  assert.ok(walker.userData.rig.bones.LeftUpLeg && walker.userData.rig.bones.Spine1);
+  let spread = 0;
+  for (let i = 0; i < 30; i++) { models.updateEnemy(walker, .05, 0, 0, { speed: 3, state: 'walk' }); models.updateEnemy(rest, .05, 0, 0, { speed: 0, state: 'walk' }); spread = Math.max(spread, thigh(walker).angleTo(thigh(rest))); }
+  assert.ok(spread > .3, 'Gehender Gegner bewegt die Beine anders als stehender');
+  // Zuschlagen hebt die Arme: Armknochen weichen stark von der Ruhehaltung ab
+  const armBefore = walker.userData.rig.bones.LeftArm.quaternion.clone();
+  for (let i = 0; i < 20; i++) models.updateEnemy(walker, .05, 0, 0, { speed: 0, state: 'windup' });
+  assert.ok(walker.userData.rig.attack > .9);
+  assert.ok(walker.userData.rig.bones.LeftArm.quaternion.angleTo(armBefore) > .5);
+  models.updateEnemy(wolf, .1, 0, 0, { speed: 5, state: 'walk' });
+  assert.ok(wolf.userData.rig.holder.rotation.x < 0);
+});
+
+test('Gebirgskulisse: Skirt abgeschnitten, sechs Klone teilen ein Netz, Dunstfarbe wirkt auf alle', async () => {
+  const models = api(); await models.ready;
+  const scene = new T.Scene(), backdrop = models.buildBackdrop({ scene, count: 6 });
+  await models.ready;
+  assert.equal(backdrop.root.children.length, 6);
+  const geometries = new Set(backdrop.root.children.map(m => m.geometry));
+  assert.equal(geometries.size, 1);
+  const geometry = [...geometries][0], box = geometry.boundingBox;
+  assert.ok(box.max.y > 300 && geometry.index.count / 3 < 5000, `Höhe ${box.max.y}, Dreiecke ${geometry.index.count / 3}`);
+  assert.ok(geometry.index.count < 15000 && geometry.index.count > 3000);
+  backdrop.setMood(new T.Color(0.2, 0.1, 0.3));
+  assert.ok(backdrop.root.children[0].material.color.b > 0.25);
+  backdrop.setMood(null);
+  assert.ok(Math.abs(backdrop.root.children[3].material.color.r - 0.7) < 1e-6);
+  // Der Ring liegt außerhalb der Spielwelt (mindestens 600 m von der Mitte)
+  for (const m of backdrop.root.children) assert.ok(Math.hypot(m.position.x, m.position.z) > 550);
 });

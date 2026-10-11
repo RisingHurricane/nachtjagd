@@ -1,0 +1,9 @@
+[
+  { "file": "subtle-hollywood-orchestral-score.mp3", "title": "Subtle Hollywood Orchestral Score", "moods": ["dusk", "victory"] },
+  { "file": "sunless-grove.mp3", "title": "Sunless Grove", "moods": ["dusk", "explore"] },
+  { "file": "blackwood-pines.mp3", "title": "Blackwood Pines", "moods": ["explore"] },
+  { "file": "hollow-pines.mp3", "title": "Hollow Pines", "moods": ["explore", "tension"] },
+  { "file": "deadfall.mp3", "title": "Deadfall", "moods": ["tension"] },
+  { "file": "perimeter-breach.mp3", "title": "Perimeter Breach", "moods": ["combat", "tension"] },
+  { "file": "containment-breach.mp3", "title": "Containment Breach", "moods": ["combat"] }
+]
