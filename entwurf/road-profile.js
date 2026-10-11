@@ -85,11 +85,14 @@ globalThis.NachtjagdRoads = {
       },
       grade(x,z,ground) {
         const nearby=buckets.get(Math.floor(x/16)+','+Math.floor(z/16))||[];
-        let best=Infinity,target=ground,weight=0,body=Infinity,bridgeCeiling=Infinity;
+        let best=Infinity,target=ground,weight=0,body=Infinity,bodyDistance=Infinity,bridgeCeiling=Infinity;
         for(const s of nearby) {
           const p=project(s,x,z),edge=p.distance-s.width/2-5;
           if(s.bridge) { if(edge<=0) bridgeCeiling=Math.min(bridgeCeiling,p.y); continue; }
-          if(edge<=0) body=Math.min(body,p.y);
+          // Unter der Fahrbahn und auf dem Randstreifen zählt der nächstgelegene Abschnitt. Der tiefste Abschnitt der ganzen
+          // Reichweite (8 m und mehr) ließ die Straße am Hang bis zu 1,5 m über dem Boden schweben. Wo sich Wege auf
+          // verschiedenen Höhen nahe kommen, senkt blockout.js (settleRoads) den Boden unter der Fahrbahn ab.
+          if(edge<=0 && p.distance<bodyDistance-.0001) { bodyDistance=p.distance; body=p.y; }
           if(edge<best) { best=edge; target=p.y; const t=clamp(edge/7,0,1); weight=1-t*t*(3-2*t); }
         }
         return Math.min(bridgeCeiling,Number.isFinite(body)?body:ground+(target-ground)*weight);

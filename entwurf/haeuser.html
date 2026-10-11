@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nachtjagd · Vier Hausformen</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#e6e9e4;color:#293734;font:14px system-ui,sans-serif}header{padding:28px 32px 0}h1{font-size:24px;font-weight:550;margin:0 0 8px}header p{margin:0;color:#64716b;line-height:1.6}.studies{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:26px 24px}article{min-width:0;background:#f5f6f1;border:1px solid #cbd3cb;border-radius:8px;overflow:hidden}.view{height:58vh;min-height:240px;touch-action:none;cursor:grab}article h2{font-size:16px;margin:0;padding:18px 18px 8px;border-top:1px solid #d8ded6}article p{font-size:12px;line-height:1.5;margin:0;padding:0 18px 20px;color:#64716b}canvas{position:fixed;inset:0;pointer-events:none}footer{padding:0 32px 24px;color:#64716b;font-size:12px}@media(max-width:800px){.studies{grid-template-columns:repeat(2,1fr)}.view{height:32vh;min-height:200px}header{padding:20px 24px 0}}
+</style>
+</head>
+<body>
+<header><h1>Vier Dorfhäuser · Formstudien 03</h1><p>Nur Satteldächer · erste Fenster, Türen und Balken. Ziehen: drehen · Mausrad: näher / weiter</p></header>
+<main class="studies">
+<article><div class="view" aria-label="3D-Studie kleines Wohnhaus"></div><h2>01 · Bergwohnhaus</h2><p>Überstehendes Obergeschoss, Vorbau, Seitentrakt und Dachgaube.</p></article>
+<article><div class="view" aria-label="3D-Studie langes Bauernhaus"></div><h2>02 · Bauernhof</h2><p>Hohes Satteldach, querstehende Scheune und zwei große Gauben.</p></article>
+<article><div class="view" aria-label="3D-Studie hohes Giebelhaus"></div><h2>03 · Bürgerhaus</h2><p>Hoher Hauptgiebel, Zwerchgiebel, Erker und rückwärtiger Anbau.</p></article>
+<article><div class="view" aria-label="3D-Studie Winkelhaus mit Anbau"></div><h2>04 · Winkelhaus</h2><p>Versetzte Flügel mit unterschiedlichen Firsthöhen und offener Vorhalle.</p></article>
+</main>
+<footer>Separate Formstudien · noch nicht im Dorf eingebaut.</footer>
+<script src="./vendor/three.min.js"></script><script src="./village-houses.js?v=haeuser3"></script>
+<script>
+'use strict';
+const renderer = new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.outputEncoding = THREE.sRGBEncoding;
+document.body.append(renderer.domElement);
+renderer.domElement.style.width='100vw';renderer.domElement.style.height='100vh';
+const materials = {house:new THREE.MeshLambertMaterial({color:'#cfba9c'}),castle:new THREE.MeshLambertMaterial({color:'#728583'})};
+const builder = NachtjagdVillageHouses.create(THREE,materials);
+const dimensions = [[8,9,7],[7.5,13,7],[7,9,8],[10,11,8]];
+const studies = [...document.querySelectorAll('.view')].map((element,index) => {
+  const scene = new THREE.Scene(); scene.background = new THREE.Color('#f5f6f1');
+  scene.add(new THREE.HemisphereLight(0xffffff,0x9eaca0,.7));
+  const sun = new THREE.DirectionalLight(0xffffff,.55); sun.position.set(-15,25,20); scene.add(sun);
+  scene.add(builder.build(...dimensions[index],index));
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(32,32),new THREE.MeshLambertMaterial({color:'#dce2d8'}));
+  ground.rotation.x=-Math.PI/2; ground.position.y=-.02; scene.add(ground);
+  const grid = new THREE.GridHelper(32,16,0xc3cdc2,0xcfd7cc); grid.position.y=.01; scene.add(grid);
+  return {element,scene,camera:new THREE.OrthographicCamera(-12,12,16,-16,.1,150)};
+});
+let yaw=.6, polar=1.08, zoom=1, drag=null;
+document.querySelectorAll('.view').forEach(element => {
+  element.addEventListener('pointerdown',event => {drag={x:event.clientX,y:event.clientY};element.setPointerCapture(event.pointerId);});
+  element.addEventListener('pointermove',event => {if(!drag)return;yaw-=(event.clientX-drag.x)*.009;polar=THREE.MathUtils.clamp(polar+(event.clientY-drag.y)*.007,.25,1.48);drag={x:event.clientX,y:event.clientY};});
+  element.addEventListener('pointerup',()=>{drag=null;}); element.addEventListener('pointercancel',()=>{drag=null;});
+  element.addEventListener('wheel',event => {event.preventDefault();zoom=THREE.MathUtils.clamp(zoom*Math.exp(-event.deltaY*.001),.65,1.8);},{passive:false});
+});
+function frame() {
+  renderer.setSize(innerWidth,innerHeight,false); renderer.setScissorTest(false); renderer.setClearColor(0x000000,0); renderer.clear(); renderer.setScissorTest(true);
+  for(const {element,scene,camera} of studies) {
+    const rect=element.getBoundingClientRect(),aspect=rect.width/rect.height;
+    camera.left=-10;camera.right=10;camera.top=10/aspect;camera.bottom=-10/aspect;camera.zoom=zoom;camera.updateProjectionMatrix();
+    camera.position.set(Math.sin(yaw)*40*Math.sin(polar),6+Math.cos(polar)*40,Math.cos(yaw)*40*Math.sin(polar));camera.lookAt(0,6,0);
+    renderer.setViewport(rect.left,innerHeight-rect.bottom,rect.width,rect.height);renderer.setScissor(rect.left,innerHeight-rect.bottom,rect.width,rect.height);renderer.render(scene,camera);
+  }
+  requestAnimationFrame(frame);
+}
+frame();
+</script>
+</body>
+</html>

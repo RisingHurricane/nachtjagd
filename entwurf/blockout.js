@@ -12,7 +12,9 @@
     status.textContent = 'Grafik konnte nicht gestartet werden.';
     return;
   }
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  // Auflösung wird bei langsamen Geräten automatisch gesenkt (siehe frame()); Start mit der Bildschirmdichte, höchstens 2.
+  let pixelRatio = Math.min(devicePixelRatio, 2); const maxPixelRatio = pixelRatio;
+  renderer.setPixelRatio(pixelRatio);
   renderer.setSize(innerWidth, innerHeight);
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.shadowMap.enabled = true;
@@ -22,7 +24,8 @@
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#cbd8dc');
   const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, .1, 3500);
-  scene.add(new THREE.HemisphereLight(0xf9fbff, 0x6d786c, .7));
+  const hemi = new THREE.HemisphereLight(0xf9fbff, 0x6d786c, .7);
+  scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff7e5, .7);
   sun.position.set(-80, 180, 110);
   sun.castShadow = true;
@@ -30,6 +33,9 @@
   Object.assign(sun.shadow.camera, { left: -260, right: 260, top: 260, bottom: -260, far: 650 });
   sun.shadow.bias = -.0005;
   scene.add(sun);
+  const sky = NachtjagdSky.create({ THREE, scene, sun, hemi });
+  const layoutSky = { night: 0, sunrise: 0, cover: .62, grey: 0, blood: 0, lightK: 1 };
+  scene.background = sky.apply(layoutSky);
   const colors = { ground: '#e4e7df', house: '#d6ba92', landmark: '#b59370', forest: '#658777', path: '#b9a78b', castle: '#8a9aab', viaduct: '#b7ad97', water: '#8eb0bc', hill: '#bac3b4' };
   const materials = {};
   for (const [key, value] of Object.entries(colors)) materials[key] = new THREE.MeshLambertMaterial({ color: new THREE.Color(value).convertSRGBToLinear() });
@@ -52,7 +58,7 @@
   pads.push(
     { x: village.x, z: village.z, w: 13, d: 10, y: naturalHeight(village.x, village.z), blend: 4 },
     { x: village.x + 1, z: village.z - 39, w: 10, d: 16, y: naturalHeight(village.x + 1, village.z - 39), blend: 4 },
-    { x: castle.x, z: castle.z, w: 34, d: 29, y: castle.height, blend: 9 }
+    { x: castle.x + .7, z: castle.z + 2.3, w: 24.5, d: 26.5, y: castle.height, blend: 10 }
   );
   pads.push(...pads.splice(0, houses.length));
   const [windX,windZ]=layout.landmarkSites.wind;
@@ -80,8 +86,35 @@
   const stairs = NachtjagdStairs.create(roadNetwork);
   const stairMeshes = [];
   const renderedHeights = new Float32Array(baseHeights.length);
+  // Nach dem Einebnen kann ein 5-m-Dreieck an Kurven oder Kreuzungen noch über der Fahrbahn liegen. Dort wird der Boden
+  // unter der Fahrbahn so weit abgesenkt, dass sie nie vergraben ist; das Absenken verteilt sich auf die drei Eckpunkte.
+  function settleRoads() {
+    for(const s of roadNetwork.segments) {
+      if(s.stairs||s.bridge) continue;
+      const a=roadNetwork.nodes[s.a],b=roadNetwork.nodes[s.b],len=Math.hypot(b.x-a.x,b.z-a.z);
+      if(len<.001) continue;
+      const nx=(b.z-a.z)/len,nz=-(b.x-a.x)/len,steps=Math.max(1,Math.ceil(len/.75)),across=Math.max(2,Math.ceil(s.width/.75));
+      for(let j=0;j<=steps;j++) for(let k=0;k<=across;k++) {
+        const off=s.width*(k/across-.5),x=a.x+(b.x-a.x)*j/steps+nx*off,z=a.z+(b.z-a.z)*j/steps+nz*off;
+        const road=roadNetwork.project(s,x,z).y+.4-.05;
+        const ix=Math.floor((x+800)/5),iz=Math.floor((z+705)/5),tx=(x-(ix*5-800))/5,tz=(z-(iz*5-705))/5;
+        const lower=tx+tz<=1;
+        const i0=iz*321+ix,i1=iz*321+ix+1,i2=(iz+1)*321+ix,i3=(iz+1)*321+ix+1;
+        const idx=lower?[i0,i1,i2]:[i3,i2,i1],w=lower?[1-tx-tz,tx,tz]:[tx+tz-1,1-tx,1-tz];
+        const ground=renderedHeights[idx[0]]*w[0]+renderedHeights[idx[1]]*w[1]+renderedHeights[idx[2]]*w[2];
+        const deficit=ground-road;
+        if(deficit>0) { const norm=w[0]*w[0]+w[1]*w[1]+w[2]*w[2]; for(let m=0;m<3;m++) renderedHeights[idx[m]]-=deficit*w[m]/norm; }
+      }
+    }
+  }
   function updateHeightGrid() {
-    for (let i=0;i<baseHeights.length;i++) renderedHeights[i]=roadNetwork.grade(i%321*5-800,Math.floor(i/321)*5-705,baseHeights[i]+terrainModel.offsets[i]);
+    for (let i=0;i<baseHeights.length;i++) { const x=i%321*5-800,z=Math.floor(i/321)*5-705; renderedHeights[i]=roadNetwork.grade(x,z,baseHeights[i]+terrainModel.offsets[i]); }
+    // Erst die Neigung der groben Kegel begrenzen (keine Nadeln), danach Felsrelief aufsetzen.
+    NachtjagdRelief.limitSlope(renderedHeights,321,281,5);
+    for (let i=0;i<baseHeights.length;i++) { const x=i%321*5-800,z=Math.floor(i/321)*5-705; renderedHeights[i]=NachtjagdRelief.relief(x,z,renderedHeights[i]); }
+    NachtjagdRelief.limitSlope(renderedHeights,321,281,5,1.65,0.3);
+    NachtjagdRelief.smoothGrid(renderedHeights,321,281);
+    settleRoads();
   }
   updateHeightGrid();
   function vertexHeight(col, row) {
@@ -159,7 +192,8 @@
   }
   groundGeometry.setAttribute('color', new THREE.Float32BufferAttribute(terrainColors, 3));
   groundGeometry.computeVertexNormals();
-  const ground = new THREE.Mesh(groundGeometry, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+  const terrainMaterial = NachtjagdTerrainMaterial.create(THREE), terrainUniforms = terrainMaterial.userData.uniforms;
+  const ground = new THREE.Mesh(groundGeometry, terrainMaterial);
   ground.receiveShadow = true;
   scene.add(ground);
   const gridPositions = [];
@@ -261,9 +295,40 @@
   }
   refreshViaduct();
   roadNetwork.segments.filter(s=>!s.stairs).forEach(road);
+  // Böschungsstreifen: Seitenwände unter beiden Fahrbahnkanten bis zum Boden. Wo das Gelände unter der Fahrbahn weggeht
+  // (Hang, Kreuzung auf anderer Höhe), sieht die Straße dadurch aufgeschüttet aus und schwebt nicht.
+  const skirtVertices=[],skirtIndices=[],skirtData=[];
+  function skirt(segment) {
+    if(segment.bridge) return;
+    const an=roadNetwork.nodes[segment.a],bn=roadNetwork.nodes[segment.b],dx=bn.x-an.x,dz=bn.z-an.z,length=Math.hypot(dx,dz);
+    if(length<.001) return;
+    const count=Math.ceil(length*2),first=skirtVertices.length/3;
+    for(let j=0;j<=count;j++) for(const side of [-.5,.5]) {
+      const x=an.x+dx*j/count+dz/length*segment.width*side,z=an.z+dz*j/count-dx/length*segment.width*side;
+      skirtVertices.push(x,0,z,x,0,z); skirtData.push({segment,x,z});
+    }
+    for(let j=0;j<count;j++) for(let si=0;si<2;si++) {
+      const a=first+(j*2+si)*2,c=first+((j+1)*2+si)*2;
+      skirtIndices.push(a,c,a+1,a+1,c,c+1);
+    }
+  }
   const roadGeometry=new THREE.BufferGeometry();
   roadGeometry.setAttribute('position',new THREE.Float32BufferAttribute(roadVertices,3)); roadGeometry.setIndex(roadIndices); roadGeometry.computeVertexNormals();
   const roadMesh=new THREE.Mesh(roadGeometry,materials.path); roadMesh.receiveShadow=true; scene.add(roadMesh); roadMeshes.push(roadMesh);
+  roadNetwork.segments.filter(s=>!s.stairs).forEach(skirt);
+  const skirtGeometry=new THREE.BufferGeometry();
+  skirtGeometry.setAttribute('position',new THREE.Float32BufferAttribute(skirtVertices,3)); skirtGeometry.setIndex(skirtIndices);
+  const skirtMaterial=materials.path.clone(); skirtMaterial.side=THREE.DoubleSide; skirtMaterial.color.multiplyScalar(.8);
+  const skirtMesh=new THREE.Mesh(skirtGeometry,skirtMaterial); skirtMesh.receiveShadow=true; scene.add(skirtMesh);
+  function updateSkirts() {
+    const p=skirtGeometry.attributes.position;
+    skirtData.forEach(({segment,x,z},i)=>{
+      const top=roadNetwork.project(segment,x,z).y+.4,bottom=Math.min(groundHeight(x,z),top)-.25;
+      p.setY(i*2,top); p.setY(i*2+1,bottom);
+    });
+    p.needsUpdate=true; skirtGeometry.computeVertexNormals(); skirtGeometry.computeBoundingSphere();
+  }
+  updateSkirts();
   for(const tread of stairs.treads) {
     const mesh=new THREE.Mesh(boxGeometry,materials.viaduct);
     mesh.rotation.y=-Math.atan2(tread.sin,tread.cos); mesh.receiveShadow=true; scene.add(mesh);
@@ -295,13 +360,12 @@
   lake.rotation.x = -Math.PI / 2; lake.position.y = .09;
   scene.add(lake); label('See', -210, 220, 4, 48);
   const cx = castle.x, cz = castle.z, ch = castle.height;
-  const castleFloor = box(cx, cz, 62, 53, .25, 'castle', 0, ch, false);
-  box(cx - 25, cz, 11, 51, 18, 'castle', 0, ch + .25);
-  box(cx, cz - 22, 40, 10, 22, 'castle', 0, ch + .25);
-  box(cx, cz + 22, 40, 8, 14, 'castle', 0, ch + .25);
-  box(cx + 25, cz - 17, 10, 15, 16, 'castle', 0, ch + .25);
-  box(cx + 25, cz + 17, 10, 15, 16, 'castle', 0, ch + .25);
-  box(cx - 23, cz - 19, 13, 13, 34, 'castle', 0, ch + .25);
+  // Burgmodell (public/models): Tor nach Osten (+x), auf der Wegachse z = -100; Hofplatte bündig mit dem Gelände.
+  const castleOrigin = { x: -264, z: -96, y: ch + .03 }, castleRot = Math.PI / 2;
+  renderer.localClippingEnabled = true; // Burg: Schnittebenen für den Bergfried-Ansatz
+  const castleSite = NachtjagdCastleSite.create({ THREE, scene, origin: castleOrigin, rot: castleRot });
+  // Ort des Burg-Siegels im Rittersaal (Modellkoordinaten -12,8 / -6) in Weltkoordinaten
+  const castleSeal = { x: castleOrigin.x + -6, z: castleOrigin.z + 12.8 };
   label('Burg · Felssporn', cx, cz, 46, 58);
   const viaductMiddle = viaduct.point(viaduct.length/2);
   label('Viadukt · sieben Bögen', ...viaductMiddle, viaduct.top(viaduct.length/2)-groundHeight(...viaductMiddle)+14, 64);
@@ -363,6 +427,8 @@
     if(slope<.7) plantTree(x,z,true,true);
   }
   forest.count = trunks.count = treeCount; forest.castShadow = trunks.castShadow = true; scene.add(forest, trunks);
+  const backdrop = NachtjagdImportedModels.buildBackdrop({scene});
+  const importedForest = NachtjagdImportedModels.buildForest({scene, placements:treePlacements, heightAt:groundHeight, forest, trunks});
   // Niedriger Waldboden bleibt durchquerbar; nur Baumstämme kollidieren.
   const undergrowth = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0), new THREE.MeshLambertMaterial({color:'#718455'}),3296);
   let coverCount=0;
@@ -426,7 +492,7 @@
   function setView(view) {
     const walking = view === 'walk' || view === 'forest' || view === 'bridgewalk' || view === 'stairswalk';
     if (walking && editing) toggleEditor(false);
-    mode = walking ? 'walk' : view; keys.clear(); labels.visible = !walking && !editing && !['wind','stones','ruin','lakeside','mines','northmine'].includes(view); grid.visible = editing || view === 'map';
+    mode = walking ? 'walk' : view; keys.clear(); labels.visible = !walking && !editing && !['wind','stones','ruin','lakeside','mines','northmine','gondola','talstation','jeep','boats','carts','peaks','valley'].includes(view); grid.visible = editing || view === 'map';
     document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
     if (walking) {
       const start = view === 'bridgewalk' ? viaduct.point(viaduct.length-4) : view === 'forest' ? [221,60] : view === 'stairswalk' ? [120,58] : [90,45];
@@ -489,11 +555,20 @@
     if (x < -465 || x > 340 || z < -340 || z > 365) return true;
     if (groundHeight(x, z) < .35 && landmarks.floor(x,z)===null) return true;
     if (viaduct.collides(x,z,feet)) return true;
+    if (castleSite.walk && castleSite.walk.blocked(x,z,feet)) return true;
     return (collisionBuckets.get(Math.floor(x/16)+','+Math.floor(z/16))||[]).some(c => {
       const dx = x - c.x, dz = z - c.z, cosine = Math.cos(c.rotation), sine = Math.sin(c.rotation);
       return Math.abs(cosine * dx - sine * dz) < c.w + .45 && Math.abs(sine * dx + cosine * dz) < c.d + .45;
     });
   }
+  // Wasserfahrzeuge: tiefes Wasser ohne feste Hindernisse (Inselbäume, Stegpfosten) und ohne Stegfläche.
+  function hitsSolid(x, z) {
+    return (collisionBuckets.get(Math.floor(x/16)+','+Math.floor(z/16))||[]).some(c => {
+      const dx = x - c.x, dz = z - c.z, cosine = Math.cos(c.rotation), sine = Math.sin(c.rotation);
+      return Math.abs(cosine * dx - sine * dz) < c.w + .45 && Math.abs(sine * dx + cosine * dz) < c.d + .45;
+    });
+  }
+  const boatOk = (x, z) => layout.lakeDistance(x, z) < -1.5 && landmarks.floor(x, z) === null && !hitsSolid(x, z);
   function refreshTerrain() {
     updateHeightGrid();
     refreshViaduct();
@@ -524,6 +599,7 @@
       }
       p.needsUpdate = true; mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere();
     }
+    updateSkirts();
     const gp = grid.geometry.attributes.position;
     for (let i = 0; i < gp.count; i++) gp.setY(i, groundHeight(gp.getX(i), gp.getZ(i)) + .04);
     gp.needsUpdate = true;
@@ -531,6 +607,7 @@
       dummy.position.set(tree.x, groundHeight(tree.x, tree.z) + tree.clearance + tree.height / 2, tree.z); dummy.scale.set(tree.rx, tree.height, tree.rz); dummy.updateMatrix(); forest.setMatrixAt(i, dummy.matrix);
       dummy.position.y = groundHeight(tree.x,tree.z) + (tree.clearance + 2) / 2; dummy.scale.set(.4, tree.clearance + 2, .4); dummy.updateMatrix(); trunks.setMatrixAt(i, dummy.matrix);
     });
+    importedForest.update();
     forest.instanceMatrix.needsUpdate = true;
     trunks.instanceMatrix.needsUpdate = true;
     coverPlacements.forEach((plant,i)=>{
@@ -620,13 +697,33 @@
     fileInput.value = '';
   });
   updateEditorStatus(storageWarning || (restored ? 'Dein gespeichertes Gelände wurde wieder geladen.' : 'Ausgangsform geladen.'));
-  let previous = performance.now();
+  let previous = performance.now(),menuTime=0;
+  const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const perf = { sum: 0, frames: 0, last: performance.now(), level: 0 };
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.min((now - previous) / 1000, .05); previous = now;
     if (sculpting && now - lastSculpt >= 50) { applySculpt(Math.min((now - lastSculpt) / 1000, .1)); lastSculpt = now; }
+    sky.update(camera, dt);
+    importedForest.lod(camera);
+    // Lastregelung: Bleibt die Bildzeit über zwei Sekunden hoch, sinkt die Auflösung stufenweise; ganz unten entfällt das Felsdetail.
+    if (now - perf.last < 250) { perf.sum += now - perf.last; perf.frames++; } perf.last = now; // lange Pausen (Tab im Hintergrund) zählen nicht
+    if (perf.sum >= 2000 && perf.frames > 0) {
+      const average = perf.sum / perf.frames; perf.sum = 0; perf.frames = 0;
+      if (!document.hidden && average > 30 && perf.level < 5) {
+        perf.level++;
+        if (pixelRatio > 1) pixelRatio = Math.max(1, pixelRatio - .5); else if (pixelRatio > .75) pixelRatio = .75; else terrainUniforms.uDetail.value = 0;
+        renderer.setPixelRatio(pixelRatio); renderer.setSize(innerWidth, innerHeight);
+      }
+    }
+    if(gameplay && !gameplay.active) gameplay.previewUpdate(dt);
     if(gameplay && gameplay.active) {
       gameplay.update(dt);
+    } else if (document.body.classList.contains('in-menu')) {
+      if(!reducedMotion) menuTime+=dt;
+      const shot=NachtjagdInterface.flyover(menuTime,groundHeight);
+      camera.position.fromArray(shot.position); camera.lookAt(...shot.target);
+      labels.visible=false; grid.visible=false;
     } else if (mode === 'walk') {
       const forward = Number(keys.has('w') || keys.has('arrowup')) - Number(keys.has('s') || keys.has('arrowdown'));
       const side = Number(keys.has('d') || keys.has('arrowright')) - Number(keys.has('a') || keys.has('arrowleft'));
@@ -637,7 +734,7 @@
       if (!blocked(camera.position.x + dx, camera.position.z, surfaceHeight(camera.position.x + dx,camera.position.z,feet))) camera.position.x += dx;
       if (!blocked(camera.position.x, camera.position.z + dz, surfaceHeight(camera.position.x,camera.position.z + dz,feet))) camera.position.z += dz;
       camera.position.y = surfaceHeight(camera.position.x,camera.position.z,feet) + 1.75;
-      if (Math.abs(camera.position.x - castle.x) < 31 && Math.abs(camera.position.z - castle.z) < 26.5) camera.position.y = Math.max(camera.position.y, castleFloor.position.y + castleFloor.scale.y / 2 + 1.75);
+      if (castleSite.walk && castleSite.walk.near(camera.position.x, camera.position.z)) camera.position.y = gameFloor(camera.position.x, camera.position.z, feet) + 1.75;
       camera.lookAt(camera.position.x + Math.sin(walkingYaw) * Math.cos(pitch), camera.position.y + Math.sin(pitch), camera.position.z + Math.cos(walkingYaw) * Math.cos(pitch));
     } else {
       camera.position.set(target.x + distance * Math.sin(polar) * Math.sin(yaw), target.y + distance * Math.cos(polar), target.z + distance * Math.sin(polar) * Math.cos(yaw));
@@ -726,9 +823,26 @@
   const shotMeshes=[];
   scene.traverse(child=>{ if(child.isMesh && child!==lake && child!==forest && child!==undergrowth) shotMeshes.push(child); });
   const shotRay=new THREE.Raycaster();
+  // Wo die Straße höher oder tiefer als das Gelände liegt, läuft der Rand 2,5 m lang als Rampe aus.
+  // Sonst bliebe an der Kante eine Stufe, die Spielfigur und Gegner nicht überwinden.
+  const SHOULDER=2.5;
+  function shoulderHeight(x,z,y) {
+    if(streetHeight(x,z)!==null || stairs.floor(x,z)!==null || viaduct.contains(x,z)) return y;
+    let best=null;
+    for(const segment of roadNetwork.nearby(x,z)) {
+      if(segment.bridge || segment.stairs) continue;
+      const p=roadNetwork.project(segment,x,z),over=p.distance-segment.width/2;
+      if(over>0 && over<SHOULDER && (!best || over<best.over)) best={over,y:p.y+.4};
+    }
+    if(!best || Math.abs(best.y-y)<=.4) return y;
+    return best.y+(y-best.y)*(best.over/SHOULDER);
+  }
   function gameFloor(x,z,previousFeet) {
-    const y=surfaceHeight(x,z,previousFeet);
-    return Math.abs(x-castle.x)<31 && Math.abs(z-castle.z)<26.5?Math.max(y,castleFloor.position.y+castleFloor.scale.y/2):y;
+    const y=shoulderHeight(x,z,surfaceHeight(x,z,previousFeet));
+    const cf=castleSite.walk && castleSite.walk.floor(x,z,previousFeet===undefined?y:previousFeet);
+    if(!cf) return y;
+    // Hofplatte und Gelände vereinen sich; Räume, Treppen und Keller haben ihre eigene Höhe.
+    return cf.ground?Math.max(y,cf.y):cf.y;
   }
   function clearWalk(a,b) {
     const distance=Math.hypot(b.x-a.x,b.z-a.z),steps=Math.ceil(distance/.8); let y=a.y;
@@ -760,12 +874,15 @@
   }
   const world={
     spawn:[90,45],floor:gameFloor,blocked,chaseTarget,resetNavigation:()=>paths.clear(),
-    objectives:[{id:'church',name:'Kirche',x:90,z:30},{id:'mine',name:'Westmine',x:-349,z:-27},{id:'castle',name:'Burg',x:-251,z:-100}],
+    objectives:[{id:'church',name:'Kirche',x:90,z:30},{id:'mine',name:'Westmine',x:-349,z:-27,guard:'deep'},{id:'castle',name:'Burg',x:castleSeal.x,z:castleSeal.z,guard:'alpha'}],
+    waterDepth:(x,z)=>layout.lakeDistance(x,z)<0?1:0,waterLevel:.09,boatOk,onRoad:(x,z)=>streetHeight(x,z)!==null,
     bell:{x:90,z:27},
+    tick:(x,y,z)=>castleSite.update(x,y,z),indoor:(x,y,z)=>castleSite.indoor(x,y,z),
     rayDistance(origin,direction,maxRange) {
       shotRay.set(new THREE.Vector3(origin.x,origin.y,origin.z),new THREE.Vector3(direction.x,direction.y,direction.z).normalize());
       shotRay.near=.05; shotRay.far=maxRange;
-      return shotRay.intersectObjects(shotMeshes,false)[0]?.distance ?? maxRange;
+      const castleHits=castleSite.walk && castleSite.walk.near(origin.x,origin.z)?castleSite.targets():[];
+      return shotRay.intersectObjects(castleHits.length?shotMeshes.concat(castleHits):shotMeshes,false)[0]?.distance ?? maxRange;
     },
     spawnEnemy(p,random) {
       const candidates=roadNetwork.nodes.filter(n=>{
@@ -779,9 +896,23 @@
       return null;
     }
   };
+  Object.assign(world,NachtjagdSpots.build({layout,blocked,floor:gameFloor,boatOk,routes})); // Truhen, Händler, Schmied, Bildstöcke, Angelplätze, Notizen, Reliquien
   scene.updateMatrixWorld(true);
-  world.checks=[{name:'Dorfstart frei',passed:!blocked(90,45,gameFloor(90,45))},...world.objectives.map(o=>({name:o.name+'-Siegel erreichbar',passed:!blocked(o.x,o.z,gameFloor(o.x,o.z))})),{name:'Glockenplatz frei',passed:!blocked(world.bell.x,world.bell.z,gameFloor(world.bell.x,world.bell.z))}];
-  gameplay=NachtjagdPlay.create({THREE,scene,camera,canvas,world,onStart:()=>{ toggleEditor(false); labels.visible=false; grid.visible=false; keys.clear(); drag=null; },onExit:()=>setView('village')});
+  world.checks=[{name:'Dorfstart frei',passed:!blocked(90,45,gameFloor(90,45))},...world.objectives.map(o=>({name:o.name+'-Siegel erreichbar',passed:!blocked(o.x,o.z,gameFloor(o.x,o.z))})),{name:'Glockenplatz frei',passed:!blocked(world.bell.x,world.bell.z,gameFloor(world.bell.x,world.bell.z))},{name:'Spielorte frei',passed:[...world.loots,...world.shrines,...world.fishSpots,world.merchant,world.smith].every(p=>!blocked(p.x,p.z,gameFloor(p.x,p.z)))}];
+  world.checks.push(
+    {name:'Geländewagen stehen frei',passed:world.jeeps.length===2 && world.jeeps.every(j=>[[0,0],[0,2.4],[0,-2.4],[1.3,2.2],[-1.3,2.2],[1.3,-2.2],[-1.3,-2.2]].every(([lx,lz])=>{const s=Math.sin(j.yaw),c=Math.cos(j.yaw),x=j.x-c*lx+s*lz,z=j.z+s*lx+c*lz;return !blocked(x,z,gameFloor(x,z));}))},
+    {name:'Lorenschienen frei',passed:world.carts.length===4 && world.rails.nodes.every(n=>!blocked(n.x,n.z,gameFloor(n.x,n.z)))},
+    {name:'Gondelstationen begehbar, Strecke über 250 m',passed:world.gondola.stations.every(s=>!blocked(s.x,s.z,gameFloor(s.x,s.z))) && Math.hypot(world.gondola.stations[0].x-world.gondola.stations[1].x,world.gondola.stations[0].z-world.gondola.stations[1].z)>250},
+    {name:'Boote liegen im Wasser',passed:world.boats.length>=2 && world.boats.every(b=>boatOk(b.x,b.z))}
+  );
+  const startButton=document.querySelector('#play-start'),startLabel=startButton.textContent;
+  startButton.disabled=true; startButton.textContent='Burg wird aufgebaut …';
+  gameplay=NachtjagdPlay.create({THREE,scene,camera,canvas,world,sky,layoutSky,backdrop,onStart:()=>{ toggleEditor(false); labels.visible=false; grid.visible=false; keys.clear(); drag=null; },onExit:()=>setView('village')});
+  castleSite.ready.then(()=>{
+  startButton.disabled=false; startButton.textContent=startLabel;
+  // Das Burg-Siegel liegt im Rittersaal: erst mit geladenem Modell prüfbar.
+  world.checks=world.checks.filter(c=>c.name!=='Burg-Siegel erreichbar');
+  world.checks.unshift({name:'Burg-Siegel erreichbar',passed:!!castleSite.walk && !blocked(castleSeal.x,castleSeal.z,gameFloor(castleSeal.x,castleSeal.z))});
   if(new URLSearchParams(location.search).has('test')) {
     for(const [name,start,end] of [['Spielfigur steigt die Dorftreppe hinauf',[120,57],[120,87]],['Spielfigur überquert das Viadukt',viaduct.b,viaduct.a]]) {
       const probe=NachtjagdGame.create({world:{...world,spawn:start,spawnEnemy:()=>null}}); probe.start();
@@ -790,9 +921,25 @@
       world.checks.push({name,passed:Math.hypot(p.x-end[0],p.z-end[1])<.5});
     }
     world.checks.push({name:'Kirchenmauer hält Schüsse auf',passed:world.rayDistance({x:91,y:gameFloor(91,30)+2,z:30},{x:0,y:0,z:-1},30)<10});
+    globalThis.NachtjagdDebug={castleSite,renderer,sky,world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
     const report=document.createElement('pre'); report.id='game-tests'; report.hidden=true; report.textContent=JSON.stringify({checks:world.checks}); document.body.append(report);
   }
-  setView('world');
   if(new URLSearchParams(location.search).get('play')==='1') gameplay.start();
+  });
+  // Ansichten auf die Fahrzeugorte (Koordinaten kommen aus der Weltbeschreibung)
+  {
+    const st=world.gondola.stations,jeep=world.jeeps[0],boat=world.boats[0];
+    {
+      const peak=layout.highPeaks.reduce((a,b)=>b.top>a.top?b:a);
+      views.peaks={target:[peak.x,groundHeight(peak.x,peak.z)*.6,peak.z],distance:900,yaw:2.6,polar:1.38,name:'Hochgebirge · höchster Gipfel '+Math.round(groundHeight(peak.x,peak.z))+' m'};
+      views.valley={target:[-25,60,-60],distance:240,yaw:3.14,polar:1.5,name:'Talblick nach Norden · Berge vom Dorf aus'};
+    }
+    views.gondola={target:[(st[0].x+st[1].x)/2,(st[0].y+st[1].y)/2,(st[0].z+st[1].z)/2],distance:420,yaw:.9,polar:.95,name:'Gondelbahn · Talstation und Bergstation · zwei Kabinen'};
+    views.talstation={target:[st[0].x,st[0].y+3,st[0].z],distance:30,yaw:-.4,polar:1.05,name:'Talstation der Gondelbahn'};
+    views.jeep={target:[jeep.x,gameFloor(jeep.x,jeep.z)+1,jeep.z],distance:28,yaw:.6,polar:.9,name:'Willys Jeep am Dorfrand'};
+    views.boats={target:[boat.x,world.waterLevel,boat.z],distance:45,yaw:.4,polar:.8,name:'Ruderboote am Seesteg · Platzhaltermodell'};
+    views.carts={target:[world.rails.nodes[0].x,gameFloor(world.rails.nodes[0].x,world.rails.nodes[0].z)+1,world.rails.nodes[0].z],distance:40,yaw:.5,polar:.4,name:'Minenschienen mit Loren · Platzhaltermodell'};
+  }
+  setView('world');
   requestAnimationFrame(frame);
 })();
