@@ -778,7 +778,8 @@
   }
   const world={
     spawn:[90,45],floor:gameFloor,blocked,chaseTarget,resetNavigation:()=>paths.clear(),
-    objectives:[{id:'church',name:'Kirche',x:90,z:30},{id:'mine',name:'Westmine',x:-349,z:-27},{id:'castle',name:'Burg',x:-251,z:-100}],
+    objectives:[{id:'church',name:'Kirche',x:90,z:30},{id:'mine',name:'Westmine',x:-349,z:-27,guard:'deep'},{id:'castle',name:'Burg',x:-251,z:-100,guard:'alpha'}],
+    waterDepth:(x,z)=>layout.lakeDistance(x,z)<0?1:0,
     bell:{x:90,z:27},
     rayDistance(origin,direction,maxRange) {
       shotRay.set(new THREE.Vector3(origin.x,origin.y,origin.z),new THREE.Vector3(direction.x,direction.y,direction.z).normalize());
@@ -797,8 +798,9 @@
       return null;
     }
   };
+  Object.assign(world,NachtjagdSpots.build({layout,blocked,floor:gameFloor})); // Truhen, Händler, Schmied, Bildstöcke, Angelplätze, Notizen, Reliquien
   scene.updateMatrixWorld(true);
-  world.checks=[{name:'Dorfstart frei',passed:!blocked(90,45,gameFloor(90,45))},...world.objectives.map(o=>({name:o.name+'-Siegel erreichbar',passed:!blocked(o.x,o.z,gameFloor(o.x,o.z))})),{name:'Glockenplatz frei',passed:!blocked(world.bell.x,world.bell.z,gameFloor(world.bell.x,world.bell.z))}];
+  world.checks=[{name:'Dorfstart frei',passed:!blocked(90,45,gameFloor(90,45))},...world.objectives.map(o=>({name:o.name+'-Siegel erreichbar',passed:!blocked(o.x,o.z,gameFloor(o.x,o.z))})),{name:'Glockenplatz frei',passed:!blocked(world.bell.x,world.bell.z,gameFloor(world.bell.x,world.bell.z))},{name:'Spielorte frei',passed:[...world.loots,...world.shrines,...world.fishSpots,world.merchant,world.smith].every(p=>!blocked(p.x,p.z,gameFloor(p.x,p.z)))}];
   gameplay=NachtjagdPlay.create({THREE,scene,camera,canvas,world,onStart:()=>{ toggleEditor(false); labels.visible=false; grid.visible=false; keys.clear(); drag=null; },onExit:()=>setView('village')});
   if(new URLSearchParams(location.search).has('test')) {
     for(const [name,start,end] of [['Spielfigur steigt die Dorftreppe hinauf',[120,57],[120,87]],['Spielfigur überquert das Viadukt',viaduct.b,viaduct.a]]) {
@@ -808,7 +810,7 @@
       world.checks.push({name,passed:Math.hypot(p.x-end[0],p.z-end[1])<.5});
     }
     world.checks.push({name:'Kirchenmauer hält Schüsse auf',passed:world.rayDistance({x:91,y:gameFloor(91,30)+2,z:30},{x:0,y:0,z:-1},30)<10});
-    globalThis.NachtjagdDebug={world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
+    globalThis.NachtjagdDebug={world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
     const report=document.createElement('pre'); report.id='game-tests'; report.hidden=true; report.textContent=JSON.stringify({checks:world.checks}); document.body.append(report);
   }
   setView('world');

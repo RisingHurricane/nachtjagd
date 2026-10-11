@@ -80,3 +80,7 @@ Der Server läuft auch hinter einem Reverse Proxy unter einem Unterpfad (Caddy o
 ### Erste Spiellogik-Verknüpfung (Entwurf 13)
 
 gameplay-core.js enthält einen rendererunabhängigen Solo-Kern nach den Waffen-, Boden-Gegner-, Wellen- und Questregeln aus dem neuesten Altay-Import. gameplay.js verbindet Eingabe, HUD, Gegnerplatzhalter, Beute und Siegel mit der Szene. blockout.js liefert Höhen, Kollisionen, Strahlabfragen auf echte Geometrie und Straßen-Navigation. Start über Spiel starten; Pause/Neustart und Rückkehr zum Layout. Keine Online-Verbindung in diesem Kern. Drei Siegel liegen vor Kirche, in der Westmine und im Burghof; die Glocke ist vorläufig vor der Kirche. Erste/zweitens gesammelte Siegel schalten Schrotflinte/Jagdgewehr frei. Dies ist eine bewusste Layoutanpassung, kein vollständiger Port: Spezialgegner, Händler, Relikte, Wetter, Fahrzeuge und Minentunnel fehlen noch. Neun Kerntests; zusätzliche Weltadapterprüfungen in #game-tests unter ?test=terrain. Vollständige Übergabe in CLAUDE-HANDOFF.md.
+
+### Spielelogik Stufe 2 (Entwurf 14)
+
+`gameplay-core.js` deckt nun Spezialgegner, Luftgegner, Granaten, Molotows, Axt, Sprung, Händler, Schmied, Bildstöcke, Angelstellen, Notizen, Relikte, Wetter und Siegelwächter ab; Weltadapter-Teile dafür (`objectives[].guard`, `loots`, `merchant`, `smith`, `shrines`, `fishSpots`, `waterDepth`) sind optional. `play-spots.js` erzeugt diese Orte aus dem Layout. Tests: `test/gameplay-mechanics.test.js`. Fahrzeuge, Minentunnel und Koop fehlen. Details in `STATUS.md`.

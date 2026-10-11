@@ -1,6 +1,6 @@
 # STATUS
 
-Letzte Aktualisierung: 2026-10-11 (Codex, grober Weltentwurf auf Basis von `nachtjagd-neu`)
+Letzte Aktualisierung: 2026-10-11 (Claude, Spielelogik Entwurf 14; davor Codex, grober Weltentwurf auf Basis von `nachtjagd-neu`)
 
 ## Aktueller grober Weltentwurf
 
@@ -13,6 +13,15 @@ Letzte Aktualisierung: 2026-10-11 (Codex, grober Weltentwurf auf Basis von `nach
 - Neue Grundform bergdorf-seeinsel-2026-10-11-v8, Browser-Schlüssel nachtjagd-bergdorf-seeinsel-v8, Raster 321×281. Vorherige Browserstände bleiben erhalten; Dateien anderer Grundformen werden ohne Zustandsänderung abgewiesen. Gelände-Editor mit Pinsel, Undo/Redo und Datei-Sicherung verfügbar.
 - Validierung: 78 automatisierte Tests (35 Server/Client, neun Editor, vierzehn Weltlayout, fünf Straßen, vier Viadukt, zwei Treppen, neun Spielkern) und 22 geometrische sowie acht Spieladapter-Browserprüfungen bestanden. Dorfkontur, Bergübergänge und Lichtungen sichtbar geprüft. Keine neue Abhängigkeit.
 - Aktuelle Vorschau: https://risinghurricane.github.io/nachtjagd/entwurf/?v=13 . Versionskennung und Skriptadressen gemeinsam aktualisiert. Die Layoutstudie bietet jetzt einen ersten Solo-Spieltest mit Kampf; Online-Koop fehlt noch; Multiplayer für 1–4, endgültige Modelle und Schlossinnenräume bleiben spätere Schritte. Originalimport und spielbarer Vergleich erhalten, keine privaten Referenzbilder veröffentlicht. main unverändert.
+
+## Spielelogik im gemeinsamen Kern (Entwurf 14, Branch `claude/spiellogik`)
+
+- `gameplay-core.js` enthält jetzt die Regeln des Altay-Originals bis auf Fahrzeuge und Koop: zehn Gegnerarten (Dorfbewohner, Lykan, Wolf, Hexe, Samca, Spucker, Blähling, Brocken, Schnitter, Fledermaus) mit Auftauchphase, Sprungangriff, Säure, Explosion und Luft-KI; Kopf-/Körpertreffer über Trefferkugeln; Silberschaden gegen Unheilige; Axt, Granaten und Molotows; Sprung und Fallschaden; Treffer-Schonzeit; Wellenmodifikatoren (Blut, Fledermäuse, Nebel); Questablauf Siegel, Glocke, Endphase mit Siegelwächtern (`guard` im Weltadapter); Händler und Schmied mit steigenden Preisen; Bildstöcke, Angelstellen, acht Notizen, drei Relikte (Winterherz, Jägerkompass, Grubenlampe); Wetterfronten und Dämmerung/Morgengrauen in `state.env`.
+- `play-spots.js` platziert Händler, Schmied, Bildstöcke, Angelplätze, Truhen, Notizen und Relikte anhand von `world-layout.js` auf begehbaren Boden. `blockout.js` hängt die Orte an den Weltadapter, setzt die Siegelwächter (`alpha` Burg, `deep` Mine) und `waterDepth`. Die Welt-Prüfung `Spielorte frei` kommt dazu.
+- `gameplay.js` zeigt alles an: Tasten Leertaste, G, T, V, F, E, 1–3, Ziffern im Laden; Platzhalterfiguren je Gegnerart (Hexe schwebt, Flugmonster mit Flügeln), Beute, Relikte, Notizen, Händler, Schmied, Bildstöcke, Angelfähnchen, Wurfgeschosse, Feuer, Säure, Nacht-/Nebel-/Schneestimmung und Taschenlampe.
+- Tests: `test/gameplay-mechanics.test.js` (25 Tests) und der angepasste Kerntest; `npm test` 105 grün. Im Browser geprüft: alle neun Weltprüfungen bestanden, Client startet ohne Fehler, zehn Gegnerarten laufen. Ein einfacher Bot erreicht die Endphase und stirbt dort bzw. an den Fledermäusen; die Schwierigkeit entspricht der Vorlage.
+- Bewusste Annäherungen: Trefferkugeln von Spucker, Blähling und Brocken sind geschätzt; Flugmonster bleiben 11 m über blockierten Zellen und kennen keine Höhlenvariante; Winterherz-Abklingzeit zählt in Spielzeit.
+- Noch offen: Fahrzeuge (Jeep, Wagen, Gondel, Boote), Minentunnel mit Höhlenfledermäusen, explosive Fässer, Ton/Musik, Online-Koop. Platzhalterfiguren sollen durch die Modelle von ChatGPT (Jeep, Häuser, Monster) und die Burg ersetzt werden; die Kern-API bleibt dafür gleich.
 
 ### Bisheriger spielbarer Vergleich
 
@@ -114,3 +123,5 @@ Erster separater Solo-Kern mit Waffenwerten aus nachtjagd-neu, Revolver/Nachlade
 ### 2026-10-11 · Claude: Spiellogik geprüft und repariert (Branch claude/spiellogik)
 
 Automatischer Durchlauf mit einem Browser-Bot (Weg über das Straßennetz, Siegel Kirche, Burg, Mine, Glocke, Endkampf) erreicht den Sieg. Dabei gefunden und behoben: (1) Der Burghof hatte am Tor eine etwa 2 m hohe Kante, das Burgsiegel war nicht erreichbar; `gameFloor` lässt die Hofplatte jetzt über 6 m als Rampe auslaufen. (2) Gegner blieben an Baumstämmen hängen; `moveMonster` in `gameplay-core.js` weicht jetzt seitlich aus. (3) Wo eine Straße höher oder tiefer als das Gelände liegt (zum Beispiel am Glockenplatz, 1,35 m), blieb eine Stufe, die Gegner nicht überwinden konnten und die deshalb nie angriffen; `shoulderHeight` in `blockout.js` rampt den Straßenrand 2,5 m lang aus. (4) Die Wegsuche der Gegner läuft nur noch alle 0,2 s pro Gegner. Neue Tests: Ausweichen an einer Säule, Rampe zum erhöhten Spieler (80 Node-Tests grün). Mit `?test` gibt es zusätzlich den Prüfhaken `NachtjagdDebug` für automatische Durchläufe. Noch offen: übrige Mechanik aus dem Monolithen (Sondergegner, Händler, Reliquien, Wetter, Fahrzeuge), Koop, Burg- und Kirchenmodelle einbinden, echte durchsichtige Fenster.
+
+- 2026-10-11, Claude: Restliche Spielelogik aus dem Altay-Original in `gameplay-core.js` portiert (siehe Abschnitt Entwurf 14), `play-spots.js` neu, `gameplay.js` neu geschrieben, Versionskennung auf 14. 105 Tests grün, Browserlauf geprüft. Kein Merge nach `main`, kein Push auf `gh-pages`. Nächste Schritte: 3D-Modelle einhängen, Fahrzeuge, Burg und Kirche in die Welt, Koop.
