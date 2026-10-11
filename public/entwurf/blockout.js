@@ -726,9 +726,27 @@
   const shotMeshes=[];
   scene.traverse(child=>{ if(child.isMesh && child!==lake && child!==forest && child!==undergrowth) shotMeshes.push(child); });
   const shotRay=new THREE.Raycaster();
+  // Wo die Straße höher oder tiefer als das Gelände liegt, läuft der Rand 2,5 m lang als Rampe aus.
+  // Sonst bliebe an der Kante eine Stufe, die Spielfigur und Gegner nicht überwinden.
+  const SHOULDER=2.5;
+  function shoulderHeight(x,z,y) {
+    if(streetHeight(x,z)!==null || stairs.floor(x,z)!==null || viaduct.contains(x,z)) return y;
+    let best=null;
+    for(const segment of roadNetwork.nearby(x,z)) {
+      if(segment.bridge || segment.stairs) continue;
+      const p=roadNetwork.project(segment,x,z),over=p.distance-segment.width/2;
+      if(over>0 && over<SHOULDER && (!best || over<best.over)) best={over,y:p.y+.4};
+    }
+    if(!best || Math.abs(best.y-y)<=.4) return y;
+    return best.y+(y-best.y)*(best.over/SHOULDER);
+  }
   function gameFloor(x,z,previousFeet) {
-    const y=surfaceHeight(x,z,previousFeet);
-    return Math.abs(x-castle.x)<31 && Math.abs(z-castle.z)<26.5?Math.max(y,castleFloor.position.y+castleFloor.scale.y/2):y;
+    const y=shoulderHeight(x,z,surfaceHeight(x,z,previousFeet));
+    const dx=31-Math.abs(x-castle.x),dz=26.5-Math.abs(z-castle.z);
+    if(dx<=0 || dz<=0) return y;
+    // Der Burghof liegt etwas höher als der Weg davor: Die Hofplatte läuft am Rand 6 m lang als Rampe aus.
+    const top=castleFloor.position.y+castleFloor.scale.y/2;
+    return Math.max(y,top-Math.max(0,6-Math.min(dx,dz))*.36);
   }
   function clearWalk(a,b) {
     const distance=Math.hypot(b.x-a.x,b.z-a.z),steps=Math.ceil(distance/.8); let y=a.y;
@@ -790,6 +808,7 @@
       world.checks.push({name,passed:Math.hypot(p.x-end[0],p.z-end[1])<.5});
     }
     world.checks.push({name:'Kirchenmauer hält Schüsse auf',passed:world.rayDistance({x:91,y:gameFloor(91,30)+2,z:30},{x:0,y:0,z:-1},30)<10});
+    globalThis.NachtjagdDebug={world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
     const report=document.createElement('pre'); report.id='game-tests'; report.hidden=true; report.textContent=JSON.stringify({checks:world.checks}); document.body.append(report);
   }
   setView('world');

@@ -112,6 +112,25 @@
         }
       }
     }
+    // Gegner weichen Hindernissen (Stämme, Hausecken) seitlich aus: erst geradeaus, dann in wachsenden
+    // Winkeln zu einer Seite, die sie sich merken. Danach bleibt das Gleiten entlang einer Achse.
+    const TURNS = [0, 0.5, 1.0, 1.6, 2.4];
+    function passable(m, nx, nz, step) {
+      const ny = world.floor(nx, nz, m.y);
+      return finite(ny) && ny <= m.y + 0.45 + step * 1.3 && !world.blocked(nx, nz, ny) ? ny : null;
+    }
+    function moveMonster(m, cx, cz, step) {
+      const side = m.side || 1;
+      for (const turn of TURNS) {
+        for (const sign of turn === 0 ? [1] : [side, -side]) {
+          const a = turn * sign, ca = Math.cos(a), sa = Math.sin(a);
+          const nx = m.x + (cx * ca - cz * sa) * step, nz = m.z + (cx * sa + cz * ca) * step;
+          const ny = passable(m, nx, nz, step);
+          if (ny !== null) { m.x = nx; m.z = nz; m.y = ny; if (turn) m.side = sign; return true; }
+        }
+      }
+      return false;
+    }
     function shoot(input) {
       const w = state.weapons[state.current];
       if (cooldown > 0 || swapTimer > 0 || w.reloading > 0) return;
@@ -205,20 +224,19 @@
         else if (d > spec.range * 0.82) {
           let chaseX = dx / d, chaseZ = dz / d;
           if (typeof world.chaseTarget === 'function') {
-            const route = world.chaseTarget({ ...m }, { ...p });
-            if (Array.isArray(route) && route.length >= 2 && route.every(finite)) {
-              const rl = Math.hypot(route[0], route[1]);
-              if (rl > 1e-6) { chaseX = route[0] / rl; chaseZ = route[1] / rl; }
+            // Die Wegsuche ist teuer: pro Gegner nur alle 0,2 s neu, dazwischen gilt die letzte Richtung.
+            m.routeT = (m.routeT || 0) - dt;
+            if (m.routeT <= 0 || !m.route) {
+              m.routeT = 0.2;
+              const route = world.chaseTarget({ ...m }, { ...p });
+              m.route = Array.isArray(route) && route.length >= 2 && route.every(finite) ? [route[0], route[1]] : null;
+            }
+            if (m.route) {
+              const rl = Math.hypot(m.route[0], m.route[1]);
+              if (rl > 1e-6) { chaseX = m.route[0] / rl; chaseZ = m.route[1] / rl; }
             }
           }
-          const speed = spec.speed * dt, nx = m.x + chaseX * speed, nz = m.z + chaseZ * speed, ny = world.floor(nx, nz, m.y);
-          if (finite(ny) && ny <= m.y + 0.45 + speed * 1.3 && !world.blocked(nx, nz, ny)) { m.x = nx; m.z = nz; m.y = ny; }
-          else {
-            const ax = m.x + chaseX * speed, ay = world.floor(ax, m.z, m.y);
-            if (finite(ay) && ay <= m.y + 0.45 + speed * 1.3 && !world.blocked(ax, m.z, ay)) { m.x = ax; m.y = ay; }
-            const az = m.z + chaseZ * speed, azY = world.floor(m.x, az, m.y);
-            if (finite(azY) && azY <= m.y + 0.45 + speed * 1.3 && !world.blocked(m.x, az, azY)) { m.z = az; m.y = azY; }
-          }
+          moveMonster(m, chaseX, chaseZ, spec.speed * dt);
         }
       }
       state.monsters = state.monsters.filter(m => m.state !== 'dead');

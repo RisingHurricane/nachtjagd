@@ -135,3 +135,18 @@ test('lethal attack freezes the phase before the final timer can award a win', (
   assert.equal(game.snapshot().phase, 'dead');
   assert.equal(game.snapshot().waves.finalT, dead.waves.finalT);
 });
+
+test('monsters steer around a pillar instead of sticking to it', () => {
+  // Säule mit 1 m Radius genau zwischen Gegner (z=8) und Spieler (z=0)
+  const { game } = make({ blocked: (x, z) => Math.hypot(x, z - 4) < 1 });
+  game.start(); advance(game, 4.6); advance(game, 12);
+  assert.ok(game.snapshot().player.hp < 100, 'Monster erreicht den Spieler und greift an');
+});
+
+test('monsters climb a ramp toward a player standing on higher ground', () => {
+  // Spieler steht 1,4 m höher; zwischen beiden läuft eine Rampe über 3 m.
+  const floor = (_x, z) => Math.max(0, Math.min(1.4, (6 - z) / 3 * 1.4));
+  const { game } = make({ spawn: [0, 2], floor, spawnEnemy: () => [0, 11] });
+  game.start(); advance(game, 4.6); advance(game, 12);
+  assert.ok(game.snapshot().player.hp < 100);
+});
