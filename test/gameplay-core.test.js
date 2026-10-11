@@ -32,12 +32,12 @@ test('player movement normalizes diagonals, slides along a blocked wall, and pau
 
 test('shooting obeys cooldown, damages enemies, and reload transfers only needed rounds', () => {
   const { game } = make({ spawnEnemy: () => [0, 8] });
-  game.start(); game.setLook(0, 0); advance(game, 4.6);
+  game.start(); game.setLook(0, -0.0646); advance(game, 5.2); // Gegner ist aufgetaucht und kann getroffen werden; Zielpunkt Brust
   game.step(0.1, { fire: true });
   let s = game.snapshot();
   assert.equal(s.weapons[0].ammo, 5);
   assert.equal(s.monsters.length, 1);
-  assert.equal(s.monsters[0].hp, 13);
+  assert.equal(s.monsters[0].hp, 32, 'Körpertreffer: 38 Schaden');
   game.step(0.1, { fire: true });
   assert.equal(game.snapshot().weapons[0].ammo, 5);
   advance(game, 0.3); game.step(0.1, { fire: true });
@@ -48,7 +48,7 @@ test('shooting obeys cooldown, damages enemies, and reload transfers only needed
 
 test('world ray obstruction prevents damage and invalid dt or inputs are ignored', () => {
   const { game } = make({ rayDistance: () => 3, spawnEnemy: () => [0, 8] });
-  game.start(); advance(game, 4.6); game.setLook(0, 0);
+  game.start(); advance(game, 5.2); game.setLook(0, 0);
   game.step(0.1, { fire: true });
   assert.equal(game.snapshot().monsters[0].hp, 70);
   const p = game.snapshot().player;
