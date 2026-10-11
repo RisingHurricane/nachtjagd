@@ -1,0 +1,554 @@
+{
+  "version": 1,
+  "units": "metres",
+  "space": "church local glTF coordinates",
+  "boxes": [
+    {
+      "id": "nave-side--1",
+      "center": [
+        -6.28,
+        4.5,
+        -18.5
+      ],
+      "halfSize": [
+        0.22,
+        4.5,
+        11.5
+      ]
+    },
+    {
+      "id": "Buttress",
+      "center": [
+        -6.65,
+        3.6,
+        -8.1
+      ],
+      "halfSize": [
+        0.4,
+        3.6,
+        0.375
+      ]
+    },
+    {
+      "id": "Buttress",
+      "center": [
+        -6.65,
+        3.6,
+        -12.5
+      ],
+      "halfSize": [
+        0.4,
+        3.6,
+        0.375
+      ]
+    },
+    {
+      "id": "Buttress",
+      "center": [
+        -6.65,
+        3.6,
+        -16.5
+      ],
+      "halfSize": [
+        0.4,
+        3.6,
+        0.375
+      ]
+    },
+    {
+      "id": "Buttress",
+      "center": [
+        -6.65,
+        3.6,
+        -20.5
+      ],
+      "halfSize": [
+        0.4,
+        3.6,
+        0.375
+      ]
+    },
+    {
+      "id": "Buttress",
+      "center": [
+        -6.65,
+        3.6,
+        -24.5
+      ],
+      "halfSize": [
+        0.4,
+        3.6,
+        0.375
+      ]
+    },
+    {
+      "id": "Buttress",
+      "center": [
+        -6.65,
+        3.6,
+        -28.9
+      ],
+      "halfSize": [
+        0.4,
+        3.6,
+        0.375
+      ]
+    },
+    {
+      "id": "Tower wall -1",
+      "center": [
+        -3.28,
+        11.25,
+        -3.5
+      ],
+      "halfSize": [
+        0.22,
+        11.25,
+        3.5
+      ]
+    },
+    {
+      "id": "nave-side-1",
+      "center": [
+        6.28,
+        4.5,
+        -18.5
+      ],
+      "halfSize": [
+        0.22,
+        4.5,
+        11.5
+      ]
+    },
+    {
+      "id": "Buttress",
+      "center": [
+        6.65,
+        3.6,
+        -8.1
+      ],
+      "halfSize": [
+        0.4,
+        3.6,
+        0.375
+      ]
+    },
+    {
+      "id": "Buttress",
+      "center": [
+        6.65,
+        3.6,
+        -12.5
+      ],
+      "halfSize": [
+        0.4,
+        3.6,
+        0.375
+      ]
+    },
+    {
+      "id": "Buttress",
+      "center": [
+        6.65,
+        3.6,
+        -16.5
+      ],
+      "halfSize": [
+        0.4,
+        3.6,
+        0.375
+      ]
+    },
+    {
+      "id": "Buttress",
+      "center": [
+        6.65,
+        3.6,
+        -20.5
+      ],
+      "halfSize": [
+        0.4,
+        3.6,
+        0.375
+      ]
+    },
+    {
+      "id": "Buttress",
+      "center": [
+        6.65,
+        3.6,
+        -24.5
+      ],
+      "halfSize": [
+        0.4,
+        3.6,
+        0.375
+      ]
+    },
+    {
+      "id": "Buttress",
+      "center": [
+        6.65,
+        3.6,
+        -28.9
+      ],
+      "halfSize": [
+        0.4,
+        3.6,
+        0.375
+      ]
+    },
+    {
+      "id": "Tower wall 1",
+      "center": [
+        3.28,
+        11.25,
+        -3.5
+      ],
+      "halfSize": [
+        0.22,
+        11.25,
+        3.5
+      ]
+    },
+    {
+      "id": "Tower rear upper wall",
+      "center": [
+        0,
+        15.75,
+        -6.78
+      ],
+      "halfSize": [
+        3.3,
+        6.75,
+        0.22
+      ]
+    },
+    {
+      "id": "Sanctuary rear wall",
+      "center": [
+        0,
+        4.5,
+        -29.78
+      ],
+      "halfSize": [
+        6.3,
+        4.5,
+        0.22
+      ]
+    },
+    {
+      "id": "nave-front--1",
+      "center": [
+        -3.875,
+        4.5,
+        -7.2
+      ],
+      "halfSize": [
+        2.425,
+        4.5,
+        0.22
+      ]
+    },
+    {
+      "id": "nave-front-1",
+      "center": [
+        3.875,
+        4.5,
+        -7.2
+      ],
+      "halfSize": [
+        2.425,
+        4.5,
+        0.22
+      ]
+    },
+    {
+      "id": "nave-front-lintel",
+      "center": [
+        0,
+        7.2,
+        -7.2
+      ],
+      "halfSize": [
+        1.45,
+        1.8,
+        0.22
+      ]
+    },
+    {
+      "id": "entrance-pier--1",
+      "center": [
+        -2.325,
+        11.25,
+        -0.22
+      ],
+      "halfSize": [
+        0.975,
+        11.25,
+        0.22
+      ]
+    },
+    {
+      "id": "entrance-pier-1",
+      "center": [
+        2.325,
+        11.25,
+        -0.22
+      ],
+      "halfSize": [
+        0.975,
+        11.25,
+        0.22
+      ]
+    },
+    {
+      "id": "entrance-lintel",
+      "center": [
+        0,
+        13.35,
+        -0.22
+      ],
+      "halfSize": [
+        1.35,
+        9.15,
+        0.22
+      ]
+    },
+    {
+      "id": "East side chapel volume",
+      "center": [
+        8.35,
+        2.2,
+        -16.5
+      ],
+      "halfSize": [
+        2.25,
+        2.2,
+        7.5
+      ]
+    },
+    {
+      "id": "West sacristy volume",
+      "center": [
+        -8.5,
+        1.9,
+        -25.0
+      ],
+      "halfSize": [
+        2.4,
+        1.9,
+        4.25
+      ]
+    },
+    {
+      "id": "Oak pew back",
+      "center": [
+        -3.25,
+        0.9,
+        -10.73
+      ],
+      "halfSize": [
+        1.85,
+        0.425,
+        0.06
+      ]
+    },
+    {
+      "id": "Oak pew back",
+      "center": [
+        3.25,
+        0.9,
+        -10.73
+      ],
+      "halfSize": [
+        1.85,
+        0.425,
+        0.06
+      ]
+    },
+    {
+      "id": "Oak pew back",
+      "center": [
+        -3.25,
+        0.9,
+        -12.93
+      ],
+      "halfSize": [
+        1.85,
+        0.425,
+        0.06
+      ]
+    },
+    {
+      "id": "Oak pew back",
+      "center": [
+        3.25,
+        0.9,
+        -12.93
+      ],
+      "halfSize": [
+        1.85,
+        0.425,
+        0.06
+      ]
+    },
+    {
+      "id": "Oak pew back",
+      "center": [
+        -3.25,
+        0.9,
+        -15.13
+      ],
+      "halfSize": [
+        1.85,
+        0.425,
+        0.06
+      ]
+    },
+    {
+      "id": "Oak pew back",
+      "center": [
+        3.25,
+        0.9,
+        -15.13
+      ],
+      "halfSize": [
+        1.85,
+        0.425,
+        0.06
+      ]
+    },
+    {
+      "id": "Oak pew back",
+      "center": [
+        -3.25,
+        0.9,
+        -17.330000000000002
+      ],
+      "halfSize": [
+        1.85,
+        0.425,
+        0.06
+      ]
+    },
+    {
+      "id": "Oak pew back",
+      "center": [
+        3.25,
+        0.9,
+        -17.330000000000002
+      ],
+      "halfSize": [
+        1.85,
+        0.425,
+        0.06
+      ]
+    },
+    {
+      "id": "Oak pew back",
+      "center": [
+        -3.25,
+        0.9,
+        -19.53
+      ],
+      "halfSize": [
+        1.85,
+        0.425,
+        0.06
+      ]
+    },
+    {
+      "id": "Oak pew back",
+      "center": [
+        3.25,
+        0.9,
+        -19.53
+      ],
+      "halfSize": [
+        1.85,
+        0.425,
+        0.06
+      ]
+    },
+    {
+      "id": "Oak pew back",
+      "center": [
+        -3.25,
+        0.9,
+        -21.73
+      ],
+      "halfSize": [
+        1.85,
+        0.425,
+        0.06
+      ]
+    },
+    {
+      "id": "Oak pew back",
+      "center": [
+        3.25,
+        0.9,
+        -21.73
+      ],
+      "halfSize": [
+        1.85,
+        0.425,
+        0.06
+      ]
+    },
+    {
+      "id": "Altar table",
+      "center": [
+        0,
+        1.1,
+        -27
+      ],
+      "halfSize": [
+        1.65,
+        0.1,
+        0.65
+      ]
+    }
+  ],
+  "floors": [
+    {
+      "id": "nave",
+      "min": [
+        -6.2,
+        -30
+      ],
+      "max": [
+        6.2,
+        -7
+      ],
+      "y": 0
+    },
+    {
+      "id": "tower",
+      "min": [
+        -3.25,
+        -7
+      ],
+      "max": [
+        3.25,
+        0
+      ],
+      "y": 0
+    },
+    {
+      "id": "entrance-ramp",
+      "min": [
+        -2,
+        0
+      ],
+      "max": [
+        2,
+        3
+      ],
+      "yAtMinZ": 0,
+      "yAtMaxZ": -0.25
+    }
+  ],
+  "playerRadiusRecommended": 0.4
+}
