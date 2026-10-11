@@ -426,7 +426,7 @@
   function setView(view) {
     const walking = view === 'walk' || view === 'forest' || view === 'bridgewalk' || view === 'stairswalk';
     if (walking && editing) toggleEditor(false);
-    mode = walking ? 'walk' : view; keys.clear(); labels.visible = !walking && !editing && !['wind','stones','ruin','lakeside','mines','northmine'].includes(view); grid.visible = editing || view === 'map';
+    mode = walking ? 'walk' : view; keys.clear(); labels.visible = !walking && !editing && !['wind','stones','ruin','lakeside','mines','northmine','gondola','talstation','jeep','boats','carts'].includes(view); grid.visible = editing || view === 'map';
     document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
     if (walking) {
       const start = view === 'bridgewalk' ? viaduct.point(viaduct.length-4) : view === 'forest' ? [221,60] : view === 'stairswalk' ? [120,58] : [90,45];
@@ -633,6 +633,7 @@
     requestAnimationFrame(frame);
     const dt = Math.min((now - previous) / 1000, .05); previous = now;
     if (sculpting && now - lastSculpt >= 50) { applySculpt(Math.min((now - lastSculpt) / 1000, .1)); lastSculpt = now; }
+    if(gameplay && !gameplay.active) gameplay.previewUpdate(dt);
     if(gameplay && gameplay.active) {
       gameplay.update(dt);
     } else if (mode === 'walk') {
@@ -826,6 +827,15 @@
     world.checks.push({name:'Kirchenmauer hält Schüsse auf',passed:world.rayDistance({x:91,y:gameFloor(91,30)+2,z:30},{x:0,y:0,z:-1},30)<10});
     globalThis.NachtjagdDebug={world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
     const report=document.createElement('pre'); report.id='game-tests'; report.hidden=true; report.textContent=JSON.stringify({checks:world.checks}); document.body.append(report);
+  }
+  // Ansichten auf die Fahrzeugorte (Koordinaten kommen aus der Weltbeschreibung)
+  {
+    const st=world.gondola.stations,jeep=world.jeeps[0],boat=world.boats[0];
+    views.gondola={target:[(st[0].x+st[1].x)/2,(st[0].y+st[1].y)/2,(st[0].z+st[1].z)/2],distance:420,yaw:.9,polar:.95,name:'Gondelbahn · Talstation und Bergstation · zwei Kabinen'};
+    views.talstation={target:[st[0].x,st[0].y+3,st[0].z],distance:30,yaw:-.4,polar:1.05,name:'Talstation der Gondelbahn'};
+    views.jeep={target:[jeep.x,gameFloor(jeep.x,jeep.z)+1,jeep.z],distance:28,yaw:.6,polar:.9,name:'Geländewagen am Dorfrand · Platzhaltermodell'};
+    views.boats={target:[boat.x,world.waterLevel,boat.z],distance:45,yaw:.4,polar:.8,name:'Ruderboote am Seesteg · Platzhaltermodell'};
+    views.carts={target:[world.rails.nodes[0].x,gameFloor(world.rails.nodes[0].x,world.rails.nodes[0].z)+1,world.rails.nodes[0].z],distance:40,yaw:.5,polar:.4,name:'Minenschienen mit Loren · Platzhaltermodell'};
   }
   setView('world');
   if(new URLSearchParams(location.search).get('play')==='1') gameplay.start();

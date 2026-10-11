@@ -356,6 +356,17 @@ globalThis.NachtjagdPlay = {
       const report=document.querySelector('#game-tests');
       if(report) report.textContent=JSON.stringify({phase:current.phase,player:p,wave:current.waves.n,monsters:current.monsters.length,ammo:w.ammo,mag,checks:world.checks},null,2);
     }
-    return {start,update,leave,get active(){return active;},get game(){return game;}};
+    // --- Vorschau in der Layoutansicht: Fahrzeuge, Schienen und Gondelbahn laufen ohne Spieler und ohne Gegner
+    let preview=null;
+    function previewUpdate(dt) {
+      if(active) return;
+      if(!preview) {
+        preview=NachtjagdGame.create({world:{...world,spawnEnemy:()=>null}}); preview.start();
+        vehicleLayer.clear(); vehicleLayer.setStatic(NachtjagdVehicleModels.buildStatic(THREE,{world,layout:preview.layout()}));
+      }
+      clock+=dt; vehicleLayer.setVisible(true);
+      vehicleLayer.update(preview.step(dt,{}).vehicles,dt,clock);
+    }
+    return {start,update,previewUpdate,get previewGame(){return preview;},leave,get active(){return active;},get game(){return game;}};
   }
 };

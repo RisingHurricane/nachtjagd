@@ -110,18 +110,19 @@ globalThis.NachtjagdSpots = {
       }
 
       // Gondel: Talstation am Osttor, Bergstation auf dem Nordostgrat. Nächster ebener, freier Punkt.
+      // Eine Station braucht freien Platz für ihre Grundfläche (Kreis mit 7 m Radius, ohne Bäume, Mauern oder steile Hänge).
       const level = (x, z) => {
         const y = floor(x, z);
         if (!Number.isFinite(y) || blocked(x, z, y)) return false;
-        for (let k = 0; k < 8; k++) {
-          const a = k * Math.PI / 4, px = x + Math.cos(a) * 4, pz = z + Math.sin(a) * 4, py = floor(px, pz, y);
-          if (!Number.isFinite(py) || blocked(px, pz, py) || Math.abs(py - y) > 2.5) return false;
+        for (let r = 2; r <= 7; r += 2.5) for (let k = 0; k < 12; k++) {
+          const a = k * Math.PI / 6, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r, py = floor(px, pz, y);
+          if (!Number.isFinite(py) || blocked(px, pz, py) || Math.abs(py - y) > 1.6 + r * 0.2) return false;
         }
         return true;
       };
       const station = (x, z, name) => {
-        for (let r = 0; r <= 40; r += 2) for (let i = 0; i < (r ? 16 : 1); i++) {
-          const a = i / 16 * Math.PI * 2, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r;
+        for (let r = 0; r <= 90; r += 2) for (let i = 0; i < (r ? 24 : 1); i++) {
+          const a = i / 24 * Math.PI * 2, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r;
           if (level(px, pz)) return { x: px, z: pz, y: floor(px, pz), name };
         }
         return { x, z, y: floor(x, z), name };
