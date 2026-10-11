@@ -108,7 +108,11 @@
     }
   }
   function updateHeightGrid() {
-    for (let i=0;i<baseHeights.length;i++) { const x=i%321*5-800,z=Math.floor(i/321)*5-705; renderedHeights[i]=NachtjagdRelief.relief(x,z,roadNetwork.grade(x,z,baseHeights[i]+terrainModel.offsets[i])); }
+    for (let i=0;i<baseHeights.length;i++) { const x=i%321*5-800,z=Math.floor(i/321)*5-705; renderedHeights[i]=roadNetwork.grade(x,z,baseHeights[i]+terrainModel.offsets[i]); }
+    // Erst die Neigung der groben Kegel begrenzen (keine Nadeln), danach Felsrelief aufsetzen.
+    NachtjagdRelief.limitSlope(renderedHeights,321,281,5);
+    for (let i=0;i<baseHeights.length;i++) { const x=i%321*5-800,z=Math.floor(i/321)*5-705; renderedHeights[i]=NachtjagdRelief.relief(x,z,renderedHeights[i]); }
+    NachtjagdRelief.limitSlope(renderedHeights,321,281,5,1.5,0.3);
     NachtjagdRelief.smoothGrid(renderedHeights,321,281);
     settleRoads();
   }
@@ -907,7 +911,7 @@
     const st=world.gondola.stations,jeep=world.jeeps[0],boat=world.boats[0];
     {
       const peak=layout.highPeaks.reduce((a,b)=>b.top>a.top?b:a);
-      views.peaks={target:[peak.x,peak.top*.45,peak.z],distance:900,yaw:2.6,polar:1.38,name:'Hochgebirge · höchster Gipfel '+Math.round(peak.top)+' m'};
+      views.peaks={target:[peak.x,groundHeight(peak.x,peak.z)*.6,peak.z],distance:900,yaw:2.6,polar:1.38,name:'Hochgebirge · höchster Gipfel '+Math.round(groundHeight(peak.x,peak.z))+' m'};
       views.valley={target:[-25,60,-60],distance:240,yaw:3.14,polar:1.5,name:'Talblick nach Norden · Berge vom Dorf aus'};
     }
     views.gondola={target:[(st[0].x+st[1].x)/2,(st[0].y+st[1].y)/2,(st[0].z+st[1].z)/2],distance:420,yaw:.9,polar:.95,name:'Gondelbahn · Talstation und Bergstation · zwei Kabinen'};

@@ -50,8 +50,8 @@
     let out = h + (terraced - h) * 0.25 * w;
     // Große Grate und Rinnen, nach oben schärfer, dazu kleinere Rippen.
     const sharp = 0.3 + 0.7 * smooth(180, 360, h);
-    out += w * (ridge(wx / 170 + 3.1, wz / 170 + 7.7) - 0.32) * 230 * sharp;
-    out += w * (ridge(wx / 62 - 4.3, wz / 62 + 2.9) - 0.3) * 70 * sharp;
+    out += w * (ridge(wx / 170 + 3.1, wz / 170 + 7.7) - 0.32) * 170 * sharp;
+    out += w * (ridge(wx / 62 - 4.3, wz / 62 + 2.9) - 0.3) * 55 * sharp;
     // Kleinrelief für unruhige Flanken.
     out += w * (fbm(x / 30, z / 30, 3) - 0.5) * 16;
     return Math.min(out, TOP);
@@ -67,7 +67,29 @@
       heights[i] = src[i] + (sum / 10 - src[i]) * 0.7 * w;
     }
   }
-  const api = { relief, smoothGrid, soften, START, FULL, TOP };
+  // Begrenzt die Neigung oberhalb der Waldgrenze: Nadeln sind physikalisch unmöglich. Erlaubt sind etwa 49° am Fuß und bis etwa 56° nahe
+  // den Gipfeln (oben steiler als unten, wie bei echten Massiven). Es wird nur abgesenkt, Zellen unter START bleiben unberührt.
+  function limitSlope(heights, cols, rows, cell, base = 1.15, extra = 0.35) {
+    const allow = h => base + extra * smooth(150, 380, h);
+    const step = (i, j, dist) => {
+      const limit = heights[j] + allow(heights[j]) * dist;
+      if (heights[i] > START && heights[i] > limit) heights[i] = Math.max(START, limit);
+    };
+    const diag = cell * Math.SQRT2;
+    for (let pass = 0; pass < 3; pass++) {
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const i = r * cols + c;
+        if (c > 0) step(i, i - 1, cell);
+        if (r > 0) { step(i, i - cols, cell); if (c > 0) step(i, i - cols - 1, diag); if (c < cols - 1) step(i, i - cols + 1, diag); }
+      }
+      for (let r = rows - 1; r >= 0; r--) for (let c = cols - 1; c >= 0; c--) {
+        const i = r * cols + c;
+        if (c < cols - 1) step(i, i + 1, cell);
+        if (r < rows - 1) { step(i, i + cols, cell); if (c < cols - 1) step(i, i + cols + 1, diag); if (c > 0) step(i, i + cols - 1, diag); }
+      }
+    }
+  }
+  const api = { relief, smoothGrid, limitSlope, soften, START, FULL, TOP };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.NachtjagdRelief = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
