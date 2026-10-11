@@ -34,25 +34,40 @@
     }
     return sum / norm;
   }
-  function relief(x, z, h) {
-    const w = smooth(START, FULL, h);
-    if (w <= 0) return h;
+  // Hohe Gipfel werden oben weich zusammengedrückt: weniger Nadeln, breitere, ruhigere Massive. Stetig bei 200 m (Steigung 1).
+  const SOFT = 200, RANGE = 260;
+  const soften = h => h <= SOFT ? h : SOFT + RANGE * (1 - Math.exp(-(h - SOFT) / RANGE));
+  function relief(x, z, h0) {
+    const w = smooth(START, FULL, h0);
+    if (w <= 0) return h0;
+    const h = soften(h0);
     // Gebirgsrelief: Koordinaten leicht verbogen, damit Grate nicht in geraden Linien laufen.
     const wx = x + 90 * (fbm(x / 170 + 2.2, z / 170 + 8.8, 2) - 0.5), wz = z + 90 * (fbm(x / 170 - 6.1, z / 170 + 1.3, 2) - 0.5);
     // Felsstufen: weiche, unregelmäßig hohe Terrassen, dazwischen steile Wände.
     const step = 26 + 34 * fbm(x / 240 + 11.3, z / 240 - 4.7, 2);
     const t = h / step, floor = Math.floor(t);
     const terraced = (floor + smooth(0.25, 0.85, t - floor)) * step;
-    let out = h + (terraced - h) * 0.32 * w;
+    let out = h + (terraced - h) * 0.25 * w;
     // Große Grate und Rinnen, nach oben schärfer, dazu kleinere Rippen.
-    const sharp = 0.3 + 0.7 * smooth(200, 420, h);
-    out += w * (ridge(wx / 170 + 3.1, wz / 170 + 7.7) - 0.32) * 300 * sharp;
-    out += w * (ridge(wx / 62 - 4.3, wz / 62 + 2.9) - 0.3) * 90 * sharp;
+    const sharp = 0.3 + 0.7 * smooth(180, 360, h);
+    out += w * (ridge(wx / 170 + 3.1, wz / 170 + 7.7) - 0.32) * 230 * sharp;
+    out += w * (ridge(wx / 62 - 4.3, wz / 62 + 2.9) - 0.3) * 70 * sharp;
     // Kleinrelief für unruhige Flanken.
     out += w * (fbm(x / 30, z / 30, 3) - 0.5) * 16;
     return Math.min(out, TOP);
   }
-  const api = { relief, START, FULL, TOP };
+  // Glättet einzelne Rasterspitzen: ein Durchgang mit 3×3-Mittel, nur oberhalb der Waldgrenze wirksam (gleiche Gewichtung wie das Relief).
+  function smoothGrid(heights, cols, rows) {
+    const src = Float32Array.from(heights);
+    for (let r = 1; r < rows - 1; r++) for (let c = 1; c < cols - 1; c++) {
+      const i = r * cols + c, w = smooth(START, FULL, src[i]);
+      if (w <= 0) continue;
+      let sum = 0;
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) sum += src[i + dr * cols + dc] * (dr || dc ? 1 : 2);
+      heights[i] = src[i] + (sum / 10 - src[i]) * 0.7 * w;
+    }
+  }
+  const api = { relief, smoothGrid, soften, START, FULL, TOP };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.NachtjagdRelief = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

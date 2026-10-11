@@ -12,7 +12,9 @@
     status.textContent = 'Grafik konnte nicht gestartet werden.';
     return;
   }
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  // Auflösung wird bei langsamen Geräten automatisch gesenkt (siehe frame()); Start mit der Bildschirmdichte, höchstens 2.
+  let pixelRatio = Math.min(devicePixelRatio, 2); const maxPixelRatio = pixelRatio;
+  renderer.setPixelRatio(pixelRatio);
   renderer.setSize(innerWidth, innerHeight);
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.shadowMap.enabled = true;
@@ -84,8 +86,31 @@
   const stairs = NachtjagdStairs.create(roadNetwork);
   const stairMeshes = [];
   const renderedHeights = new Float32Array(baseHeights.length);
+  // Nach dem Einebnen kann ein 5-m-Dreieck an Kurven oder Kreuzungen noch über der Fahrbahn liegen. Dort wird der Boden
+  // unter der Fahrbahn so weit abgesenkt, dass sie nie vergraben ist; das Absenken verteilt sich auf die drei Eckpunkte.
+  function settleRoads() {
+    for(const s of roadNetwork.segments) {
+      if(s.stairs||s.bridge) continue;
+      const a=roadNetwork.nodes[s.a],b=roadNetwork.nodes[s.b],len=Math.hypot(b.x-a.x,b.z-a.z);
+      if(len<.001) continue;
+      const nx=(b.z-a.z)/len,nz=-(b.x-a.x)/len,steps=Math.max(1,Math.ceil(len/.75)),across=Math.max(2,Math.ceil(s.width/.75));
+      for(let j=0;j<=steps;j++) for(let k=0;k<=across;k++) {
+        const off=s.width*(k/across-.5),x=a.x+(b.x-a.x)*j/steps+nx*off,z=a.z+(b.z-a.z)*j/steps+nz*off;
+        const road=roadNetwork.project(s,x,z).y+.4-.05;
+        const ix=Math.floor((x+800)/5),iz=Math.floor((z+705)/5),tx=(x-(ix*5-800))/5,tz=(z-(iz*5-705))/5;
+        const lower=tx+tz<=1;
+        const i0=iz*321+ix,i1=iz*321+ix+1,i2=(iz+1)*321+ix,i3=(iz+1)*321+ix+1;
+        const idx=lower?[i0,i1,i2]:[i3,i2,i1],w=lower?[1-tx-tz,tx,tz]:[tx+tz-1,1-tx,1-tz];
+        const ground=renderedHeights[idx[0]]*w[0]+renderedHeights[idx[1]]*w[1]+renderedHeights[idx[2]]*w[2];
+        const deficit=ground-road;
+        if(deficit>0) { const norm=w[0]*w[0]+w[1]*w[1]+w[2]*w[2]; for(let m=0;m<3;m++) renderedHeights[idx[m]]-=deficit*w[m]/norm; }
+      }
+    }
+  }
   function updateHeightGrid() {
     for (let i=0;i<baseHeights.length;i++) { const x=i%321*5-800,z=Math.floor(i/321)*5-705; renderedHeights[i]=NachtjagdRelief.relief(x,z,roadNetwork.grade(x,z,baseHeights[i]+terrainModel.offsets[i])); }
+    NachtjagdRelief.smoothGrid(renderedHeights,321,281);
+    settleRoads();
   }
   updateHeightGrid();
   function vertexHeight(col, row) {
@@ -163,7 +188,8 @@
   }
   groundGeometry.setAttribute('color', new THREE.Float32BufferAttribute(terrainColors, 3));
   groundGeometry.computeVertexNormals();
-  const ground = new THREE.Mesh(groundGeometry, NachtjagdTerrainMaterial.create(THREE));
+  const terrainMaterial = NachtjagdTerrainMaterial.create(THREE), terrainUniforms = terrainMaterial.userData.uniforms;
+  const ground = new THREE.Mesh(groundGeometry, terrainMaterial);
   ground.receiveShadow = true;
   scene.add(ground);
   const gridPositions = [];
@@ -265,9 +291,40 @@
   }
   refreshViaduct();
   roadNetwork.segments.filter(s=>!s.stairs).forEach(road);
+  // Böschungsstreifen: Seitenwände unter beiden Fahrbahnkanten bis zum Boden. Wo das Gelände unter der Fahrbahn weggeht
+  // (Hang, Kreuzung auf anderer Höhe), sieht die Straße dadurch aufgeschüttet aus und schwebt nicht.
+  const skirtVertices=[],skirtIndices=[],skirtData=[];
+  function skirt(segment) {
+    if(segment.bridge) return;
+    const an=roadNetwork.nodes[segment.a],bn=roadNetwork.nodes[segment.b],dx=bn.x-an.x,dz=bn.z-an.z,length=Math.hypot(dx,dz);
+    if(length<.001) return;
+    const count=Math.ceil(length*2),first=skirtVertices.length/3;
+    for(let j=0;j<=count;j++) for(const side of [-.5,.5]) {
+      const x=an.x+dx*j/count+dz/length*segment.width*side,z=an.z+dz*j/count-dx/length*segment.width*side;
+      skirtVertices.push(x,0,z,x,0,z); skirtData.push({segment,x,z});
+    }
+    for(let j=0;j<count;j++) for(let si=0;si<2;si++) {
+      const a=first+(j*2+si)*2,c=first+((j+1)*2+si)*2;
+      skirtIndices.push(a,c,a+1,a+1,c,c+1);
+    }
+  }
   const roadGeometry=new THREE.BufferGeometry();
   roadGeometry.setAttribute('position',new THREE.Float32BufferAttribute(roadVertices,3)); roadGeometry.setIndex(roadIndices); roadGeometry.computeVertexNormals();
   const roadMesh=new THREE.Mesh(roadGeometry,materials.path); roadMesh.receiveShadow=true; scene.add(roadMesh); roadMeshes.push(roadMesh);
+  roadNetwork.segments.filter(s=>!s.stairs).forEach(skirt);
+  const skirtGeometry=new THREE.BufferGeometry();
+  skirtGeometry.setAttribute('position',new THREE.Float32BufferAttribute(skirtVertices,3)); skirtGeometry.setIndex(skirtIndices);
+  const skirtMaterial=materials.path.clone(); skirtMaterial.side=THREE.DoubleSide; skirtMaterial.color.multiplyScalar(.8);
+  const skirtMesh=new THREE.Mesh(skirtGeometry,skirtMaterial); skirtMesh.receiveShadow=true; scene.add(skirtMesh);
+  function updateSkirts() {
+    const p=skirtGeometry.attributes.position;
+    skirtData.forEach(({segment,x,z},i)=>{
+      const top=roadNetwork.project(segment,x,z).y+.4,bottom=Math.min(groundHeight(x,z),top)-.25;
+      p.setY(i*2,top); p.setY(i*2+1,bottom);
+    });
+    p.needsUpdate=true; skirtGeometry.computeVertexNormals(); skirtGeometry.computeBoundingSphere();
+  }
+  updateSkirts();
   for(const tread of stairs.treads) {
     const mesh=new THREE.Mesh(boxGeometry,materials.viaduct);
     mesh.rotation.y=-Math.atan2(tread.sin,tread.cos); mesh.receiveShadow=true; scene.add(mesh);
@@ -536,6 +593,7 @@
       }
       p.needsUpdate = true; mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere();
     }
+    updateSkirts();
     const gp = grid.geometry.attributes.position;
     for (let i = 0; i < gp.count; i++) gp.setY(i, groundHeight(gp.getX(i), gp.getZ(i)) + .04);
     gp.needsUpdate = true;
@@ -633,11 +691,22 @@
   });
   updateEditorStatus(storageWarning || (restored ? 'Dein gespeichertes Gelände wurde wieder geladen.' : 'Ausgangsform geladen.'));
   let previous = performance.now();
+  const perf = { sum: 0, frames: 0, last: performance.now(), level: 0 };
   function frame(now) {
     requestAnimationFrame(frame);
     const dt = Math.min((now - previous) / 1000, .05); previous = now;
     if (sculpting && now - lastSculpt >= 50) { applySculpt(Math.min((now - lastSculpt) / 1000, .1)); lastSculpt = now; }
     sky.update(camera, dt);
+    // Lastregelung: Bleibt die Bildzeit über zwei Sekunden hoch, sinkt die Auflösung stufenweise; ganz unten entfällt das Felsdetail.
+    if (now - perf.last < 250) { perf.sum += now - perf.last; perf.frames++; } perf.last = now; // lange Pausen (Tab im Hintergrund) zählen nicht
+    if (perf.sum >= 2000 && perf.frames > 0) {
+      const average = perf.sum / perf.frames; perf.sum = 0; perf.frames = 0;
+      if (!document.hidden && average > 30 && perf.level < 5) {
+        perf.level++;
+        if (pixelRatio > 1) pixelRatio = Math.max(1, pixelRatio - .5); else if (pixelRatio > .75) pixelRatio = .75; else terrainUniforms.uDetail.value = 0;
+        renderer.setPixelRatio(pixelRatio); renderer.setSize(innerWidth, innerHeight);
+      }
+    }
     if(gameplay && !gameplay.active) gameplay.previewUpdate(dt);
     if(gameplay && gameplay.active) {
       gameplay.update(dt);
@@ -830,7 +899,7 @@
       world.checks.push({name,passed:Math.hypot(p.x-end[0],p.z-end[1])<.5});
     }
     world.checks.push({name:'Kirchenmauer hält Schüsse auf',passed:world.rayDistance({x:91,y:gameFloor(91,30)+2,z:30},{x:0,y:0,z:-1},30)<10});
-    globalThis.NachtjagdDebug={sky,world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
+    globalThis.NachtjagdDebug={renderer,sky,world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
     const report=document.createElement('pre'); report.id='game-tests'; report.hidden=true; report.textContent=JSON.stringify({checks:world.checks}); document.body.append(report);
   }
   // Ansichten auf die Fahrzeugorte (Koordinaten kommen aus der Weltbeschreibung)

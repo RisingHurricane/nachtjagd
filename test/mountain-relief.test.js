@@ -8,7 +8,7 @@ const source = await readFile(new URL('../public/entwurf/mountain-relief.js', im
 const context = { Math };
 context.globalThis = context;
 vm.runInNewContext(source, context);
-const { relief, START, FULL, TOP } = context.NachtjagdRelief;
+const { relief, soften, START, FULL, TOP } = context.NachtjagdRelief;
 
 test('unter der Startgrenze bleibt die Höhe exakt erhalten', () => {
   for (let x = -800; x <= 800; x += 37) for (let z = -700; z <= 700; z += 41) {
@@ -29,8 +29,8 @@ test('Relief ist deterministisch, endlich und begrenzt', () => {
     for (const h of [150, 240, 330, 436, 600]) {
       const a = relief(x, z, h), b = relief(x, z, h);
       assert.equal(a, b);
-      assert.ok(Number.isFinite(a) && a <= TOP && Math.abs(a - h) < 260, `${a} bei h=${h}`);
-      total++; if (Math.abs(a - h) > 1) changed++;
+      assert.ok(Number.isFinite(a) && a <= TOP && Math.abs(a - soften(h)) < 260, `${a} bei h=${h}`);
+      total++; if (Math.abs(a - soften(h)) > 1) changed++;
     }
   }
   assert.ok(changed / total > 0.6, 'Gipfelhöhen müssen sich deutlich verändern');

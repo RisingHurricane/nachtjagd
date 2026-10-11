@@ -34,16 +34,18 @@ globalThis.NachtjagdSky = {
       uCover: { value: .7 }, uTime: { value: 0 }, uGlow: { value: 1 }, uDark: { value: .5 }
     };
     const material = new THREE.ShaderMaterial({
-      uniforms, side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false,
-      vertexShader: 'varying vec3 vDir;\nvoid main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+      uniforms, side: THREE.BackSide, depthWrite: false, depthTest: true, fog: false,
+      vertexShader: 'varying vec3 vDir;\nvoid main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); gl_Position.z = gl_Position.w; }',
       fragmentShader: `
 varying vec3 vDir;
 uniform vec3 uSun, uHorizon, uMid, uZenith, uGround, uSunCol, uCloudLit, uCloudDark;
 uniform float uCover, uTime, uGlow, uDark;
 float h21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
 float n2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(h21(i), h21(i + vec2(1,0)), f.x), mix(h21(i + vec2(0,1)), h21(i + vec2(1,1)), f.x), f.y); }
-float fbm2(vec2 p) { float a = .5, s = 0.; for (int i = 0; i < 5; i++) { s += a * n2(p); p = p * 2.02 + vec2(3.1, 1.7); a *= .5; } return s; }
-float field(vec2 p) { float b = fbm2(p); float d = fbm2(p * 3.1 + vec2(uTime * .012, 0.)); return b * .78 + d * .22; }
+float fbm2(vec2 p) { float a = .5, s = 0.; for (int i = 0; i < 4; i++) { s += a * n2(p); p = p * 2.02 + vec2(3.1, 1.7); a *= .5; } return s; }
+float fbm2b(vec2 p) { return .66 * n2(p) + .34 * n2(p * 2.03 + vec2(3.1, 1.7)); }
+float field(vec2 p) { return fbm2(p) * .8 + fbm2b(p * 3.1 + vec2(uTime * .012, 0.)) * .2; }
+float fieldLight(vec2 p) { return fbm2b(p) * .55 + n2(p * 4.4) * .15 + .3 * n2(p * .5); }
 void main() {
   vec3 d = normalize(vDir);
   float y = d.y, up = max(y, 0.);
@@ -61,8 +63,8 @@ void main() {
     float thr = 1. - uCover;
     float dens = smoothstep(thr - .03, thr + .3, f);
     vec2 toward = normalize(uSun.xz + vec2(1e-4)) * .05;
-    float f2 = field(p + toward);
-    float shade = clamp((f - f2) * 5. + .5, 0., 1.);
+    float f2 = fieldLight(p + toward), f1 = fieldLight(p);
+    float shade = clamp((f1 - f2) * 6. + .5, 0., 1.);
     float edge = 1. - smoothstep(thr + .04, thr + .34, f);
     float facing = .4 + .6 * sqrt(sd);
     vec3 cc = mix(uCloudDark, uCloudLit, smoothstep(.25, .8, shade) * facing);
@@ -80,7 +82,8 @@ void main() {
 }`
     });
     const dome = new THREE.Mesh(new THREE.SphereGeometry(3200, 40, 20), material);
-    dome.frustumCulled = false; dome.renderOrder = -1000; dome.name = 'Himmel';
+    dome.frustumCulled = false; dome.renderOrder = 1000; // zuletzt und mit Tiefe 1: nur sichtbare Himmelspixel werden berechnet
+     dome.name = 'Himmel';
     scene.add(dome);
     const baseSun = sun.intensity, baseHemi = hemi.intensity;
     const tmp = new THREE.Color(), fogColor = new THREE.Color();
