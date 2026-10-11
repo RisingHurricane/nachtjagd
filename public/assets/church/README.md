@@ -2,6 +2,8 @@
 
 Erste ausgearbeitete Modellfassung nach den Kirchenreferenzen: gotische Steinwände, steiles Schieferdach und schlanker, leicht geschwungener Turmhelm mit dunklem Holz. Innen: offener Mittelgang, Bänke, Altar, Rippengewölbe und farbige Bleiverglasung. Die Decke greift die verblassten Blau- und Goldtöne der Freskoreferenz auf; sie enthält kein figuratives Fresko. Alle Materialien sind neu erzeugt. Keine privaten Referenzbilder sind Bestandteil des Pakets.
 
+Fassung 1.1: Turm um 6 m erhöht (Spitze jetzt etwa 35 m über Fußboden). An der Ostseite liegt ein längerer niedriger Kapellenbau, westlich hinten eine kleinere Sakristei. Die beiden Anbauten sind zunächst geschlossene grobe Baukörper mit eigenen Dächern und einfachen Fensterandeutungen; sie besitzen noch keine zugänglichen Innenräume. Ihr verbreiterter Grundriss ist bei Terrain und Außenkollision zu berücksichtigen. Eingang, Mittelgang und ebener Fußboden bleiben an derselben Stelle. Glocke und ihr oberer Anker wurden mit dem Turm angehoben.
+
 ## Dateien
 
 - `church.glb`: Spielmodell mit eingebetteten Texturen, getrennten Türscharnieren und Glocke. Keine Vorschaukameras oder Beleuchtung enthalten.
@@ -48,3 +50,5 @@ Loader, Szene und Materialdarstellung verwenden dieselbe Three.js-Version wie da
 ```
 
 Der Generator schreibt das GLB, die Blender-Datei, beide JSON-Dateien und zwei Kontrollansichten. Details und Texturen können danach in Blender weiter verfeinert werden. Das ist eine eigenständige erste Spielmodellfassung, noch keine fotorealistische Endfassung.
+
+Für schnelle Änderungen der Außenform `-- --quick` ergänzen: nur die Außenansicht mit reduzierten Render-Einstellungen erneuern. Die bestehende Innenansicht bleibt dabei erhalten.

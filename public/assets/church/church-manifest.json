@@ -1,6 +1,6 @@
 {
   "asset": "NachtjagdChurch",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "units": "metres",
   "upAxis": "Y",
   "frontAxis": "+Z",
@@ -13,16 +13,16 @@
   },
   "bounds": {
     "x": [
-      -7.12,
-      7.12
+      -11.305,
+      11.009
     ],
     "y": [
       -1.4,
-      29.11
+      35.11
     ],
     "z": [
       -30.76,
-      3
+      3.0
     ]
   },
   "anchors": {
@@ -43,7 +43,7 @@
     ],
     "bellMount": [
       0,
-      17.7,
+      23.7,
       -3.5
     ]
   },
@@ -76,9 +76,10 @@
     }
   ],
   "limitations": [
+    "Side buildings are closed blockout volumes without accessible interiors",
     "Bell tower has no walkable staircase in this asset version",
     "Terrain requires one common floor pad; cut or lower terrain below nave",
     "Door leaves are open by default; closed doors need dynamic collision"
   ],
-  "estimatedTriangles": 26636
+  "estimatedTriangles": 33126
 }

@@ -1,5 +1,5 @@
 """Eigenständige Bergkirche: Blender-Quelle, GLB und Einbauvertrag."""
-import bpy, bmesh, math, json, random, pathlib
+import bpy, bmesh, math, json, random, pathlib, sys
 import numpy as np
 from mathutils import Vector
 print('CHURCH start', flush=True)
@@ -14,6 +14,7 @@ bpy.ops.object.delete(use_global=False)
 # Alle Modellmaße in Spielkoordinaten: Meter, Y oben, Eingang in Richtung +Z.
 def xyz(x, y, z): return (x, -z, y)
 colliders, floors, doors = [], [], []
+TOWER_RISE = 6.0
 
 def texture(name, kind, size=512):
     yy, xx = np.mgrid[0:size, 0:size].astype(float)
@@ -189,12 +190,15 @@ for side in [-1,1]:
         box('Buttress',side*6.65,3.6,z,.8,7.2,.75,stone,bevel=.025,solid=True)
         box('Buttress cap',side*6.65,7.3,z,.94,.22,.9,trim,bevel=.03)
         beam('Oak cornice',(side*6.42,8.85,-30),(side*6.42,8.85,-7),.22)
-    tw=box('Tower wall '+str(side),side*3.28,8.25,-3.5,.44,16.5,7,stone,solid=True)
+    tw=box('Tower wall '+str(side),side*3.28,8.25+TOWER_RISE/2,-3.5,.44,16.5+TOWER_RISE,7,stone,solid=True)
     cut(tw,'tower slit',side*3.28,7.1,-3.6,1.0,3.2,True)
     window('Tower slit',side*3.29,7.1,-3.6,1.0,3.2,True)
-    for z in [-6.75,-.35]: box('Tower corner pier',side*3.31,7.9,z,.62,15.8,.62,trim,bevel=.025)
+    cut(tw,'upper tower slit',side*3.28,15.4,-3.6,1.2,3.8,True)
+    window('Upper tower slit',side*3.29,15.4,-3.6,1.2,3.8,True)
+    for z in [-6.75,-.35]: box('Tower corner pier',side*3.31,7.9+TOWER_RISE/2,z,.62,15.8+TOWER_RISE,.62,trim,bevel=.025)
 
 print('CHURCH side walls ready', flush=True)
+box('Tower rear upper wall',0,(9+16.5+TOWER_RISE)/2,-6.78,6.6,7.5+TOWER_RISE,.44,stone,solid=True)
 rear=box('Sanctuary rear wall',0,4.5,-29.78,12.6,9,.44,stone,solid=True)
 cut(rear,'altar window',0,3.4,-29.78,3.6,5.0)
 window('Sanctuary great window',0,3.4,-29.8,3.6,5.0)
@@ -202,12 +206,14 @@ front=box('Nave front wall',0,4.5,-7.2,12.6,9,.44,stone)
 cut(front,'tower passage',0,0,-7.2,2.9,5.4)
 for side in [-1,1]: colliders.append({'id':'nave-front-'+str(side),'center':[side*3.875,4.5,-7.2],'halfSize':[2.425,4.5,.22]})
 colliders.append({'id':'nave-front-lintel','center':[0,7.2,-7.2],'halfSize':[1.45,1.8,.22]})
-facade=box('Tower entrance wall',0,8.25,-.22,6.6,16.5,.44,stone)
+facade=box('Tower entrance wall',0,8.25+TOWER_RISE/2,-.22,6.6,16.5+TOWER_RISE,.44,stone)
 cut(facade,'entrance',0,0,-.22,2.7,4.2)
 window('Tower entrance upper window',0,8.7,.03,2.0,4.6)
 cut(facade,'entrance upper window',0,8.7,-.22,2.0,4.6)
-for side in [-1,1]: colliders.append({'id':'entrance-pier-'+str(side),'center':[side*2.325,8.25,-.22],'halfSize':[.975,8.25,.22]})
-colliders.append({'id':'entrance-lintel','center':[0,10.35,-.22],'halfSize':[1.35,6.15,.22]})
+cut(facade,'upper front tower slit',0,15.4,-.22,1.4,3.8)
+window('Upper front tower slit',0,15.4,.03,1.4,3.8)
+for side in [-1,1]: colliders.append({'id':'entrance-pier-'+str(side),'center':[side*2.325,8.25+TOWER_RISE/2,-.22],'halfSize':[.975,8.25+TOWER_RISE/2,.22]})
+colliders.append({'id':'entrance-lintel','center':[0,10.35+TOWER_RISE/2,-.22],'halfSize':[1.35,6.15+TOWER_RISE/2,.22]})
 for w,h,depth in [(3.28,4.8,.3),(3.0,4.5,.26),(2.78,4.28,.22)]:
     place(ring('Carved entrance arch',arch(w,h),.94,depth,trim),0,-.02,.05)
 
@@ -232,16 +238,16 @@ for z in np.arange(-30,-7,.8):
     box('Ridge ornament',0,15.58,float(z),.11,.25,.11,iron)
 
 # Leicht geschwungener schlanker Turmhelm nach der Holmenkollen-Silhouette.
-box('Belfry lower belt',0,16.55,-3.5,7.35,.35,7.35,wood)
-box('Belfry upper belt',0,18.65,-3.5,7.6,.28,7.6,wood)
+box('Belfry lower belt',0,16.55+TOWER_RISE,-3.5,7.35,.35,7.35,wood)
+box('Belfry upper belt',0,18.65+TOWER_RISE,-3.5,7.6,.28,7.6,wood)
 for x in [-3.25,3.25]:
-    for z in [-6.75,-.25]: box('Belfry oak post',x,17.6,z,.32,2.1,.32,wood)
+    for z in [-6.75,-.25]: box('Belfry oak post',x,17.6+TOWER_RISE,z,.32,2.1,.32,wood)
 for side in [-1,1]:
     for offset in [-2.2,0,2.2]:
         for y in np.arange(16.85,18.4,.22):
-            box('Belfry louvre',side*3.3,float(y),-3.5+offset,.12,.10,1.9,wood)
-            box('Belfry louvre',offset,float(y),-3.5+side*3.3,1.9,.10,.12,wood)
-levels=[(18.8,4.2),(19.2,3.65),(20.2,2.75),(22.0,1.95),(25.0,.95),(28.2,.06)]
+            box('Belfry louvre',side*3.3,float(y)+TOWER_RISE,-3.5+offset,.12,.10,1.9,wood)
+            box('Belfry louvre',offset,float(y)+TOWER_RISE,-3.5+side*3.3,1.9,.10,.12,wood)
+levels=[(y+TOWER_RISE,r) for y,r in [(18.8,4.2),(19.2,3.65),(20.2,2.75),(22.0,1.95),(25.0,.95),(28.2,.06)]]
 v=[(sx*r,y,-3.5+sz*r) for y,r in levels for sx,sz in [(-1,-1),(1,-1),(1,1),(-1,1)]]
 f=[]
 for i in range(len(levels)-1):
@@ -249,7 +255,23 @@ for i in range(len(levels)-1):
 mesh('Curved square slate spire',v,f,slate)
 for sx,sz in [(-1,-1),(1,-1),(1,1),(-1,1)]:
     for (y0,r0),(y1,r1) in zip(levels,levels[1:]): beam('Spire corner seam',(sx*r0,y0,-3.5+sz*r0),(sx*r1,y1,-3.5+sz*r1),.07,iron)
-cross('Spire cross',0,28.2,-3.5,.7)
+cross('Spire cross',0,28.2+TOWER_RISE,-3.5,.7)
+
+# Zwei unterschiedlich große Anbauten, vorerst geschlossene grobe Baukörper.
+def annex(name,x,z,w,d,h,ridge):
+    box(name+' foundation',x,-.75,z,w+.25,1.3,d+.25,stone)
+    box(name+' volume',x,h/2,z,w,h,d,stone,solid=True)
+    for end in [-1,1]:
+        zz=z+end*d/2
+        place(prism(name+' gable',[(-w/2,h),(w/2,h),(0,ridge)],.2,wood),x,0,zz)
+    existing=set(bpy.context.scene.objects)
+    roof(name+' roof',w+.7,z-d/2-.4,z+d/2+.4,h,ridge)
+    for o in set(bpy.context.scene.objects)-existing: o.location.x+=x
+    # Fenster nur als einfache äußere Andeutungen; kein fertiger Anbau-Innenraum.
+    window(name+' front window',x,1.2,z+d/2+.06,1.3,2.6)
+
+annex('East side chapel',8.35,-16.5,4.5,15.0,4.4,6.9)
+annex('West sacristy',-8.5,-25.0,4.8,8.5,3.8,6.1)
 
 # Begehbarer Innenraum: hoher Spitzbogenhimmel, Rippen, Bänke, Altar.
 vault=[(float(x),13.2-.65*abs(float(x))-.03*float(x)**2) for x in np.linspace(-6,6,49)]
@@ -278,10 +300,10 @@ for x in [-3.4,3.4]:
         box('Lantern amber pane',x,5.3,z,.30,.46,.30,material('Lantern amber',(.8,.38,.10),emission=1.4))
 
 # Echte Glocke, unabhängiger Interaktionsanker; noch keine Turmtreppe.
-bpy.ops.mesh.primitive_cone_add(vertices=24,radius1=.64,radius2=.32,depth=.75,location=xyz(0,17.2,-3.5))
+bpy.ops.mesh.primitive_cone_add(vertices=24,radius1=.64,radius2=.32,depth=.75,location=xyz(0,17.2+TOWER_RISE,-3.5))
 bell=bpy.context.object; bell.name='Bell'; bell.data.materials.append(brass)
-beam('Bell yoke',(-1,17.7,-3.5),(1,17.7,-3.5),.18,wood)
-for name,point in [('Entrance',(0,0,.2)),('SanctuarySeal',(0,.4,-25.6)),('BellInteract',(0,1.1,-2)),('BellMount',(0,17.7,-3.5))]:
+beam('Bell yoke',(-1,17.7+TOWER_RISE,-3.5),(1,17.7+TOWER_RISE,-3.5),.18,wood)
+for name,point in [('Entrance',(0,0,.2)),('SanctuarySeal',(0,.4,-25.6)),('BellInteract',(0,1.1,-2)),('BellMount',(0,17.7+TOWER_RISE,-3.5))]:
     o=bpy.data.objects.new(name,None); bpy.context.collection.objects.link(o); o.location=xyz(*point); o.empty_display_size=.35
 
 # UVs und wenige statische Materialgruppen statt hunderter Draw Calls.
@@ -313,7 +335,7 @@ for name,objects in groups.items():
 root=bpy.data.objects.new('NachtjagdChurch',None); bpy.context.collection.objects.link(root)
 for o in list(bpy.context.scene.objects):
     if o!=root and not o.parent: o.parent=root
-root['units']='metres'; root['front']='+Z in glTF'; root['pivot']='entrance threshold'; root['assetVersion']='1.0.0'
+root['units']='metres'; root['front']='+Z in glTF'; root['pivot']='entrance threshold'; root['assetVersion']='1.1.0'
 
 model_objects=[o for o in bpy.context.scene.objects]
 bpy.ops.object.select_all(action='SELECT')
@@ -326,14 +348,14 @@ bpy.context.view_layer.update()
 corners=[o.matrix_world @ Vector(p) for o in model_objects if o.type=='MESH' for p in o.bound_box]
 bounds={axis:[round(min(values),3),round(max(values),3)] for axis,values in [('x',[v.x for v in corners]),('y',[v.z for v in corners]),('z',[-v.y for v in corners])]}
 contract={
-    'asset':'NachtjagdChurch','version':'1.0.0','units':'metres','upAxis':'Y','frontAxis':'+Z',
+    'asset':'NachtjagdChurch','version':'1.1.0','units':'metres','upAxis':'Y','frontAxis':'+Z',
     'pivot':'entrance threshold at local [0,0,0]',
     'suggestedPlacement':{'x':91,'z':24.5,'rotationY':0,'y':'height of the church approach at (91,25); sample once, do not fit each wall separately'},
     'bounds':bounds,
-    'anchors':{'entrance':[0,0,.2],'seal':[0,.4,-25.6],'bellInteract':[0,1.1,-2],'bellMount':[0,17.7,-3.5]},
+    'anchors':{'entrance':[0,0,.2],'seal':[0,.4,-25.6],'bellInteract':[0,1.1,-2],'bellMount':[0,17.7+TOWER_RISE,-3.5]},
     'doorClearWidth':2.7,'doorClearHeightAtCenter':4.2,'centerAisleWidth':2.8,
     'colliderFile':'church-collision.json','doors':doors,
-    'limitations':['Bell tower has no walkable staircase in this asset version','Terrain requires one common floor pad; cut or lower terrain below nave','Door leaves are open by default; closed doors need dynamic collision'],
+    'limitations':['Side buildings are closed blockout volumes without accessible interiors','Bell tower has no walkable staircase in this asset version','Terrain requires one common floor pad; cut or lower terrain below nave','Door leaves are open by default; closed doors need dynamic collision'],
     'estimatedTriangles':triangles
 }
 (OUT/'church-manifest.json').write_text(json.dumps(contract,indent=2),encoding='utf8')
@@ -355,12 +377,18 @@ def camera(name,eye,target,lens=42):
     d=bpy.data.cameras.new(name); d.lens=lens
     o=bpy.data.objects.new(name,d); bpy.context.collection.objects.link(o); o.location=xyz(*eye)
     o.rotation_euler=(Vector(xyz(*target))-o.location).to_track_quat('-Z','Y').to_euler(); return o
-exterior=camera('Exterior camera',(35,23,43),(0,10,-13),44)
+exterior=camera('Exterior camera',(42,29,51),(0,17,-13),40)
 interior=camera('Interior camera',(0,2.1,-5),(0,6,-27),18)
 scene=bpy.context.scene; scene.render.engine='CYCLES'; scene.cycles.samples=32
 scene.cycles.use_denoising=True; scene.render.resolution_x=1400; scene.render.resolution_y=1100; scene.render.resolution_percentage=100
+quick='--quick' in sys.argv
+if quick:
+    scene.cycles.samples=8
+    scene.render.resolution_percentage=70
+    bpy.context.preferences.filepaths.save_version=0
 scene.view_settings.view_transform='AgX'; scene.camera=exterior
 bpy.ops.wm.save_as_mainfile(filepath=str(OUT/'church.blend'))
 scene.render.filepath=str(OUT/'church-exterior.png'); bpy.ops.render.render(write_still=True)
-scene.camera=interior; scene.render.filepath=str(OUT/'church-interior.png'); bpy.ops.render.render(write_still=True)
+if not quick:
+    scene.camera=interior; scene.render.filepath=str(OUT/'church-interior.png'); bpy.ops.render.render(write_still=True)
 print('CHURCH_EXPORT',json.dumps({'glbBytes':(OUT/'church.glb').stat().st_size,'triangles':triangles,'meshes':sum(o.type=='MESH' for o in model_objects)}))
