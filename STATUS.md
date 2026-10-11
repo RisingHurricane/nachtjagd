@@ -84,6 +84,8 @@ Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` un
 
 ## Übergabe-Log
 
+- 2026-10-11, Codex: Die vier separaten Hausstudien auf Nutzerwunsch komplexer überarbeitet: gestaffelte/auskragende Volumen, Querflügel, Erker, Vorbauten, große Dachgauben, Schornsteine und offene Vorhalle. Deutlich steilere Hauptdächer (ungefähr 55–63 Grad). Weiterhin nur grobe Quader und Dachprismen, keine Fenster/Texturen/Innenräume, kein Einbau ins Dorf. Vorschau `haeuser.html`, Cachekennung `haeuser2`. Gemeinsame Spielversion 22 bleibt unverändert; keine Veröffentlichung auf main/gh-pages.
+
 - 2026-10-11, Codex: Entwurf 22 auf neuem Branch `codex/unified-ui` direkt von Claudes Entwurf 21 zusammengeführt. Menü/Überflug, HUD, Kompass und Minikarte übertragen; Musik auf N, Karte auf M. Burg, Innenraumlicht, Modelle und neue Lenkung erhalten. Vier Häuser nur als separate grobe Studien. 165 Tests bestanden, UI lokal geprüft. Drei.js-Testabhängigkeit als `three@0.170.0` dokumentiert. Ausschließlich Arbeitszweig sichern, keine Veröffentlichung auf main/gh-pages ohne Freigabe. Nächster Schritt: gemeinsame Version reviewen und nach Lights Freigabe unter dem einen bestehenden Spielpfad veröffentlichen.
 
 - 2026-10-10, Codex: Entwurf 04 mit begehbarem siebenbogigem Viadukt, Gebirgsring, stärkerem Hügelrelief und sanftem Seeufer. Versionskennung und versionierte Skriptadressen ergänzt. 54 Tests und zwölf geometrische Browserprüfungen bestanden.
