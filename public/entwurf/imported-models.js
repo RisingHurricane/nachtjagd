@@ -6,7 +6,17 @@ globalThis.NachtjagdImportedModels = (() => {
   const LOD_RADIUS = 140;
   // Auf GitHub Pages liegen die Modelle eine Ebene über dem Ordner entwurf/, in der Artifact-Vorschau neben der Seite.
   const scriptUrl = document.currentScript.src;
-  const base = new URL(/\/entwurf\/[^/]*$/.test(new URL(scriptUrl).pathname) ? '../assets/imported/' : './assets/imported/', scriptUrl);
+  const onPages = /\/entwurf\/[^/]*$/.test(new URL(scriptUrl).pathname);
+  const base = new URL(onPages ? '../assets/imported/' : './assets/imported/', scriptUrl);
+  // Die Artifact-Vorschau liefert keine .glb-Dateien aus, dort liegen dieselben Bytes als Base64-Text unter der Endung .txt.
+  const suffix = onPages ? '' : '.txt';
+  async function loadGltf(url) {
+    const loader = new T.GLTFLoader();
+    if (!suffix) return loader.loadAsync(url);
+    const text = (await (await fetch(url)).text()).trim(), binary = atob(text), bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Promise((resolve, reject) => loader.parse(bytes.buffer, new URL('.', url).href, resolve, reject));
+  }
   const files = {
     monster: 'monster.glb', wendigo: 'stylized_low-poly_wendigo.glb',
     pine: 'low_poly_forest_tree.glb', pack: 'low_poly_forest_tree_pack.glb',
@@ -99,7 +109,7 @@ globalThis.NachtjagdImportedModels = (() => {
   }
   const ready = Promise.all(Object.entries(files).map(async ([key, file]) => {
     try {
-      const gltf = await new T.GLTFLoader().loadAsync(new URL(file, base).href);
+      const gltf = await loadGltf(new URL(file + suffix, base).href);
       templates[key] = prepare(key, gltf);
     } catch (error) {
       errors.push(file); console.warn('Modell bleibt vorläufig als Platzhalter:', file, error);
