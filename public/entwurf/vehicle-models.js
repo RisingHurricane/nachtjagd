@@ -113,6 +113,8 @@ globalThis.NachtjagdVehicleModels = (() => {
     }
   };
 
+  NachtjagdImportedModels.installJeep(builders);
+
   // ------------------------------------------------------------------ Schienen, Seilbahn
   function buildStatic(THREE, { world, layout }) {
     const group = new THREE.Group();

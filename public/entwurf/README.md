@@ -48,3 +48,17 @@ Spiel starten verbindet die neue Welt mit einem ausgelagerten Teil der neuesten 
 gameplay-core.js enthält Spielzustand und Regeln ohne Three.js/DOM; gameplay.js verbindet Darstellung/Eingabe. Es sind 78 Node-Tests vorhanden (davon neun Spielkernprüfungen). ?test=terrain ergänzt acht Weltadapterprüfungen im ausgeblendeten Bericht #game-tests. Spezialgegner, Händler, Relikte, Wetter, Fahrzeuge, echte Minentunnel und Online-Koop sind noch nicht übertragen. Originalimport und Vergleich bleiben erhalten.
 
 Veröffentlichte Ansicht geprüft: alle 22 Gelände- und acht Spieladapterprüfungen bestanden; Spielstart, Schussverbrauch (6/30 auf 5/30), Nachladen (6/29), Pause/Fortsetzen und Layout-Rückkehr sichtbar bestätigt. Ein vollständiger manueller Durchlauf aller drei Siegel bleibt für die nächste Sitzung.
+
+
+### Modelltest: heruntergeladene Modelle
+
+Sechs vom Besitzer bereitgestellte GLBs unter `public/assets/imported/`. `imported-models.js` ersetzt Baum-, Gegner- und Jeepdarstellung auf dem Stand von `claude/spiellogik` (6cd178d). Die drei Baumdateien ergeben acht einzeln verteilte Varianten; die zusammengesetzte Datei `low-poly_trees.glb` wurde dafür in Einzelobjekte getrennt. Waldpositionen, Terrainpinsel, Kollisionen, Sitzplätze und Fahrphysik stammen weiterhin aus der Welt bzw. dem Spielkern. Der Jeep fährt, hat aber im heruntergeladenen Modell keine separaten beweglichen Räder. Der Wendigo hat ein eigenes Skelett und eine Schleifenanimation je Gegner; das zweite Monster ist statisch. Ladefehler behalten die bisherigen Platzhalter. Die originalen Downloads bleiben unverändert erhalten.
+
+Quellen und Namensnennung laut den mitgelieferten Modelldaten; Änderungen: Größen/Orientierung/Boden angepasst, Baumobjekte getrennt, Jeep-Präsentationsfläche ausgeblendet:
+
+- monster — jwilson32 (https://sketchfab.com/jwilson32) — CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/) — https://sketchfab.com/3d-models/monster-33f0c8721e164c3296be9e889e4704e1
+- low poly forest tree — ungureanuteofil (https://sketchfab.com/ungureanuteofil) — SKETCHFAB Standard (https://sketchfab.com/licenses) — https://sketchfab.com/3d-models/low-poly-forest-tree-48c948ae46804e7e85f9d98342b42623
+- Low Poly Forest Tree Pack — 99.Miles (https://sketchfab.com/99.Miles) — CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/) — https://sketchfab.com/3d-models/low-poly-forest-tree-pack-5ff5a51e74324845a4e4905f182dfb2b
+- Low-poly trees — Sergey Egelsky (https://sketchfab.com/egelsky) — CC-BY-SA-4.0 (http://creativecommons.org/licenses/by-sa/4.0/) — https://sketchfab.com/3d-models/low-poly-trees-03523a05efdd4fafaca67ad118382900
+- Willys Jeep Low Poly — InnocentBaraka (https://sketchfab.com/InnocentBaraka) — CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/) — https://sketchfab.com/3d-models/willys-jeep-low-poly-57ab28eb0f21472ead1f5dadf4e73a27
+- Stylized Low-Poly Wendigo — PolyGoreStudio (https://sketchfab.com/Phu.99) — CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/) — https://sketchfab.com/3d-models/stylized-low-poly-wendigo-e93de51dcccf4525babc4249e2c43d7c

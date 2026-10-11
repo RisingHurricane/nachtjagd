@@ -179,7 +179,7 @@ globalThis.NachtjagdPlay = {
       document.body.classList.add('playing'); hud.hidden=false; setVisible(true);
       camera.fov=74; camera.updateProjectionMatrix(); game.setLook(Math.PI,0); current=game.snapshot();
       feedLines.length=0; say('Finde die drei Mondsiegel bei Kirche, Mine und Burg.',8); torchOn=true;
-      for(const m of actorMeshes.values()) actors.remove(m); actorMeshes.clear();
+      for(const m of actorMeshes.values()) actors.remove(m); for(const mesh of actorMeshes.values()) NachtjagdImportedModels.disposeEnemy(mesh); actorMeshes.clear();
       vehicleLayer.clear(); vehicleLayer.setStatic(NachtjagdVehicleModels.buildStatic(THREE,{world,layout:game.layout()})); mouseSteer=0;
       update(0); showPanel(); lockPointer();
     }
@@ -284,14 +284,16 @@ globalThis.NachtjagdPlay = {
       // Gegner
       for(const m of current.monsters) {
         const group=actor(m),spec=ENEMIES[m.kind],d=group.userData;
+        NachtjagdImportedModels.decorateEnemy(group,m.kind,spec);
         const rise=m.state==='emerge'&&!spec.air?-(1-Math.min(1,m.em/spec.emerge))*2.2*spec.scale:0;
         group.position.set(m.x,m.y+(m.lift||0)+rise,m.z); group.rotation.y=m.yaw;
         group.scale.setScalar(m.sv||1);
         if(spec.air) { const flap=Math.sin(clock*(m.kind==='bat'?24:8)+m.id)*(m.A.ph==='dive'?.2:.55); d.parts.wingL.rotation.z=flap; d.parts.wingR.rotation.z=-flap; }
         const hot=m.state==='windup'?.5:0,hurt=m.hit>0?.7:0;
+        NachtjagdImportedModels.updateEnemy(group,dt,hurt,hot);
         d.mat.emissive.setRGB(Math.max(hurt,hot*(m.kind==='bloater'?.5+.5*Math.sin(clock*40):1)),hurt*.1,0);
       }
-      for(const [id,mesh] of actorMeshes) if(!current.monsters.some(m=>m.id===id)) { actors.remove(mesh); actorMeshes.delete(id); }
+      for(const [id,mesh] of actorMeshes) if(!current.monsters.some(m=>m.id===id)) { NachtjagdImportedModels.disposeEnemy(mesh); actors.remove(mesh); actorMeshes.delete(id); }
       // Siegel, Glocke, Beute
       markerMeshes.forEach(({o,mesh},i)=>{
         mesh.visible=!current.quest.objectives[i].found;

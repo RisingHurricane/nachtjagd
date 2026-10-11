@@ -428,6 +428,7 @@
     if(slope<.7) plantTree(x,z,true,true);
   }
   forest.count = trunks.count = treeCount; forest.castShadow = trunks.castShadow = true; scene.add(forest, trunks);
+  const importedForest = NachtjagdImportedModels.buildForest({scene, placements:treePlacements, heightAt:groundHeight, forest, trunks});
   // Niedriger Waldboden bleibt durchquerbar; nur Baumstämme kollidieren.
   const undergrowth = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0), new THREE.MeshLambertMaterial({color:'#718455'}),3296);
   let coverCount=0;
@@ -605,6 +606,7 @@
       dummy.position.set(tree.x, groundHeight(tree.x, tree.z) + tree.clearance + tree.height / 2, tree.z); dummy.scale.set(tree.rx, tree.height, tree.rz); dummy.updateMatrix(); forest.setMatrixAt(i, dummy.matrix);
       dummy.position.y = groundHeight(tree.x,tree.z) + (tree.clearance + 2) / 2; dummy.scale.set(.4, tree.clearance + 2, .4); dummy.updateMatrix(); trunks.setMatrixAt(i, dummy.matrix);
     });
+    importedForest.update();
     forest.instanceMatrix.needsUpdate = true;
     trunks.instanceMatrix.needsUpdate = true;
     coverPlacements.forEach((plant,i)=>{
@@ -916,7 +918,7 @@
     }
     views.gondola={target:[(st[0].x+st[1].x)/2,(st[0].y+st[1].y)/2,(st[0].z+st[1].z)/2],distance:420,yaw:.9,polar:.95,name:'Gondelbahn · Talstation und Bergstation · zwei Kabinen'};
     views.talstation={target:[st[0].x,st[0].y+3,st[0].z],distance:30,yaw:-.4,polar:1.05,name:'Talstation der Gondelbahn'};
-    views.jeep={target:[jeep.x,gameFloor(jeep.x,jeep.z)+1,jeep.z],distance:28,yaw:.6,polar:.9,name:'Geländewagen am Dorfrand · Platzhaltermodell'};
+    views.jeep={target:[jeep.x,gameFloor(jeep.x,jeep.z)+1,jeep.z],distance:28,yaw:.6,polar:.9,name:'Willys Jeep am Dorfrand'};
     views.boats={target:[boat.x,world.waterLevel,boat.z],distance:45,yaw:.4,polar:.8,name:'Ruderboote am Seesteg · Platzhaltermodell'};
     views.carts={target:[world.rails.nodes[0].x,gameFloor(world.rails.nodes[0].x,world.rails.nodes[0].z)+1,world.rails.nodes[0].z],distance:40,yaw:.5,polar:.4,name:'Minenschienen mit Loren · Platzhaltermodell'};
   }
