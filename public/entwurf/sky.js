@@ -114,8 +114,8 @@ void main() {
       uniforms.uSun.value.copy(sunAt(n, dawn));
       uniforms.uGlow.value = lerp(1, .12, n) * (1 - dawn) + dawn * .9;
       uniforms.uDark.value = lerp(.45, .8, n);
-      // Viele Wolken von Anfang an, in der Nacht fast geschlossen.
-      const cover = Math.max(state.cover, .62 + .3 * n);
+      // Dichte Wolkendecke von Anfang an, in der Nacht geschlossen; nur das Morgengrauen reißt sie auf.
+      const cover = Math.min(1, Math.max(state.cover, .82 + .16 * n));
       uniforms.uCover.value = lerp(cover, Math.min(cover, .5), dawn);
       // Licht
       const dir = lightAt(n, dawn);

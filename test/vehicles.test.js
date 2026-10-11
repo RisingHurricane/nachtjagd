@@ -248,3 +248,35 @@ test('snapshot with vehicles stays plain JSON and exposes eye height per vehicle
   game.interact();
   assert.equal(game.snapshot().player.eye, 1.06);
 });
+
+test('jeep: Lenkeinschlag baut sich weich auf und schrumpft mit dem Tempo', () => {
+  const { game } = make({ jeeps: [{ x: 0, z: 0, yaw: 0 }] }); game.start(); game.interact();
+  advance(game, 3, { forward: 1 });
+  const y0 = veh(game).yaw;
+  advance(game, 0.1, { forward: 1, side: 1 });
+  const early = Math.abs(veh(game).yaw - y0);
+  advance(game, 1.5, { forward: 1, side: 1 });
+  const later = Math.abs(veh(game).yaw - y0);
+  assert.ok(early < 0.12, 'kurzer Tastendruck dreht kaum: ' + early);
+  assert.ok(later > early * 3, 'dauerhafter Einschlag dreht deutlich mehr');
+});
+
+test('jeep: Vollgas-Kurve ist begrenzt (Untersteuern) und bremst den Wagen', () => {
+  const { game } = make({ jeeps: [{ x: 0, z: 0, yaw: 0 }] }); game.start(); game.interact();
+  advance(game, 6, { forward: 1 });
+  const fast = veh(game).sp;
+  advance(game, 2, { forward: 1, side: 1 });
+  const v = veh(game);
+  assert.ok(v.sp < fast, 'Kurve kostet Tempo');
+  assert.ok(Math.abs(v.yaw) < 2.5, 'dreht nicht auf der Stelle');
+});
+
+test('jeep: Wand streift den Wagen seitlich statt ihn auf Null zu stoppen', () => {
+  const wall = { jeeps: [{ x: 0, z: 0, yaw: 0 }], blocked: (x, z) => z > 40 };
+  const { game } = make(wall); game.start(); game.interact();
+  advance(game, 8, { forward: 1 });
+  const v = veh(game);
+  assert.ok(v.z < 40, 'bleibt vor der Wand');
+  advance(game, 2, { forward: 0 });
+  assert.ok(Number.isFinite(veh(game).x) && veh(game).z < 40);
+});

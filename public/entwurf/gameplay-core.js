@@ -44,12 +44,12 @@
 
   // Wetterfronten, deterministisch aus Zeit und Startwert; sanfte Übergänge über 24 Sekunden.
   const FRONTS = [
-    { name: 'Mondklare Nacht', duration: 210, cover: 0.12, light: 1.16, snow: 0.025, fog: 0.72, wind: 0.32 },
-    { name: 'Leichter Schneefall', duration: 225, cover: 0.38, light: 0.85, snow: 0.32, fog: 1, wind: 0.65 },
-    { name: 'Wolken ziehen auf', duration: 230, cover: 0.76, light: 0.4, snow: 0.12, fog: 1.15, wind: 1.1 },
-    { name: 'Schneesturm', duration: 240, cover: 0.98, light: 0.16, snow: 0.98, fog: 1.85, wind: 2.5 },
-    { name: 'Finsteres Wolkenmeer', duration: 215, cover: 1, light: 0.025, snow: 0.4, fog: 1.28, wind: 1.4 },
-    { name: 'Aufklarender Himmel', duration: 220, cover: 0.36, light: 0.7, snow: 0.15, fog: 0.9, wind: 0.55 }
+    { name: 'Mondklare Nacht', duration: 210, cover: 0.6, light: 1.0, snow: 0.2, fog: 0.8, wind: 0.4 },
+    { name: 'Leichter Schneefall', duration: 225, cover: 0.78, light: 0.78, snow: 0.6, fog: 1.05, wind: 0.75 },
+    { name: 'Wolken ziehen auf', duration: 230, cover: 0.92, light: 0.4, snow: 0.38, fog: 1.2, wind: 1.1 },
+    { name: 'Schneesturm', duration: 240, cover: 1, light: 0.16, snow: 1, fog: 1.85, wind: 2.5 },
+    { name: 'Finsteres Wolkenmeer', duration: 215, cover: 1, light: 0.025, snow: 0.6, fog: 1.28, wind: 1.4 },
+    { name: 'Aufklarender Himmel', duration: 220, cover: 0.66, light: 0.7, snow: 0.34, fog: 0.9, wind: 0.55 }
   ];
   const WEATHER_PERIOD = FRONTS.reduce((n, f) => n + f.duration, 0);
   function weatherAt(t, seed) {
@@ -839,7 +839,8 @@
     function updateEnv() {
       const w = state.waves, q = state.quest;
       const runProgress = Math.max(0, w.n - 1) + q.got.length * 0.22;
-      const dusk = 1 - smooth(0.15, 2.6, runProgress);
+      // Die Dunkelheit kommt zuerst mit der Zeit (volle Nacht nach gut 100 s), danach hält der Spielfortschritt sie.
+      const dusk = 1 - Math.max(smooth(0.15, 2.6, runProgress), smooth(8, 110, state.time));
       const sunrise = q.stage === 'final' ? smooth(0, 76, 76 - w.finalT) : state.phase === 'won' ? 1 : 0;
       const wx = state.weather;
       state.env = { light: lerp(wx.light, 1.32, sunrise) * (1 + 0.12 * dusk), cover: lerp(wx.cover, 0.12, sunrise), dusk, sunrise, mod: q.stage === 'final' ? 'blood' : w.mod };

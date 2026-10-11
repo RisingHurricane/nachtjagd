@@ -111,24 +111,30 @@ globalThis.NachtjagdPlay = {
     const mix=(a,b,k)=>a+(b-a)*k;
     const lights=[];
     scene.traverse(o=>{ if(o.isLight&&o!==torch&&o!==flash&&o!==boomFlash&&!sky.owns(o)) lights.push({o,base:o.intensity}); });
-    const snowCount=900,snowGeo=new THREE.BufferGeometry(),snowPos=new Float32Array(snowCount*3);
+    const snowCount=2000,snowGeo=new THREE.BufferGeometry(),snowPos=new Float32Array(snowCount*3);
     for(let i=0;i<snowCount;i++) { snowPos[i*3]=(Math.random()-.5)*60; snowPos[i*3+1]=Math.random()*30; snowPos[i*3+2]=(Math.random()-.5)*60; }
     snowGeo.setAttribute('position',new THREE.BufferAttribute(snowPos,3));
-    const snowMat=new THREE.PointsMaterial({color:0xffffff,size:.16,transparent:true,opacity:.8,depthWrite:false}),snow=new THREE.Points(snowGeo,snowMat); snow.frustumCulled=false; effects.add(snow);
-    let torchOn=true;
+    const snowMat=new THREE.PointsMaterial({color:0xffffff,size:.19,transparent:true,opacity:.8,depthWrite:false}),snow=new THREE.Points(snowGeo,snowMat); snow.frustumCulled=false; effects.add(snow);
+    let torchOn=true,indoorK=0;
     function applyEnv(s,dt) {
       const e=s.env,w=s.weather;
       // Der Verlauf von Sonnenuntergang zu tiefer, grauer Nacht folgt dem Spielfortschritt (e.dusk fällt von 1 auf 0).
       const night=1-e.dusk;
       const k=Math.max(.2,Math.min(1.25,.2+.55*e.light+e.sunrise*.4));
-      const color=sky.apply({night,sunrise:e.sunrise,cover:e.cover,grey:w.fog>1.2?.25:0,blood:e.mod==='blood'&&e.sunrise<.4?.55:0,lightK:Math.max(.55,k)});
+      // Drinnen (Burgräume) dämpft Himmelslicht und Schnee; die Innenlampen der Burg bringen eigenes Licht mit.
+      const inside=world.indoor?world.indoor(s.player.x,s.player.y,s.player.z):0;
+      indoorK+=(inside-indoorK)*Math.min(1,dt*4);
+      if(world.tick) world.tick(s.player.x,s.player.y,s.player.z);
+      const color=sky.apply({night,sunrise:e.sunrise,cover:e.cover,grey:w.fog>1.2?.25:0,blood:e.mod==='blood'&&e.sunrise<.4?.55:0,lightK:Math.max(.55,k)*(1-.7*indoorK)});
       scene.background=color; backdrop?.setMood(color);
       scene.fog=scene.fog||new THREE.FogExp2(color,.002);
       scene.fog.color.copy(color); scene.fog.density=.0016*(1+.9*night)*w.fog*(e.mod==='fog'?1.9:1)*(e.sunrise>0?.8:1);
       for(const l of lights) l.o.intensity=l.base*k;
       const lampBonus=(s.up.lamp+(s.relics.lamp?1:0));
       torch.intensity=torchOn?1.35+.25*lampBonus:0; torch.distance=70+14*lampBonus; torch.angle=.5+.07*lampBonus;
-      snowMat.opacity=Math.min(.9,w.snow*1.1)*(e.sunrise>.7?0:1);
+      snowMat.opacity=Math.min(.95,.5+w.snow*.6)*(e.sunrise>.7?0:1)*(1-indoorK);
+      // Stärke des Schneefalls bestimmt, wie viele der Flocken gezeichnet werden.
+      snowGeo.setDrawRange(0,Math.round(snowCount*(.4+.6*w.snow)));
       const pos=snowGeo.attributes.position,px=s.player.x,py=s.player.y,pz=s.player.z;
       for(let i=0;i<snowCount;i++) {
         let x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i);
@@ -143,7 +149,7 @@ globalThis.NachtjagdPlay = {
       scene.fog=null; for(const l of lights) l.o.intensity=l.base; torch.intensity=0; snowMat.opacity=0;
     }
     // --- Zustand
-    let mouseSteer=0,game=null,current=null,active=false,firing=false,aiming=false,drag=null,shotClick=false,flashT=0,hitT=0,boomT=0,clock=0;
+    let game=null,current=null,active=false,firing=false,aiming=false,drag=null,shotClick=false,flashT=0,hitT=0,boomT=0,clock=0;
     const feedLines=[];
     let noteT=0,bannerT=0;
     const markerMeshes=world.objectives.map(o=>{
@@ -184,7 +190,7 @@ globalThis.NachtjagdPlay = {
       camera.fov=74; camera.updateProjectionMatrix(); game.setLook(Math.PI,0); current=game.snapshot();
       feedLines.length=0; say('Finde die drei Mondsiegel bei Kirche, Mine und Burg.',8); torchOn=true;
       for(const m of actorMeshes.values()) actors.remove(m); for(const mesh of actorMeshes.values()) NachtjagdImportedModels.disposeEnemy(mesh); actorMeshes.clear();
-      vehicleLayer.clear(); vehicleLayer.setStatic(NachtjagdVehicleModels.buildStatic(THREE,{world,layout:game.layout()})); mouseSteer=0;
+      vehicleLayer.clear(); vehicleLayer.setStatic(NachtjagdVehicleModels.buildStatic(THREE,{world,layout:game.layout()}));
       update(0); showPanel(); lockPointer();
     }
     function leave() {
@@ -215,9 +221,8 @@ globalThis.NachtjagdPlay = {
       if(document.pointerLockElement===canvas) { dx=e.movementX; dy=e.movementY; }
       else if(drag) { dx=e.clientX-drag.x; dy=e.clientY-drag.y; drag.x=e.clientX; drag.y=e.clientY; drag.total+=Math.abs(dx)+Math.abs(dy); }
       else return;
-      const ride=current.player.ride;
-      if(ride&&ride.driver&&ride.kind==='jeep') { mouseSteer=Math.max(-.8,Math.min(.8,mouseSteer-dx*.0042)); game.setLook(current.player.yaw,current.player.pitch-dy*.003); }
-      else game.setLook(current.player.yaw-dx*.003,current.player.pitch-dy*.003);
+      // Im Jeep lenken nur A/D und die Pfeiltasten, die Maus schaut frei um (dreht mit dem Wagen mit).
+      game.setLook(current.player.yaw-dx*.003,current.player.pitch-dy*.003);
       current=game.snapshot();
     });
     addEventListener('pointerup',e=>{
@@ -258,13 +263,14 @@ globalThis.NachtjagdPlay = {
       if(!active) return;
       clock+=dt; music.setPaused(current.phase==='paused'||current.phase==='shop'); music.update(current,dt);
       if(current.phase==='playing') {
-        if(keys.has('ArrowLeft') || keys.has('ArrowRight')) game.setLook(current.player.yaw+(Number(keys.has('ArrowLeft'))-Number(keys.has('ArrowRight')))*dt*2.1,current.player.pitch);
+        const ride=current.player.ride, steering=!!(ride&&ride.driver&&(ride.kind==='jeep'||ride.kind==='boat'||ride.kind==='cart'));
+        const arrows=Number(keys.has('ArrowRight'))-Number(keys.has('ArrowLeft'));
+        if(!steering && arrows) game.setLook(current.player.yaw-arrows*dt*2.1,current.player.pitch);
         current=game.step(dt,{
           forward:Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown')),
-          side:Number(keys.has('KeyD'))-Number(keys.has('KeyA')),sprint:keys.has('ShiftLeft')||keys.has('ShiftRight'),
-          jump:keys.has('Space'),fire:firing||shotClick,aim:aiming,turn:mouseSteer
+          side:Math.max(-1,Math.min(1,Number(keys.has('KeyD'))-Number(keys.has('KeyA'))+(steering?arrows:0))),sprint:keys.has('ShiftLeft')||keys.has('ShiftRight'),
+          jump:keys.has('Space'),fire:firing||shotClick,aim:aiming
         });
-        mouseSteer*=Math.exp(-dt*2.6);
         shotClick=false;
       }
       const p=current.player;
@@ -281,7 +287,7 @@ globalThis.NachtjagdPlay = {
         const names=['Fahrer','Beifahrer','Hinten links','Hinten rechts'],seat=rv.kind==='gondola'?'Platz '+(ride.seat+1):rv.kind==='boat'?'Ruderer':names[ride.seat];
         const speed=Math.round(Math.abs(rv.sp)*3.6);
         let hints='C Platz wechseln · E Aussteigen';
-        if(ride.driver) hints={jeep:'W/S Gas und Rückwärts · Maus oder A/D lenken · Leertaste bremsen · ',cart:'W/S vor und zurück · A/D Weiche · Leertaste bremsen · ',boat:'W/S rudern (Shift schneller) · A/D lenken · '}[rv.kind]+hints;
+        if(ride.driver) hints={jeep:'W/S Gas und Rückwärts · A/D lenken · Maus umsehen · Leertaste bremsen · ',cart:'W/S vor und zurück · A/D Weiche · Leertaste bremsen · ',boat:'W/S rudern (Shift schneller) · A/D lenken · '}[rv.kind]+hints;
         else if(rv.kind==='gondola') hints=rv.dock===null?'Maus umsehen · Klick schießen · C Platz · Aussteigen an der Station':'E Aussteigen · C Platz · Abfahrt in '+Math.ceil(Math.max(0,(rv.dock===0?8-rv.phase:62-rv.phase)))+' s';
         else hints='Maus und Klick schießen · '+hints;
         vehicleBox.innerHTML=`<b>${rv.name} · ${seat}${rv.kind==='gondola'?'':' · '+speed+' km/h'}</b><br><small style="color:#9fc0cc">${hints}</small>`;

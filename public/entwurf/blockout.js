@@ -58,7 +58,7 @@
   pads.push(
     { x: village.x, z: village.z, w: 13, d: 10, y: naturalHeight(village.x, village.z), blend: 4 },
     { x: village.x + 1, z: village.z - 39, w: 10, d: 16, y: naturalHeight(village.x + 1, village.z - 39), blend: 4 },
-    { x: castle.x, z: castle.z, w: 34, d: 29, y: castle.height, blend: 9 }
+    { x: castle.x + .7, z: castle.z + 2.3, w: 24.5, d: 26.5, y: castle.height, blend: 10 }
   );
   pads.push(...pads.splice(0, houses.length));
   const [windX,windZ]=layout.landmarkSites.wind;
@@ -360,13 +360,12 @@
   lake.rotation.x = -Math.PI / 2; lake.position.y = .09;
   scene.add(lake); label('See', -210, 220, 4, 48);
   const cx = castle.x, cz = castle.z, ch = castle.height;
-  const castleFloor = box(cx, cz, 62, 53, .25, 'castle', 0, ch, false);
-  box(cx - 25, cz, 11, 51, 18, 'castle', 0, ch + .25);
-  box(cx, cz - 22, 40, 10, 22, 'castle', 0, ch + .25);
-  box(cx, cz + 22, 40, 8, 14, 'castle', 0, ch + .25);
-  box(cx + 25, cz - 17, 10, 15, 16, 'castle', 0, ch + .25);
-  box(cx + 25, cz + 17, 10, 15, 16, 'castle', 0, ch + .25);
-  box(cx - 23, cz - 19, 13, 13, 34, 'castle', 0, ch + .25);
+  // Burgmodell (public/models): Tor nach Osten (+x), auf der Wegachse z = -100; Hofplatte bündig mit dem Gelände.
+  const castleOrigin = { x: -264, z: -96, y: ch + .03 }, castleRot = Math.PI / 2;
+  renderer.localClippingEnabled = true; // Burg: Schnittebenen für den Bergfried-Ansatz
+  const castleSite = NachtjagdCastleSite.create({ THREE, scene, origin: castleOrigin, rot: castleRot });
+  // Ort des Burg-Siegels im Rittersaal (Modellkoordinaten -12,8 / -6) in Weltkoordinaten
+  const castleSeal = { x: castleOrigin.x + -6, z: castleOrigin.z + 12.8 };
   label('Burg · Felssporn', cx, cz, 46, 58);
   const viaductMiddle = viaduct.point(viaduct.length/2);
   label('Viadukt · sieben Bögen', ...viaductMiddle, viaduct.top(viaduct.length/2)-groundHeight(...viaductMiddle)+14, 64);
@@ -556,6 +555,7 @@
     if (x < -465 || x > 340 || z < -340 || z > 365) return true;
     if (groundHeight(x, z) < .35 && landmarks.floor(x,z)===null) return true;
     if (viaduct.collides(x,z,feet)) return true;
+    if (castleSite.walk && castleSite.walk.blocked(x,z,feet)) return true;
     return (collisionBuckets.get(Math.floor(x/16)+','+Math.floor(z/16))||[]).some(c => {
       const dx = x - c.x, dz = z - c.z, cosine = Math.cos(c.rotation), sine = Math.sin(c.rotation);
       return Math.abs(cosine * dx - sine * dz) < c.w + .45 && Math.abs(sine * dx + cosine * dz) < c.d + .45;
@@ -728,7 +728,7 @@
       if (!blocked(camera.position.x + dx, camera.position.z, surfaceHeight(camera.position.x + dx,camera.position.z,feet))) camera.position.x += dx;
       if (!blocked(camera.position.x, camera.position.z + dz, surfaceHeight(camera.position.x,camera.position.z + dz,feet))) camera.position.z += dz;
       camera.position.y = surfaceHeight(camera.position.x,camera.position.z,feet) + 1.75;
-      if (Math.abs(camera.position.x - castle.x) < 31 && Math.abs(camera.position.z - castle.z) < 26.5) camera.position.y = Math.max(camera.position.y, castleFloor.position.y + castleFloor.scale.y / 2 + 1.75);
+      if (castleSite.walk && castleSite.walk.near(camera.position.x, camera.position.z)) camera.position.y = gameFloor(camera.position.x, camera.position.z, feet) + 1.75;
       camera.lookAt(camera.position.x + Math.sin(walkingYaw) * Math.cos(pitch), camera.position.y + Math.sin(pitch), camera.position.z + Math.cos(walkingYaw) * Math.cos(pitch));
     } else {
       camera.position.set(target.x + distance * Math.sin(polar) * Math.sin(yaw), target.y + distance * Math.cos(polar), target.z + distance * Math.sin(polar) * Math.cos(yaw));
@@ -833,11 +833,10 @@
   }
   function gameFloor(x,z,previousFeet) {
     const y=shoulderHeight(x,z,surfaceHeight(x,z,previousFeet));
-    const dx=31-Math.abs(x-castle.x),dz=26.5-Math.abs(z-castle.z);
-    if(dx<=0 || dz<=0) return y;
-    // Der Burghof liegt etwas höher als der Weg davor: Die Hofplatte läuft am Rand 6 m lang als Rampe aus.
-    const top=castleFloor.position.y+castleFloor.scale.y/2;
-    return Math.max(y,top-Math.max(0,6-Math.min(dx,dz))*.36);
+    const cf=castleSite.walk && castleSite.walk.floor(x,z,previousFeet===undefined?y:previousFeet);
+    if(!cf) return y;
+    // Hofplatte und Gelände vereinen sich; Räume, Treppen und Keller haben ihre eigene Höhe.
+    return cf.ground?Math.max(y,cf.y):cf.y;
   }
   function clearWalk(a,b) {
     const distance=Math.hypot(b.x-a.x,b.z-a.z),steps=Math.ceil(distance/.8); let y=a.y;
@@ -869,13 +868,15 @@
   }
   const world={
     spawn:[90,45],floor:gameFloor,blocked,chaseTarget,resetNavigation:()=>paths.clear(),
-    objectives:[{id:'church',name:'Kirche',x:90,z:30},{id:'mine',name:'Westmine',x:-349,z:-27,guard:'deep'},{id:'castle',name:'Burg',x:-251,z:-100,guard:'alpha'}],
+    objectives:[{id:'church',name:'Kirche',x:90,z:30},{id:'mine',name:'Westmine',x:-349,z:-27,guard:'deep'},{id:'castle',name:'Burg',x:castleSeal.x,z:castleSeal.z,guard:'alpha'}],
     waterDepth:(x,z)=>layout.lakeDistance(x,z)<0?1:0,waterLevel:.09,boatOk,onRoad:(x,z)=>streetHeight(x,z)!==null,
     bell:{x:90,z:27},
+    tick:(x,y,z)=>castleSite.update(x,y,z),indoor:(x,y,z)=>castleSite.indoor(x,y,z),
     rayDistance(origin,direction,maxRange) {
       shotRay.set(new THREE.Vector3(origin.x,origin.y,origin.z),new THREE.Vector3(direction.x,direction.y,direction.z).normalize());
       shotRay.near=.05; shotRay.far=maxRange;
-      return shotRay.intersectObjects(shotMeshes,false)[0]?.distance ?? maxRange;
+      const castleHits=castleSite.walk && castleSite.walk.near(origin.x,origin.z)?castleSite.targets():[];
+      return shotRay.intersectObjects(castleHits.length?shotMeshes.concat(castleHits):shotMeshes,false)[0]?.distance ?? maxRange;
     },
     spawnEnemy(p,random) {
       const candidates=roadNetwork.nodes.filter(n=>{
@@ -898,7 +899,14 @@
     {name:'Gondelstationen begehbar, Strecke über 250 m',passed:world.gondola.stations.every(s=>!blocked(s.x,s.z,gameFloor(s.x,s.z))) && Math.hypot(world.gondola.stations[0].x-world.gondola.stations[1].x,world.gondola.stations[0].z-world.gondola.stations[1].z)>250},
     {name:'Boote liegen im Wasser',passed:world.boats.length>=2 && world.boats.every(b=>boatOk(b.x,b.z))}
   );
+  const startButton=document.querySelector('#play-start'),startLabel=startButton.textContent;
+  startButton.disabled=true; startButton.textContent='Burg wird aufgebaut …';
   gameplay=NachtjagdPlay.create({THREE,scene,camera,canvas,world,sky,layoutSky,backdrop,onStart:()=>{ toggleEditor(false); labels.visible=false; grid.visible=false; keys.clear(); drag=null; },onExit:()=>setView('village')});
+  castleSite.ready.then(()=>{
+  startButton.disabled=false; startButton.textContent=startLabel;
+  // Das Burg-Siegel liegt im Rittersaal: erst mit geladenem Modell prüfbar.
+  world.checks=world.checks.filter(c=>c.name!=='Burg-Siegel erreichbar');
+  world.checks.unshift({name:'Burg-Siegel erreichbar',passed:!!castleSite.walk && !blocked(castleSeal.x,castleSeal.z,gameFloor(castleSeal.x,castleSeal.z))});
   if(new URLSearchParams(location.search).has('test')) {
     for(const [name,start,end] of [['Spielfigur steigt die Dorftreppe hinauf',[120,57],[120,87]],['Spielfigur überquert das Viadukt',viaduct.b,viaduct.a]]) {
       const probe=NachtjagdGame.create({world:{...world,spawn:start,spawnEnemy:()=>null}}); probe.start();
@@ -907,9 +915,11 @@
       world.checks.push({name,passed:Math.hypot(p.x-end[0],p.z-end[1])<.5});
     }
     world.checks.push({name:'Kirchenmauer hält Schüsse auf',passed:world.rayDistance({x:91,y:gameFloor(91,30)+2,z:30},{x:0,y:0,z:-1},30)<10});
-    globalThis.NachtjagdDebug={renderer,sky,world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
+    globalThis.NachtjagdDebug={castleSite,renderer,sky,world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
     const report=document.createElement('pre'); report.id='game-tests'; report.hidden=true; report.textContent=JSON.stringify({checks:world.checks}); document.body.append(report);
   }
+  if(new URLSearchParams(location.search).get('play')==='1') gameplay.start();
+  });
   // Ansichten auf die Fahrzeugorte (Koordinaten kommen aus der Weltbeschreibung)
   {
     const st=world.gondola.stations,jeep=world.jeeps[0],boat=world.boats[0];
@@ -925,6 +935,5 @@
     views.carts={target:[world.rails.nodes[0].x,gameFloor(world.rails.nodes[0].x,world.rails.nodes[0].z)+1,world.rails.nodes[0].z],distance:40,yaw:.5,polar:.4,name:'Minenschienen mit Loren · Platzhaltermodell'};
   }
   setView('world');
-  if(new URLSearchParams(location.search).get('play')==='1') gameplay.start();
   requestAnimationFrame(frame);
 })();
