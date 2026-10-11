@@ -112,7 +112,7 @@
     // Erst die Neigung der groben Kegel begrenzen (keine Nadeln), danach Felsrelief aufsetzen.
     NachtjagdRelief.limitSlope(renderedHeights,321,281,5);
     for (let i=0;i<baseHeights.length;i++) { const x=i%321*5-800,z=Math.floor(i/321)*5-705; renderedHeights[i]=NachtjagdRelief.relief(x,z,renderedHeights[i]); }
-    NachtjagdRelief.limitSlope(renderedHeights,321,281,5,1.5,0.3);
+    NachtjagdRelief.limitSlope(renderedHeights,321,281,5,1.65,0.3);
     NachtjagdRelief.smoothGrid(renderedHeights,321,281);
     settleRoads();
   }
@@ -703,6 +703,7 @@
     const dt = Math.min((now - previous) / 1000, .05); previous = now;
     if (sculpting && now - lastSculpt >= 50) { applySculpt(Math.min((now - lastSculpt) / 1000, .1)); lastSculpt = now; }
     sky.update(camera, dt);
+    importedForest.lod(camera);
     // Lastregelung: Bleibt die Bildzeit über zwei Sekunden hoch, sinkt die Auflösung stufenweise; ganz unten entfällt das Felsdetail.
     if (now - perf.last < 250) { perf.sum += now - perf.last; perf.frames++; } perf.last = now; // lange Pausen (Tab im Hintergrund) zählen nicht
     if (perf.sum >= 2000 && perf.frames > 0) {

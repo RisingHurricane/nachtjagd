@@ -85,3 +85,27 @@ test('Wendigos haben unabhängige Skelette und Animationen; fehlende Dateien beh
   assert.equal(missing.errors.length, 6); assert.equal(fallback.root.children.length, 0);
   assert.equal(forest.visible, true); assert.equal(trunks.visible, true);
 });
+
+test('Abstandsstufe: nahe Bäume als Modell, ferne als Kegel, Summe bleibt gleich', async () => {
+  const models = api(); await models.ready;
+  const placements = Array.from({ length: 60 }, (_, i) => ({ x: i * 10, z: 0, height: 15, clearance: 4, rx: 3, rz: 3 }));
+  const geometry = new T.ConeGeometry(1, 1, 5), material = new T.MeshBasicMaterial();
+  const forest = new T.InstancedMesh(geometry, material, 60), trunks = new T.InstancedMesh(geometry, material, 60);
+  const dummy = new T.Object3D();
+  placements.forEach((p, i) => { dummy.position.set(p.x, 0, p.z); dummy.updateMatrix(); forest.setMatrixAt(i, dummy.matrix); trunks.setMatrixAt(i, dummy.matrix); });
+  const result = models.buildForest({ scene: new T.Scene(), placements, heightAt: () => 0, forest, trunks });
+  await models.ready;
+  const camera = { position: { x: 0, z: 0 } };
+  result.lod(camera);
+  const scene = result.root.parent;
+  const fars = scene.children.filter(o => o.isInstancedMesh);
+  assert.equal(fars.length, 2);
+  // Kamera bei x=0: Bäume mit x < 140 (Indizes 0 bis 13) sind nah
+  assert.equal(fars[0].count, 60 - 14);
+  const detail = result.root.children.filter(m => m.count > 0).reduce((n, m) => Math.max(n, m.count), 0);
+  assert.ok(detail > 0);
+  // Kamera weit weg: alles Kegel
+  camera.position.x = 5000; result.lod(camera);
+  assert.equal(fars[0].count, 60);
+  assert.ok(result.root.children.every(m => m.count === 0));
+});

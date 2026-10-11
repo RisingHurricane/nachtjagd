@@ -47,13 +47,13 @@
     const step = 26 + 34 * fbm(x / 240 + 11.3, z / 240 - 4.7, 2);
     const t = h / step, floor = Math.floor(t);
     const terraced = (floor + smooth(0.25, 0.85, t - floor)) * step;
-    let out = h + (terraced - h) * 0.25 * w;
+    let out = h + (terraced - h) * 0.4 * w;
     // Große Grate und Rinnen, nach oben schärfer, dazu kleinere Rippen.
     const sharp = 0.3 + 0.7 * smooth(180, 360, h);
     out += w * (ridge(wx / 170 + 3.1, wz / 170 + 7.7) - 0.32) * 170 * sharp;
-    out += w * (ridge(wx / 62 - 4.3, wz / 62 + 2.9) - 0.3) * 55 * sharp;
+    out += w * (ridge(wx / 62 - 4.3, wz / 62 + 2.9) - 0.3) * 85 * sharp;
     // Kleinrelief für unruhige Flanken.
-    out += w * (fbm(x / 30, z / 30, 3) - 0.5) * 16;
+    out += w * (fbm(x / 30, z / 30, 3) - 0.5) * 24;
     return Math.min(out, TOP);
   }
   // Glättet einzelne Rasterspitzen: ein Durchgang mit 3×3-Mittel, nur oberhalb der Waldgrenze wirksam (gleiche Gewichtung wie das Relief).
