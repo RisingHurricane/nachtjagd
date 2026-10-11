@@ -20,7 +20,7 @@ globalThis.NachtjagdPlay = {
     const shopBox=addEl('game-shop',box+'top:50%;right:24px;transform:translateY(-50%);width:min(420px,92vw);background:#0b1620ee;pointer-events:auto',document.body);
     shopBox.style.zIndex=8; shopBox.hidden=true;
     const vehicleLayer=NachtjagdVehicleModels.create({THREE,scene});
-    // Musik: Stückliste aus assets/music/tracks.json, Stimmung folgt dem Spielgeschehen (music.js). M schaltet stumm.
+    // Musik: Stückliste aus assets/music/tracks.json, Stimmung folgt dem Spielgeschehen (music.js). N schaltet stumm.
     let storage=null; try { storage=localStorage; } catch(e) { storage=null; }
     const musicBase=NachtjagdMusic.baseUrl(),music=NachtjagdMusic.create({base:musicBase,storage});
     NachtjagdMusic.load(new URL('tracks.json',musicBase)).then(list=>music.setTracks(list));
@@ -34,10 +34,14 @@ globalThis.NachtjagdPlay = {
     const bellMat=lam(0xe4ba61,0x523919);
     const itemGeo=new THREE.BoxGeometry(.7,.5,.7),ammoMat=lam(0xddae61),healthMat=lam(0x93c7a3);
     const headMat=lam(0xc8a8a0);
-    const barrel=new THREE.Mesh(new THREE.BoxGeometry(.055,.07,.32),lam(0x3d4549));
-    const grip=new THREE.Mesh(new THREE.BoxGeometry(.05,.11,.065),lam(0x795b42));
-    const weapon=new THREE.Group(); barrel.position.z=-.12; grip.position.set(0,-.07,.02); weapon.add(barrel,grip);
-    weapon.position.set(.2,-.2,-.4); camera.add(weapon); scene.add(camera);
+    const weaponView=NachtjagdInterface.weapon(THREE),weapon=weaponView.group;
+    camera.add(weapon); scene.add(camera);
+    const ui=NachtjagdInterface.create({world,onPlay:start,onLayout:onExit,onMap:(open,ownedPause)=>{
+      if(open) { const wasPlaying=current?.phase==='playing'; pause(); return wasPlaying; }
+      if(ownedPause&&current?.phase==='paused') { clearInput(); current=game.resume(); showPanel(); lockPointer(); }
+      else if(active) showPanel();
+      return false;
+    }});
     const axe=new THREE.Group(),axeHandle=new THREE.Mesh(new THREE.BoxGeometry(.04,.04,.5),lam(0x6b4a2c)),axeHead=new THREE.Mesh(new THREE.BoxGeometry(.03,.16,.2),lam(0x9aa4aa));
     axeHead.position.z=-.25; axe.add(axeHandle,axeHead); axe.position.set(.18,-.1,-.45); axe.visible=false; camera.add(axe);
     const flash=new THREE.PointLight(0xffc16b,0,12); camera.add(flash);
@@ -169,7 +173,7 @@ globalThis.NachtjagdPlay = {
     function showPanel() {
       const phase=current.phase;
       shopBox.hidden=phase!=='shop';
-      panel.hidden=phase==='playing'||phase==='shop';
+      panel.hidden=phase==='playing'||phase==='shop'||ui.mapOpen;
       title.textContent=phase==='paused'?'Nachtjagd pausiert':phase==='won'?'Morgengrauen':phase==='dead'?'Überrannt':'Nachtjagd';
       message.textContent=phase==='paused'?'Die Spielwelt wartet auf dich.':phase==='won'?'Drei Siegel gefunden und die letzte Nacht überstanden.':`Welle ${current.waves.n} · ${current.stats.kills} Gegner besiegt · ${current.stats.score} Punkte`;
       action.textContent=phase==='paused'?'Weiterspielen':'Erneut spielen';
@@ -184,7 +188,7 @@ globalThis.NachtjagdPlay = {
     }
     shopBox.addEventListener('click',e=>{ const row=e.target.closest('[data-buy]'); if(row&&game) { game.buy(Number(row.dataset.buy)); current=game.snapshot(); renderShop(); } });
     function start() {
-      onStart();
+      ui.started(); onStart();
       clearInput(); world.resetNavigation?.(); game=NachtjagdGame.create({world,...options}); current=game.start(); active=true;
       document.body.classList.add('playing'); hud.hidden=false; setVisible(true); music.start();
       camera.fov=74; camera.updateProjectionMatrix(); game.setLook(Math.PI,0); current=game.snapshot();
@@ -194,7 +198,7 @@ globalThis.NachtjagdPlay = {
       update(0); showPanel(); lockPointer();
     }
     function leave() {
-      active=false; music.stop(); music.update(null,10); clearInput(); releasePointer(); hud.hidden=panel.hidden=shopBox.hidden=true;
+      ui.left(); active=false; music.stop(); music.update(null,10); clearInput(); releasePointer(); hud.hidden=panel.hidden=shopBox.hidden=true;
       setVisible(false); restoreEnv();
       flash.intensity=0; document.body.classList.remove('playing'); camera.fov=48; camera.updateProjectionMatrix(); onExit();
     }
@@ -232,7 +236,7 @@ globalThis.NachtjagdPlay = {
     });
     canvas.addEventListener('pointercancel',clearInput);
     document.addEventListener('pointerlockchange',()=>{ if(active && document.pointerLockElement!==canvas) pause(); });
-    const CONTROL_KEYS=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight','Space','KeyR','KeyE','KeyG','KeyT','KeyV','KeyF','KeyC','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Escape'];
+    const CONTROL_KEYS=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight','Space','KeyR','KeyE','KeyG','KeyT','KeyV','KeyF','KeyC','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','KeyM','KeyN','Escape'];
     addEventListener('keydown',e=>{
       if(!active || e.target.matches('input,textarea,select')) return;
       if(CONTROL_KEYS.includes(e.code)) e.preventDefault();
@@ -242,6 +246,8 @@ globalThis.NachtjagdPlay = {
         else if(/^Digit[1-9]$/.test(e.code)) { game.buy(Number(e.code.slice(-1))-1); current=game.snapshot(); renderShop(); }
         return;
       }
+      if(e.code==='KeyM'&&!e.repeat) { ui.setMap(!ui.mapOpen); return; }
+      if(e.code==='Escape'&&ui.mapOpen) { ui.setMap(false); return; }
       if(e.code==='Escape') { pause(); return; }
       if(current.phase!=='playing') return;
       keys.add(e.code);
@@ -252,7 +258,7 @@ globalThis.NachtjagdPlay = {
       if(e.code==='KeyT') game.throwMolotov();
       if(e.code==='KeyV') game.melee();
       if(e.code==='KeyF') torchOn=!torchOn;
-      if(e.code==='KeyM') say(music.toggleMute()?'Musik aus':'Musik an',2);
+      if(e.code==='KeyN') say(music.toggleMute()?'Musik aus':'Musik an',2);
       if(e.code==='KeyC') game.changeSeat();
       if(/^Digit[123]$/.test(e.code)) game.selectWeapon(Number(e.code.slice(-1))-1);
     });
@@ -278,6 +284,8 @@ globalThis.NachtjagdPlay = {
       camera.lookAt(p.x+Math.sin(p.yaw)*Math.cos(p.pitch),p.y+p.eye+Math.sin(p.pitch),p.z+Math.cos(p.yaw)*Math.cos(p.pitch));
       const targetFov=aiming?(current.current===2?26:62):74;
       camera.fov+=(targetFov-camera.fov)*Math.min(1,dt*12); camera.updateProjectionMatrix();
+      weaponView.update(current,dt,aiming,Math.hypot(p.vx,p.vz)>.2?1:0);
+      ui.update(current,dt);
       // Fahrzeuge
       vehicleLayer.update(current.vehicles,dt,clock);
       const ride=p.ride,rv=ride&&current.vehicles.find(v=>v.id===ride.id);
@@ -327,7 +335,7 @@ globalThis.NachtjagdPlay = {
       // Ereignisse
       for(const e of game.drainEvents()) {
         if(e.type==='shot') {
-          flashT=.06; weapon.position.z=-.34;
+          flashT=.06; weaponView.kick();
           const direction=new THREE.Vector3(); camera.getWorldDirection(direction);
           const origin=camera.position.clone(),end=origin.clone().addScaledVector(direction,Math.min(80,world.rayDistance(origin,direction,80)));
           geometry.attributes.position.setXYZ(0,origin.x,origin.y-.12,origin.z); geometry.attributes.position.setXYZ(1,end.x,end.y,end.z); geometry.attributes.position.needsUpdate=true;
@@ -353,7 +361,7 @@ globalThis.NachtjagdPlay = {
       while(feedLines.length&&feedLines[0].t<=0) feedLines.shift();
       noteT=Math.max(0,noteT-dt); if(noteT<=0) noteBox.style.opacity=0;
       bannerT=Math.max(0,bannerT-dt); if(bannerT<=0) banner.style.opacity=0;
-      flash.intensity=flashT>0?2:0; boomFlash.intensity=boomT>0?4*boomT/.35:0; tracer.visible=flashT>0; weapon.position.z+=(-.4-weapon.position.z)*Math.min(1,dt*15);
+      flash.intensity=flashT>0?2:0; boomFlash.intensity=boomT>0?4*boomT/.35:0; tracer.visible=flashT>0;
       if(current.phase!=='ready') applyEnv(current,dt);
       hud.classList.toggle('hit',hitT>0);
       feed.hidden=!feedLines.length; feed.innerHTML=feedLines.map(l=>l.text.replace(/[<&]/g,c=>c==='<'?'&lt;':'&amp;')).join('<br>');
@@ -366,7 +374,7 @@ globalThis.NachtjagdPlay = {
       const remaining=current.quest.objectives.filter(o=>!o.found);
       objective.textContent=current.quest.stage==='final'?`Bis zum Morgengrauen: ${Math.ceil(current.waves.finalT)} s`:current.quest.stage==='bell'?'Läute die Glocke vor der Kirche':`Mondsiegel ${3-remaining.length}/3 · ${remaining.map(o=>`${o.name} ${Math.round(Math.hypot(p.x-o.x,p.z-o.z))} m`).join(' · ')}`;
       const prompt=game.prompt();
-      hint.textContent=prompt||'WASD · Shift laufen · Leertaste springen · Klick schießen · R nachladen · 1–3 Waffen · G Granate · T Molotow · V Axt · M Musik · Esc Pause';
+      hint.textContent=prompt||'WASD · Shift laufen · Leertaste springen · Klick schießen · R nachladen · 1–3 Waffen · G Granate · T Molotow · V Axt · M Karte · N Musik · Esc Pause';
       const report=document.querySelector('#game-tests');
       if(report) report.textContent=JSON.stringify({phase:current.phase,player:p,wave:current.waves.n,monsters:current.monsters.length,ammo:w.ammo,mag,checks:world.checks},null,2);
     }

@@ -1,6 +1,10 @@
 # STATUS
 
-Letzte Aktualisierung: 2026-10-11 (Claude, Fahrzeuge Entwurf 14; davor Codex, grober Weltentwurf auf Basis von `nachtjagd-neu`)
+Letzte Aktualisierung: 2026-10-11 (Codex, gemeinsamer Entwurf 22 auf Claudes Entwurf 21)
+
+## Gemeinsame Spielversion · Entwurf 22
+
+Branch `codex/unified-ui` basiert direkt auf `origin/claude/spiellogik` (`46561bd`, Entwurf 21). Menü mit Überflug, HUD, Waffenansichten, Kompass, Minikarte und große Karte aus `codex/game-screen` sind gezielt in `public/entwurf/` übertragen. Claudes Gegneranimationen, Bergkulisse, Musik-Regie, Schnee/Himmel, A/D-Fahrzeuglenkung mit freiem Mausblick, `indoorK` und Burg-Anbindung bleiben erhalten; Weltdefinition, Spielkern, Fahrzeugphysik, Modell-Austauschpunkte und Burgdateien wurden nicht geändert. M öffnet die Karte mit Solopause, N schaltet Musik stumm. Sichtbare Version und alle vorhandenen `?v=`-Zusätze in `index.html` stehen auf 22. `npm test`: 165/165 grün (161 Bestandstests plus vier UI-Tests). Three.js 0.170.0 ist nun fest als Entwicklungsabhängigkeit samt Lockdatei eingetragen, weil die übernommenen Burgtests das Paket bereits benötigen. Hauptmenü, Spielstart, HUD, Minikarte, Karte/Pause und N-Musik im lokalen Browser ohne Konsolenfehler geprüft. Vier separate, drehbare Haus-Volumenstudien liegen unter `public/entwurf/haeuser.html` und `village-houses.js`; sie sind ausdrücklich noch nicht in die Welt eingebaut. Kein neuer Spielpfad und keine neue Kopie unter `modelltest/`. Kein Merge oder Push auf main oder gh-pages; öffentliche Umschaltung und spätere Ablösung der alten Modelltest-Seite warten auf Lights Freigabe.
 
 ## Aktueller grober Weltentwurf
 
@@ -79,6 +83,8 @@ Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` un
 - Die Berge am Kartenrand ragen stellenweise ein Stück auf die Karte hinein (Kulisse). Das lässt sich verschieben, wenn es stört.
 
 ## Übergabe-Log
+
+- 2026-10-11, Codex: Entwurf 22 auf neuem Branch `codex/unified-ui` direkt von Claudes Entwurf 21 zusammengeführt. Menü/Überflug, HUD, Kompass und Minikarte übertragen; Musik auf N, Karte auf M. Burg, Innenraumlicht, Modelle und neue Lenkung erhalten. Vier Häuser nur als separate grobe Studien. 165 Tests bestanden, UI lokal geprüft. Drei.js-Testabhängigkeit als `three@0.170.0` dokumentiert. Ausschließlich Arbeitszweig sichern, keine Veröffentlichung auf main/gh-pages ohne Freigabe. Nächster Schritt: gemeinsame Version reviewen und nach Lights Freigabe unter dem einen bestehenden Spielpfad veröffentlichen.
 
 - 2026-10-10, Codex: Entwurf 04 mit begehbarem siebenbogigem Viadukt, Gebirgsring, stärkerem Hügelrelief und sanftem Seeufer. Versionskennung und versionierte Skriptadressen ergänzt. 54 Tests und zwölf geometrische Browserprüfungen bestanden.
 
