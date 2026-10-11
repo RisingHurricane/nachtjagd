@@ -86,7 +86,7 @@ test('Wendigos haben unabhängige Skelette und Animationen; fehlende Dateien beh
   assert.equal(forest.visible, true); assert.equal(trunks.visible, true);
 });
 
-test('Abstandsstufe: nahe Bäume als Modell, ferne als Kegel, Summe bleibt gleich', async () => {
+test('Abstandsstufe: nahe Bäume als Modell, ferne als Astetagen ohne Schatten, Summe bleibt gleich', async () => {
   const models = api(); await models.ready;
   const placements = Array.from({ length: 60 }, (_, i) => ({ x: i * 10, z: 0, height: 15, clearance: 4, rx: 3, rz: 3 }));
   const geometry = new T.ConeGeometry(1, 1, 5), material = new T.MeshBasicMaterial();
@@ -100,14 +100,25 @@ test('Abstandsstufe: nahe Bäume als Modell, ferne als Kegel, Summe bleibt gleic
   const scene = result.root.parent;
   const fars = scene.children.filter(o => o.isInstancedMesh);
   assert.equal(fars.length, 2);
-  // Kamera bei x=0: Bäume mit x < 140 (Indizes 0 bis 13) sind nah
-  assert.equal(fars[0].count, 60 - 14);
+  // Kamera bei x=0: Bäume mit x < 95 (Indizes 0 bis 9) sind nah
+  assert.equal(fars[0].count, 60 - 10);
+  assert.ok(fars.every(m=>!m.castShadow));
   const detail = result.root.children.filter(m => m.count > 0).reduce((n, m) => Math.max(n, m.count), 0);
   assert.ok(detail > 0);
-  // Kamera weit weg: alles Kegel
+  // Kamera weit weg: alles Fernbäume
   camera.position.x = 5000; result.lod(camera);
   assert.equal(fars[0].count, 60);
   assert.ok(result.root.children.every(m => m.count === 0));
+});
+
+test('Fernkrone hat mehrere Astetagen, Vertexfarben und ein kleines Dreiecksbudget', async () => {
+  const models=api(); await models.ready;
+  const g=models.pineGeometry(); g.computeBoundingBox();
+  assert.equal(g.boundingBox.min.y,-.5); assert.equal(g.boundingBox.max.y,.5);
+  assert.ok(g.attributes.position.count/3<=100);
+  assert.equal(g.attributes.color.count,g.attributes.position.count);
+  const levels=new Set(); for(let i=0;i<g.attributes.position.count;i++) levels.add(g.attributes.position.getY(i).toFixed(3));
+  assert.ok(levels.size>8,'Krone besteht aus mehreren versetzten Astetagen');
 });
 
 test('Jeep: vier Räder getrennt, Vorderräder lenkbar, Rollachse x, Räder berühren den Boden', async () => {

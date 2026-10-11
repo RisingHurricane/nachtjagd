@@ -46,6 +46,8 @@ Die vier separaten Hausmodelle unter `public/entwurf/haeuser.html` sind noch nic
 
 ## Befehle
 
+`outdoor-details.js` ergänzt die gemeinsamen Weltansichten um instanzierte Laternen/Fenster, drei schattenlose Nahlichter und den groben Wachturm am Osttor. `refresh()` führt Geländeänderungen nach, `update(camera,night,indoor)` wählt die nächsten Lichtquellen. Die vorhandenen Hausstudien bleiben separat. Baukörper in `blockout.js` werden nach Material/Schattenverhalten instanziert; die unsichtbaren Originalnetze bleiben als Geländeanker und Schussziele erhalten. Nach einer Geländeänderung `updateBoxBatches()` aufrufen. `?perf=1` blendet Renderzahlen und echte Bildzeiten ein; Schatten werden begrenzt aktualisiert. Tests der Außenbeleuchtung stehen in `test/outdoor-details.test.js`.
+
 Der Gelände-Editor unter `public/entwurf/` nutzt `terrain-editor.js` als unabhängigen Höhenpinsel mit Undo/Redo und validiertem JSON-Dateiformat v2. `blockout.js` hält das feste 321×281-Raster (5 m), aktualisiert Szene und Anker und speichert Änderungen am Strichende lokal im Browser unter `nachtjagd-bergdorf-seeinsel-v8`. Die neue Welt setzt maxHeight=650 für die äußeren Hochgipfel (Editor-Standard bleibt 400 m); Datei-Limit 4 MB. Exporte enthalten die Grundformkennung `world-layout.js:basis`; unpassende Grundformen und ältere Dateien werden ohne Zustandsänderung abgelehnt. Vorheriger Browserstand bleibt unter seinem alten Schlüssel erhalten. Bei inkompatiblen Grundformänderungen Kennung und Speicherschlüssel aktualisieren. Tests: `test/terrain-editor.test.js` und `test/world-layout.test.js`.
 
 - `npm install`: Abhängigkeiten installieren

@@ -114,7 +114,7 @@ globalThis.NachtjagdPlay = {
     // --- Umgebung: Nacht, Nebel, Schnee, Taschenlampe
     const mix=(a,b,k)=>a+(b-a)*k;
     const lights=[];
-    scene.traverse(o=>{ if(o.isLight&&o!==torch&&o!==flash&&o!==boomFlash&&!sky.owns(o)) lights.push({o,base:o.intensity}); });
+    scene.traverse(o=>{ if(o.isLight&&!o.userData.outdoor&&o!==torch&&o!==flash&&o!==boomFlash&&!sky.owns(o)) lights.push({o,base:o.intensity}); });
     const snowCount=2000,snowGeo=new THREE.BufferGeometry(),snowPos=new Float32Array(snowCount*3);
     for(let i=0;i<snowCount;i++) { snowPos[i*3]=(Math.random()-.5)*60; snowPos[i*3+1]=Math.random()*30; snowPos[i*3+2]=(Math.random()-.5)*60; }
     snowGeo.setAttribute('position',new THREE.BufferAttribute(snowPos,3));
@@ -153,7 +153,7 @@ globalThis.NachtjagdPlay = {
       scene.fog=null; for(const l of lights) l.o.intensity=l.base; torch.intensity=0; snowMat.opacity=0;
     }
     // --- Zustand
-    let game=null,current=null,active=false,firing=false,aiming=false,drag=null,shotClick=false,flashT=0,hitT=0,boomT=0,clock=0;
+    let game=null,current=null,active=false,firing=false,aiming=false,drag=null,shotClick=false,flashT=0,hitT=0,boomT=0,clock=0,viewY=null;
     const feedLines=[];
     let noteT=0,bannerT=0;
     const markerMeshes=world.objectives.map(o=>{
@@ -189,7 +189,7 @@ globalThis.NachtjagdPlay = {
     shopBox.addEventListener('click',e=>{ const row=e.target.closest('[data-buy]'); if(row&&game) { game.buy(Number(row.dataset.buy)); current=game.snapshot(); renderShop(); } });
     function start() {
       ui.started(); onStart();
-      clearInput(); world.resetNavigation?.(); game=NachtjagdGame.create({world,...options}); current=game.start(); active=true;
+      clearInput(); viewY=null; world.resetNavigation?.(); game=NachtjagdGame.create({world,...options}); current=game.start(); active=true;
       document.body.classList.add('playing'); hud.hidden=false; setVisible(true); music.start();
       camera.fov=74; camera.updateProjectionMatrix(); game.setLook(Math.PI,0); current=game.snapshot();
       feedLines.length=0; say('Finde die drei Mondsiegel bei Kirche, Mine und Burg.',8); torchOn=true;
@@ -280,8 +280,11 @@ globalThis.NachtjagdPlay = {
         shotClick=false;
       }
       const p=current.player;
-      camera.position.set(p.x,p.y+p.eye,p.z);
-      camera.lookAt(p.x+Math.sin(p.yaw)*Math.cos(p.pitch),p.y+p.eye+Math.sin(p.pitch),p.z+Math.cos(p.yaw)*Math.cos(p.pitch));
+      const eyeY=p.y+p.eye;
+      // Kleine Treppenstufen weich abfangen; Sprünge, Fahrzeuge und Versetzen bleiben direkt.
+      viewY=viewY===null||!p.onGround||p.ride||Math.abs(eyeY-viewY)>1?eyeY:viewY+(eyeY-viewY)*(1-Math.exp(-dt*22));
+      camera.position.set(p.x,viewY,p.z);
+      camera.lookAt(p.x+Math.sin(p.yaw)*Math.cos(p.pitch),viewY+Math.sin(p.pitch),p.z+Math.cos(p.yaw)*Math.cos(p.pitch));
       const targetFov=aiming?(current.current===2?26:62):74;
       camera.fov+=(targetFov-camera.fov)*Math.min(1,dt*12); camera.updateProjectionMatrix();
       weaponView.update(current,dt,aiming,Math.hypot(p.vx,p.vz)>.2?1:0);

@@ -322,6 +322,14 @@ test('game exposes weather and environment; dusk fades with progress and sunrise
   assert.ok(s.env.sunrise > 0.2);
 });
 
+test('Nacht kommt nach 35 Spielsekunden auch ohne Fortschritt; Pause hält die Dämmerung an', () => {
+  const {game}=make(); game.start();
+  advance(game,18); const halfway=game.snapshot().env.dusk;
+  assert.ok(halfway>.45&&halfway<.55);
+  game.pause(); advance(game,30); assert.equal(game.snapshot().env.dusk,halfway);
+  game.resume(); advance(game,18); assert.equal(game.snapshot().env.dusk,0);
+});
+
 test('jumping leaves the ground and lands again; falling from a ledge hurts', () => {
   const { game } = make(); game.start();
   game.step(0.1, { jump: true });
