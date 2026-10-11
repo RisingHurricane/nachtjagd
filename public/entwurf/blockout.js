@@ -22,7 +22,8 @@
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#cbd8dc');
   const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, .1, 3500);
-  scene.add(new THREE.HemisphereLight(0xf9fbff, 0x6d786c, .7));
+  const hemi = new THREE.HemisphereLight(0xf9fbff, 0x6d786c, .7);
+  scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff7e5, .7);
   sun.position.set(-80, 180, 110);
   sun.castShadow = true;
@@ -30,6 +31,9 @@
   Object.assign(sun.shadow.camera, { left: -260, right: 260, top: 260, bottom: -260, far: 650 });
   sun.shadow.bias = -.0005;
   scene.add(sun);
+  const sky = NachtjagdSky.create({ THREE, scene, sun, hemi });
+  const layoutSky = { night: 0, sunrise: 0, cover: .62, grey: 0, blood: 0, lightK: 1 };
+  scene.background = sky.apply(layoutSky);
   const colors = { ground: '#e4e7df', house: '#d6ba92', landmark: '#b59370', forest: '#658777', path: '#b9a78b', castle: '#8a9aab', viaduct: '#b7ad97', water: '#8eb0bc', hill: '#bac3b4' };
   const materials = {};
   for (const [key, value] of Object.entries(colors)) materials[key] = new THREE.MeshLambertMaterial({ color: new THREE.Color(value).convertSRGBToLinear() });
@@ -81,7 +85,7 @@
   const stairMeshes = [];
   const renderedHeights = new Float32Array(baseHeights.length);
   function updateHeightGrid() {
-    for (let i=0;i<baseHeights.length;i++) renderedHeights[i]=roadNetwork.grade(i%321*5-800,Math.floor(i/321)*5-705,baseHeights[i]+terrainModel.offsets[i]);
+    for (let i=0;i<baseHeights.length;i++) { const x=i%321*5-800,z=Math.floor(i/321)*5-705; renderedHeights[i]=NachtjagdRelief.relief(x,z,roadNetwork.grade(x,z,baseHeights[i]+terrainModel.offsets[i])); }
   }
   updateHeightGrid();
   function vertexHeight(col, row) {
@@ -159,7 +163,7 @@
   }
   groundGeometry.setAttribute('color', new THREE.Float32BufferAttribute(terrainColors, 3));
   groundGeometry.computeVertexNormals();
-  const ground = new THREE.Mesh(groundGeometry, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+  const ground = new THREE.Mesh(groundGeometry, NachtjagdTerrainMaterial.create(THREE));
   ground.receiveShadow = true;
   scene.add(ground);
   const gridPositions = [];
@@ -426,7 +430,7 @@
   function setView(view) {
     const walking = view === 'walk' || view === 'forest' || view === 'bridgewalk' || view === 'stairswalk';
     if (walking && editing) toggleEditor(false);
-    mode = walking ? 'walk' : view; keys.clear(); labels.visible = !walking && !editing && !['wind','stones','ruin','lakeside','mines','northmine','gondola','talstation','jeep','boats','carts'].includes(view); grid.visible = editing || view === 'map';
+    mode = walking ? 'walk' : view; keys.clear(); labels.visible = !walking && !editing && !['wind','stones','ruin','lakeside','mines','northmine','gondola','talstation','jeep','boats','carts','peaks','valley'].includes(view); grid.visible = editing || view === 'map';
     document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
     if (walking) {
       const start = view === 'bridgewalk' ? viaduct.point(viaduct.length-4) : view === 'forest' ? [221,60] : view === 'stairswalk' ? [120,58] : [90,45];
@@ -633,6 +637,7 @@
     requestAnimationFrame(frame);
     const dt = Math.min((now - previous) / 1000, .05); previous = now;
     if (sculpting && now - lastSculpt >= 50) { applySculpt(Math.min((now - lastSculpt) / 1000, .1)); lastSculpt = now; }
+    sky.update(camera, dt);
     if(gameplay && !gameplay.active) gameplay.previewUpdate(dt);
     if(gameplay && gameplay.active) {
       gameplay.update(dt);
@@ -816,7 +821,7 @@
     {name:'Gondelstationen begehbar, Strecke über 250 m',passed:world.gondola.stations.every(s=>!blocked(s.x,s.z,gameFloor(s.x,s.z))) && Math.hypot(world.gondola.stations[0].x-world.gondola.stations[1].x,world.gondola.stations[0].z-world.gondola.stations[1].z)>250},
     {name:'Boote liegen im Wasser',passed:world.boats.length>=2 && world.boats.every(b=>boatOk(b.x,b.z))}
   );
-  gameplay=NachtjagdPlay.create({THREE,scene,camera,canvas,world,onStart:()=>{ toggleEditor(false); labels.visible=false; grid.visible=false; keys.clear(); drag=null; },onExit:()=>setView('village')});
+  gameplay=NachtjagdPlay.create({THREE,scene,camera,canvas,world,sky,layoutSky,onStart:()=>{ toggleEditor(false); labels.visible=false; grid.visible=false; keys.clear(); drag=null; },onExit:()=>setView('village')});
   if(new URLSearchParams(location.search).has('test')) {
     for(const [name,start,end] of [['Spielfigur steigt die Dorftreppe hinauf',[120,57],[120,87]],['Spielfigur überquert das Viadukt',viaduct.b,viaduct.a]]) {
       const probe=NachtjagdGame.create({world:{...world,spawn:start,spawnEnemy:()=>null}}); probe.start();
@@ -825,12 +830,17 @@
       world.checks.push({name,passed:Math.hypot(p.x-end[0],p.z-end[1])<.5});
     }
     world.checks.push({name:'Kirchenmauer hält Schüsse auf',passed:world.rayDistance({x:91,y:gameFloor(91,30)+2,z:30},{x:0,y:0,z:-1},30)<10});
-    globalThis.NachtjagdDebug={world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
+    globalThis.NachtjagdDebug={sky,world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
     const report=document.createElement('pre'); report.id='game-tests'; report.hidden=true; report.textContent=JSON.stringify({checks:world.checks}); document.body.append(report);
   }
   // Ansichten auf die Fahrzeugorte (Koordinaten kommen aus der Weltbeschreibung)
   {
     const st=world.gondola.stations,jeep=world.jeeps[0],boat=world.boats[0];
+    {
+      const peak=layout.highPeaks.reduce((a,b)=>b.top>a.top?b:a);
+      views.peaks={target:[peak.x,peak.top*.45,peak.z],distance:900,yaw:2.6,polar:1.38,name:'Hochgebirge · höchster Gipfel '+Math.round(peak.top)+' m'};
+      views.valley={target:[-25,60,-60],distance:240,yaw:3.14,polar:1.5,name:'Talblick nach Norden · Berge vom Dorf aus'};
+    }
     views.gondola={target:[(st[0].x+st[1].x)/2,(st[0].y+st[1].y)/2,(st[0].z+st[1].z)/2],distance:420,yaw:.9,polar:.95,name:'Gondelbahn · Talstation und Bergstation · zwei Kabinen'};
     views.talstation={target:[st[0].x,st[0].y+3,st[0].z],distance:30,yaw:-.4,polar:1.05,name:'Talstation der Gondelbahn'};
     views.jeep={target:[jeep.x,gameFloor(jeep.x,jeep.z)+1,jeep.z],distance:28,yaw:.6,polar:.9,name:'Geländewagen am Dorfrand · Platzhaltermodell'};

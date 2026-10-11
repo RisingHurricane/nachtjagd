@@ -2,7 +2,7 @@
 
 // Verbindet den ausgelagerten Spielkern mit der bestätigten Weltstudie: Eingabe, Anzeige, Platzhalterfiguren, Umgebung.
 globalThis.NachtjagdPlay = {
-  create({THREE,scene,camera,canvas,world,onStart,onExit}) {
+  create({THREE,scene,camera,canvas,world,sky,layoutSky,onStart,onExit}) {
     const hud=document.querySelector('#game-hud'),panel=document.querySelector('#game-panel');
     const title=document.querySelector('#game-title'),message=document.querySelector('#game-message');
     const action=document.querySelector('#game-action'),exit=document.querySelector('#game-exit');
@@ -105,23 +105,22 @@ globalThis.NachtjagdPlay = {
     const boomFlash=new THREE.PointLight(0xffa24a,0,60); effects.add(boomFlash);
     // --- Umgebung: Nacht, Nebel, Schnee, Taschenlampe
     const mix=(a,b,k)=>a+(b-a)*k;
-    const dayColor=new THREE.Color('#cbd8dc'),nightColor=new THREE.Color('#0c1424'),duskColor=new THREE.Color('#5a3a3c'),dawnColor=new THREE.Color('#d9a078'),bloodColor=new THREE.Color('#2a0f14');
     const lights=[];
-    scene.traverse(o=>{ if(o.isLight&&o!==torch&&o!==flash&&o!==boomFlash) lights.push({o,base:o.intensity}); });
-    const savedBackground=scene.background&&scene.background.clone?scene.background.clone():null;
+    scene.traverse(o=>{ if(o.isLight&&o!==torch&&o!==flash&&o!==boomFlash&&!sky.owns(o)) lights.push({o,base:o.intensity}); });
     const snowCount=900,snowGeo=new THREE.BufferGeometry(),snowPos=new Float32Array(snowCount*3);
     for(let i=0;i<snowCount;i++) { snowPos[i*3]=(Math.random()-.5)*60; snowPos[i*3+1]=Math.random()*30; snowPos[i*3+2]=(Math.random()-.5)*60; }
     snowGeo.setAttribute('position',new THREE.BufferAttribute(snowPos,3));
     const snowMat=new THREE.PointsMaterial({color:0xffffff,size:.16,transparent:true,opacity:.8,depthWrite:false}),snow=new THREE.Points(snowGeo,snowMat); snow.frustumCulled=false; effects.add(snow);
     let torchOn=true;
     function applyEnv(s,dt) {
-      const e=s.env,w=s.weather,color=new THREE.Color();
-      color.copy(nightColor).lerp(dayColor,Math.min(1,e.light*.28)).lerp(duskColor,e.dusk*.5).lerp(dawnColor,e.sunrise*.55);
-      if(e.mod==='blood'&&e.sunrise<.4) color.lerp(bloodColor,.55);
+      const e=s.env,w=s.weather;
+      // Der Verlauf von Sonnenuntergang zu tiefer, grauer Nacht folgt dem Spielfortschritt (e.dusk fällt von 1 auf 0).
+      const night=1-e.dusk;
+      const k=Math.max(.2,Math.min(1.25,.2+.55*e.light+e.sunrise*.4));
+      const color=sky.apply({night,sunrise:e.sunrise,cover:e.cover,grey:w.fog>1.2?.25:0,blood:e.mod==='blood'&&e.sunrise<.4?.55:0,lightK:Math.max(.55,k)});
       scene.background=color;
       scene.fog=scene.fog||new THREE.FogExp2(color,.002);
-      scene.fog.color.copy(color); scene.fog.density=.0016*w.fog*(e.mod==='fog'?1.9:1)*(e.sunrise>0?.8:1);
-      const k=Math.max(.2,Math.min(1.25,.2+.55*e.light+e.sunrise*.4));
+      scene.fog.color.copy(color); scene.fog.density=.0016*(1+.9*night)*w.fog*(e.mod==='fog'?1.9:1)*(e.sunrise>0?.8:1);
       for(const l of lights) l.o.intensity=l.base*k;
       const lampBonus=(s.up.lamp+(s.relics.lamp?1:0));
       torch.intensity=torchOn?1.35+.25*lampBonus:0; torch.distance=70+14*lampBonus; torch.angle=.5+.07*lampBonus;
@@ -136,7 +135,7 @@ globalThis.NachtjagdPlay = {
       pos.needsUpdate=true;
     }
     function restoreEnv() {
-      if(savedBackground) scene.background=savedBackground.clone();
+      scene.background=sky.apply(layoutSky);
       scene.fog=null; for(const l of lights) l.o.intensity=l.base; torch.intensity=0; snowMat.opacity=0;
     }
     // --- Zustand
@@ -176,7 +175,7 @@ globalThis.NachtjagdPlay = {
     shopBox.addEventListener('click',e=>{ const row=e.target.closest('[data-buy]'); if(row&&game) { game.buy(Number(row.dataset.buy)); current=game.snapshot(); renderShop(); } });
     function start() {
       onStart();
-      clearInput(); world.resetNavigation?.(); game=NachtjagdGame.create({world}); current=game.start(); active=true;
+      clearInput(); world.resetNavigation?.(); game=NachtjagdGame.create({world,...options}); current=game.start(); active=true;
       document.body.classList.add('playing'); hud.hidden=false; setVisible(true);
       camera.fov=74; camera.updateProjectionMatrix(); game.setLook(Math.PI,0); current=game.snapshot();
       feedLines.length=0; say('Finde die drei Mondsiegel bei Kirche, Mine und Burg.',8); torchOn=true;
@@ -357,6 +356,7 @@ globalThis.NachtjagdPlay = {
       if(report) report.textContent=JSON.stringify({phase:current.phase,player:p,wave:current.waves.n,monsters:current.monsters.length,ammo:w.ammo,mag,checks:world.checks},null,2);
     }
     // --- Vorschau in der Layoutansicht: Fahrzeuge, Schienen und Gondelbahn laufen ohne Spieler und ohne Gegner
+    const options={}; // Prüfhaken: z. B. {startWave:3} für Aufnahmen und Tests
     let preview=null;
     function previewUpdate(dt) {
       if(active) return;
@@ -367,6 +367,6 @@ globalThis.NachtjagdPlay = {
       clock+=dt; vehicleLayer.setVisible(true);
       vehicleLayer.update(preview.step(dt,{}).vehicles,dt,clock);
     }
-    return {start,update,previewUpdate,get previewGame(){return preview;},leave,get active(){return active;},get game(){return game;}};
+    return {start,options,update,previewUpdate,get previewGame(){return preview;},leave,get active(){return active;},get game(){return game;}};
   }
 };
