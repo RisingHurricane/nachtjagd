@@ -29,3 +29,9 @@ test('Drei Waffen vor der Kamera, Wechsel, Rückstoß und Nachladen ohne Zustand
     assert.equal(JSON.stringify(s),before);
   }
 });
+
+test('Menüüberflug bleibt innerhalb der Bergwelt, über dem Boden und bewegt sich stetig',()=>{
+  const floor=(x,z)=>40+20*Math.sin(x/20)*Math.cos(z/40);
+  let previous=null;
+  for(let t=0;t<=180;t+=1){const shot=ui.flyover(t,floor),[x,y,z]=shot.position;assert.ok(Math.abs(x)<300&&Math.abs(z)<300);assert.ok(y-floor(x,z)>=40);assert.ok(y>shot.target[1]);if(previous)assert.ok(Math.hypot(...shot.position.map((v,i)=>v-previous[i]))<12);previous=shot.position;}
+});
