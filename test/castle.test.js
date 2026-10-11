@@ -109,3 +109,27 @@ test('Burginnenraum liefert Räume mit Kamerapunkten und Lichtern', () => {
   const box = new THREE.Box3().setFromObject(g);
   assert.ok(box.min.y >= -5.5 && box.max.y < 70); // Keller bis 4,8 m unter dem Boden
 });
+
+test('Fenster der Innenräume sind echte Löcher in den Raumhüllen', () => {
+  const g = buildCastleInterior(THREE);
+  const stats = g.userData.windows;
+  assert.ok(stats.total >= 50);
+  assert.equal(stats.loose, 0, 'alle Innenfenster sitzen in einer Raumhülle: ' + JSON.stringify(stats.looseList));
+  const shells = [];
+  g.traverse((o) => { if (o.name === 'roomShell') shells.push(o); });
+  assert.ok(shells.length >= 8);
+  let reveals = 0;
+  g.traverse((o) => { if (o.name === 'windowReveal') reveals++; });
+  assert.ok(reveals >= 8);
+  g.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster();
+  for (const q of stats.openList) {
+    const out = new THREE.Vector3(Math.sin(q.yaw), 0, Math.cos(q.yaw));
+    ray.set(new THREE.Vector3(q.x - out.x * 1.2, q.y, q.z - out.z * 1.2), out);
+    ray.far = 1.6; // 1,2 m bis zur Wand und 0,4 m in die Laibung hinein
+    assert.equal(ray.intersectObjects(shells, false).length, 0, `Wand verschließt das Fenster bei ${q.x.toFixed(1)}, ${q.z.toFixed(1)}`);
+  }
+  // Glas ist durchsichtig
+  const glass = g.getObjectByName('windows').children.filter((m) => m.name === 'windowGlass');
+  assert.ok(glass.length >= 1 && glass.every((m) => m.material.transparent && m.material.opacity < 0.7));
+});

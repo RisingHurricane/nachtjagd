@@ -100,7 +100,12 @@ flatten(interior);
 flipBackSide(interior);
 const all = new THREE.Group();
 all.name = 'burg-komplett';
-all.add(castle.clone(), interior.clone());
+const castleForAll = castle.clone();
+// Die warm erleuchtete Innenhaut der hohlen Außenwände würde die Innenräume verdecken: im Gesamtmodell weglassen.
+const glow = [];
+castleForAll.traverse((o) => { if (o.name === 'interiorGlow') glow.push(o); });
+glow.forEach((o) => o.parent.remove(o));
+all.add(castleForAll, interior.clone());
 for (const [name, obj] of [['burg-aussen', castle], ['burg-innen', interior], ['burg-komplett', all]]) {
   const buf = await toGLB(obj);
   fs.writeFileSync(path.join(outDir, `${name}.glb`), buf);

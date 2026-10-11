@@ -22,7 +22,8 @@ export function buildCastleInterior(THREE, options = {}) {
   const opt = { ...PALETTE, ...options };
   const group = new THREE.Group();
   group.name = 'castleInterior';
-  const kit = createKit(THREE, group, opt);
+  // noHosts: Möbel und Kleinteile aus box() sollen keine Fenster aufnehmen, nur die Raumhüllen.
+  const kit = createKit(THREE, group, { ...opt, noHosts: true });
   const { add, box, frame } = kit;
   const rooms = [];
   const lights = [];
@@ -73,30 +74,34 @@ export function buildCastleInterior(THREE, options = {}) {
   winGeo.translate(0, -0.5, -0.04); // Mitte bei y = 0, Höhe 1
 
   // Fenster an der Wand. ry gibt die Blickrichtung des Fensters (0: +z, PI: -z, PI/2: +x, -PI/2: -x).
+  // Fenster in einer Raumhülle werden beim Abschluss (kit.finish) echte Löcher mit Laibung, Rahmen,
+  // Sprossen und Glas. Buntglas (Kapelle) hat farbiges, durchscheinendes Glas.
+  const stained = new Map();
+  const looks = new Map();
+  function lookFor(material) {
+    if (!looks.has(material)) {
+      let glass = kit.M.glass;
+      if (material !== I.moon) {
+        if (!stained.has(material)) {
+          stained.set(material, new THREE.MeshStandardMaterial({
+            name: 'stainedGlass', color: material.color, emissive: material.color, emissiveIntensity: 0.55,
+            roughness: 0.2, transparent: true, opacity: 0.62, side: THREE.DoubleSide, depthWrite: false,
+          }));
+        }
+        glass = stained.get(material);
+      }
+      looks.set(material, { glass, backing: material });
+    }
+    return looks.get(material);
+  }
   function iwin(x, y, z, ry, w, h, material) {
-    const m = new THREE.Mesh(winGeo, material);
-    m.scale.set(w, h, 1);
-    add(m, x, y, z);
-    m.rotation.y = ry;
-    return m;
+    // Normale aus der Wand heraus (vom Raum weg): gegen die Blickrichtung des Fensters
+    kit.pushWin(x, y, z, [-Math.sin(ry), -Math.cos(ry)], w, h, lookFor(material));
   }
 
   // Hülle eines Raums: nur von innen sichtbar. Ohne Boden oder Decke, wenn dort ein Durchgang bleibt.
-  function shell(w, h, d, x, y0, z, material, { noTop = false, noBottom = false } = {}) {
-    const geo = new THREE.BoxGeometry(w, h, d);
-    const drop = [];
-    if (noTop) drop.push(2); // Gruppen der BoxGeometry: px, nx, py, ny, pz, nz
-    if (noBottom) drop.push(3);
-    if (drop.length) {
-      const index = Array.from(geo.index.array);
-      const keep = [];
-      geo.groups.forEach((g, gi) => {
-        if (!drop.includes(gi)) for (let i = g.start; i < g.start + g.count; i++) keep.push(index[i]);
-      });
-      geo.setIndex(keep);
-      geo.clearGroups();
-    }
-    return add(new THREE.Mesh(geo, material), x, y0 + h / 2, z);
+  function shell(w, h, d, x, y0, z, material, opts = {}) {
+    return kit.shellBox(w, h, d, x, y0, z, material, opts);
   }
 
   const cyl = (rt, rb, h, x, y0, z, material, segs = 10) =>
@@ -264,9 +269,7 @@ export function buildCastleInterior(THREE, options = {}) {
     const cx = -3.5;
     const cz = 2.6;
     const rot = Math.PI / 8; // Achtkant, Fläche nach +z wie der Außenturm
-    const wall1 = new THREE.CylinderGeometry(3.45, 3.7, 35.2, 8, 1, true);
-    wall1.rotateY(rot);
-    add(new THREE.Mesh(wall1, I.plasterDark), cx, 17.6, cz);
+    kit.shellPoly(3.45, 3.7, 35.2, 8, rot, cx, 0, cz, I.plasterDark);
     cyl(3.4, 3.4, 0.08, cx, 0, cz, I.floorStone, 8);
     cyl(0.9, 0.9, 35.2, cx, 0, cz, I.stone, 8); // Treppenkern
 
@@ -304,9 +307,7 @@ export function buildCastleInterior(THREE, options = {}) {
     lights.push({ room: 'treppe', x: cx, y: 19, z: cz - 2.8, color: 0xffb060, intensity: 1.1, distance: 9 });
 
     // Turmzimmer (y 35,2 bis 49,2): Sektorboden mit Öffnung für die auslaufende Treppe
-    const wall2 = new THREE.CylinderGeometry(2.9, 2.9, 14, 8, 1, true);
-    wall2.rotateY(rot);
-    add(new THREE.Mesh(wall2, I.plaster), cx, 35.2 + 7, cz);
+    kit.shellPoly(2.9, 2.9, 14, 8, rot, cx, 35.2, cz, I.plaster);
     const ceil = new THREE.ConeGeometry(2.6, 11, 8, 1, true);
     ceil.rotateY(rot);
     add(new THREE.Mesh(ceil, I.woodDark.clone()), cx, 49.2 + 5.5, cz).material.side = THREE.BackSide;
@@ -359,7 +360,7 @@ export function buildCastleInterior(THREE, options = {}) {
   }
 
   // ======================================================================================
-  // Kapelle: Spitzbogengewölbe, Apsis mit fünf bunten Fenstern, Kirchenbänke, Altar
+  // Kapelle: Spitzbogengewölbe, Apsis mit sechs bunten Fenstern, Kirchenbänke, Altar
   // ======================================================================================
   {
     const FX = -17.5;
@@ -367,15 +368,17 @@ export function buildCastleInterior(THREE, options = {}) {
     const FR = 0.3;
     const W = (x, z) => [FX + x * Math.cos(FR) + z * Math.sin(FR), FZ - x * Math.sin(FR) + z * Math.cos(FR)];
     frame(FX, FZ, FR, () => {
-      // Langhaus: Spitzbogenprisma von innen, 6,6 x 13,2 m, Scheitel bei 9,5 m
+      // Langhaus: Seitenwände (mit echten Fenstern) und darüber das Spitzbogengewölbe, 6,6 x 13,2 m, Scheitel bei 9,5 m
+      kit.shellBox(6.6, 6.2, 13.2, 0, 0, 0, I.plasterDark, { only: ['+x', '-x'] });
       const vault = new THREE.ExtrudeGeometry(archShape(6.6, 6.2, 9.5), { depth: 13.2, bevelEnabled: false });
       vault.translate(0, 0, -6.6);
-      // Stirnkappen (Gruppe 0) weglassen: Zur Apsis bleibt es offen, die Eingangswand kommt separat.
-      const g1 = vault.groups[1]; // ExtrudeGeometry ist nicht indiziert: Positionen der Seitenflächen kopieren
+      // ExtrudeGeometry ist nicht indiziert, je Kante des Umrisses 6 Eckpunkte (Boden, rechte Wand, rechtes
+      // Dach, linkes Dach, linke Wand). Stirnkappen (Gruppe 0) und Wände weglassen: nur die Dachflächen.
+      const g1 = vault.groups[1];
       const sideGeo = new THREE.BufferGeometry();
       sideGeo.setAttribute(
         'position',
-        new THREE.BufferAttribute(vault.attributes.position.array.slice(g1.start * 3, (g1.start + g1.count) * 3), 3),
+        new THREE.BufferAttribute(vault.attributes.position.array.slice((g1.start + 12) * 3, (g1.start + 24) * 3), 3),
       );
       sideGeo.computeVertexNormals();
       add(new THREE.Mesh(sideGeo, I.plasterDark), 0, 0, 0);
@@ -384,9 +387,8 @@ export function buildCastleInterior(THREE, options = {}) {
       box(6.6, 0.08, 13.2, 0, 0, 0, I.floorStone);
       box(1.7, 0.02, 11.5, 0, 0.08, -0.6, I.rug);
       // Apsis: Halbzylinder und Halbkegel nach +z
-      const apseWall = new THREE.CylinderGeometry(3.3, 3.3, 6.2, 12, 1, true, -Math.PI / 2, Math.PI);
-      add(new THREE.Mesh(apseWall, I.plasterDark), 0, 3.1, 6.6);
-      const apseCone = new THREE.ConeGeometry(3.3, 3.3, 12, 1, true, -Math.PI / 2, Math.PI);
+      kit.shellPoly(3.3, 3.3, 6.2, 6, -Math.PI / 2, 0, 0, 6.6, I.plasterDark, Math.PI); // sechs Flächen à 30 Grad
+      const apseCone = new THREE.ConeGeometry(3.3, 3.3, 6, 1, true, -Math.PI / 2, Math.PI);
       add(new THREE.Mesh(apseCone, I.plasterDark), 0, 6.2 + 1.65, 6.6);
       add(new THREE.Mesh(new THREE.CylinderGeometry(3.3, 3.3, 0.08, 12, 1, false, -Math.PI / 2, Math.PI), I.floorStone), 0, 0.04, 6.6);
       add(new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.4, 0.4, 12, 1, false, -Math.PI / 2, Math.PI), I.stone), 0, 0.2, 6.6);
@@ -399,15 +401,15 @@ export function buildCastleInterior(THREE, options = {}) {
       candle(-0.7, 1.48, 8.4, 0.35);
       candle(0.7, 1.48, 8.4, 0.35);
 
-      // Fünf farbige Apsisfenster auf einem Halbkreis, zur Mitte gerichtet
-      for (let k = 0; k < 5; k++) {
-        const t = (-60 + k * 30) * (Math.PI / 180);
-        iwin(Math.sin(t) * 3.25, 3.6, 6.6 + Math.cos(t) * 3.25, t + Math.PI, 0.95, 3.4, I.glass[k % I.glass.length]);
+      // Sechs farbige Apsisfenster, je eines pro Wandfläche, zur Mitte gerichtet
+      for (let k = 0; k < 6; k++) {
+        const t = (-75 + k * 30) * (Math.PI / 180);
+        iwin(Math.sin(t) * 3.17, 3.6, 6.6 + Math.cos(t) * 3.17, t + Math.PI, 0.95, 3.4, I.glass[k % I.glass.length]);
       }
       // Seitenfenster und Wandpfeiler des Langhauses
       for (const z of [-4.05, -1.35, 1.35, 4.05]) {
-        iwin(-3.28, 4.2, z, Math.PI / 2, 1.0, 3.7, I.glass[Math.floor(rnd() * 5)]);
-        iwin(3.28, 4.2, z, -Math.PI / 2, 1.0, 3.7, I.glass[Math.floor(rnd() * 5)]);
+        iwin(-3.28, 4.1, z, Math.PI / 2, 1.0, 3.4, I.glass[Math.floor(rnd() * 5)]);
+        iwin(3.28, 4.1, z, -Math.PI / 2, 1.0, 3.4, I.glass[Math.floor(rnd() * 5)]);
       }
       for (const z of [-5.4, -2.7, 0, 2.7, 5.4]) {
         box(0.35, 6.3, 0.5, -3.12, 0.08, z, I.stone);
@@ -793,10 +795,13 @@ export function buildCastleInterior(THREE, options = {}) {
   };
   rooms.forEach((r) => { r.group = groupOf[r.id] || 'Sonstige'; });
 
+  const windowStats = kit.finish();
+
   group.userData = {
     kind: 'castleInterior',
     rooms,
     lights,
+    windows: windowStats,
   };
   return group;
 }
