@@ -696,7 +696,8 @@
     fileInput.value = '';
   });
   updateEditorStatus(storageWarning || (restored ? 'Dein gespeichertes Gelände wurde wieder geladen.' : 'Ausgangsform geladen.'));
-  let previous = performance.now();
+  let previous = performance.now(),menuTime=0;
+  const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const perf = { sum: 0, frames: 0, last: performance.now(), level: 0 };
   function frame(now) {
     requestAnimationFrame(frame);
@@ -716,6 +717,11 @@
     if(gameplay && !gameplay.active) gameplay.previewUpdate(dt);
     if(gameplay && gameplay.active) {
       gameplay.update(dt);
+    } else if (document.body.classList.contains('in-menu')) {
+      if(!reducedMotion) menuTime+=dt;
+      const shot=NachtjagdInterface.flyover(menuTime,groundHeight);
+      camera.position.fromArray(shot.position); camera.lookAt(...shot.target);
+      labels.visible=false; grid.visible=false;
     } else if (mode === 'walk') {
       const forward = Number(keys.has('w') || keys.has('arrowup')) - Number(keys.has('s') || keys.has('arrowdown'));
       const side = Number(keys.has('d') || keys.has('arrowright')) - Number(keys.has('a') || keys.has('arrowleft'));

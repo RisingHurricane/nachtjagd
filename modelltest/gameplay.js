@@ -32,7 +32,7 @@ globalThis.NachtjagdPlay = {
     const headMat=lam(0xc8a8a0);
     const weaponView=NachtjagdInterface.weapon(THREE),weapon=weaponView.group;
     camera.add(weapon); scene.add(camera);
-    const ui=NachtjagdInterface.create({world,onPlay:start,onLayout:()=>{},onMap:(open,ownedPause)=>{
+    const ui=NachtjagdInterface.create({world,onPlay:start,onLayout:onExit,onMap:(open,ownedPause)=>{
       if(open) { const wasPlaying=current?.phase==='playing'; pause(); return wasPlaying; }
       if(ownedPause&&current?.phase==='paused') { clearInput(); current=game.resume(); showPanel(); lockPointer(); }
       else if(active) showPanel();
