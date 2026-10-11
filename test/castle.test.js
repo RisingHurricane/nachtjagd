@@ -26,7 +26,7 @@ for (const [name, build] of variants) {
     }
   });
 
-  test(`Burg bleibt innerhalb des Footprints und hat Fensterleuchtmaterial (${name})`, () => {
+  test(`Burg bleibt innerhalb des Footprints (${name})`, () => {
     const castle = build(THREE);
     const box = new THREE.Box3().setFromObject(castle);
     assert.ok(box.min.y >= (name === 'castle' ? -9 : -1.7)); // Fels reicht bei castle.js 8,6 m unter den Boden (Keller)
@@ -34,9 +34,34 @@ for (const [name, build] of variants) {
     const { w, d } = castle.userData.footprint;
     assert.ok(box.min.x >= -w / 2 - 3 && box.max.x <= w / 2 + 3);
     assert.ok(box.min.z >= -d / 2 - 3 && box.max.z <= d / 2 + 3);
+  });
+
+  test(`Fenster sind echt: Glas ist durchsichtig und die Mauer hat Öffnungen (${name})`, () => {
+    const castle = build(THREE);
     const windows = castle.getObjectByName('windows');
-    assert.ok(windows && windows.isInstancedMesh);
-    assert.equal(windows.material.name, 'windowGlow');
+    assert.ok(windows && windows.children.length >= 3);
+    const glass = windows.children.find((m) => m.name === 'windowGlass');
+    assert.ok(glass && glass.isInstancedMesh);
+    assert.equal(glass.material.name, 'windowGlass');
+    assert.ok(glass.material.transparent && glass.material.opacity < 0.5);
+    const stats = castle.userData.windows;
+    assert.ok(stats.open >= stats.total * 0.9, 'fast alle Fenster sind echte Öffnungen: ' + JSON.stringify({ ...stats, openList: undefined }));
+    const walls = [];
+    castle.traverse((o) => { if (o.name === 'hollowWall') walls.push(o); });
+    assert.ok(walls.length >= 5);
+    for (const wall of walls) {
+      const p = wall.geometry.attributes.position.array;
+      assert.ok(p.length > 0 && p.every(Number.isFinite));
+    }
+    // Ein Strahl von 1,5 m vor dem Fenster nach innen trifft keine Außenhaut: die Öffnung geht durch.
+    castle.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster();
+    for (const q of stats.openList) {
+      const dir = new THREE.Vector3(-Math.sin(q.yaw), 0, -Math.cos(q.yaw));
+      ray.set(new THREE.Vector3(q.x - dir.x * 1.5, q.y, q.z - dir.z * 1.5), dir);
+      ray.far = 2.4;
+      assert.equal(ray.intersectObjects(walls, false).length, 0, 'Wand verschließt das Fenster bei ' + q.x.toFixed(1) + ', ' + q.z.toFixed(1));
+    }
   });
 
   test(`Das Tor ist frei: kein Collider im Torbogen (${name})`, () => {

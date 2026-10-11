@@ -57,9 +57,9 @@ export function buildCastle2(THREE, options = {}) {
   {
     const cx = 9;
     const cz = -7;
-    add(new THREE.Mesh(new THREE.CylinderGeometry(4.1, 4.4, 28, 12), M.stone), cx, 14, cz);
+    kit.shaft(cx, cz, 4.1, 4.4, 28, 0, 12, M.stone, Math.PI / 12);
     add(new THREE.Mesh(new THREE.CylinderGeometry(5.4, 4.1, 1.2, 12), M.stoneDark), cx, 28.6, cz);
-    add(new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.4, 14, 12), M.stoneLight), cx, 36.2, cz);
+    kit.shaft(cx, cz, 3.4, 3.4, 14, 29.2, 12, M.stoneLight, Math.PI / 12);
     add(new THREE.Mesh(new THREE.CylinderGeometry(4.4, 3.4, 1, 12), M.stoneDark), cx, 43.7, cz);
     add(new THREE.Mesh(kit.roofGeo(4.6, 30, 12), M.slate), cx, 44.2 + 15, cz);
     add(new THREE.Mesh(new THREE.ConeGeometry(0.25, 5, 6), M.dark), cx, 44.2 + 30 + 2.2, cz);
@@ -141,7 +141,7 @@ export function buildCastle2(THREE, options = {}) {
   arcadeSeg(-2, 16.3, 15.5, 12.3, 6.5, 3.2);
   wallSeg(-10, 17.5, -20.5, 1.5, 5.5);
 
-  kit.finish();
+  const windowStats = kit.finish();
 
   group.userData = {
     kind: 'castle',
@@ -150,6 +150,7 @@ export function buildCastle2(THREE, options = {}) {
     height: 82,
     gate: { x: gateX, z: gateZ, w: 5, facing: '+z' },
     colliders,
+    windows: windowStats,
   };
   return group;
 }

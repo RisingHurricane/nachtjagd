@@ -36,6 +36,23 @@ export function createKit(THREE, group, opt) {
       emissiveIntensity: 1.1,
       roughness: 1,
     }),
+    // Echtes Fensterglas: durchsichtig, leicht bläulich, mit einem Hauch warmem Eigenlicht.
+    glass: new THREE.MeshStandardMaterial({
+      name: 'windowGlass',
+      color: 0x9fc0d6,
+      emissive: opt.windowColor,
+      emissiveIntensity: 0.1,
+      roughness: 0.06,
+      metalness: 0.1,
+      transparent: true,
+      opacity: 0.26,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+    mullion: mat(0x2a1d14, { roughness: 0.7 }),
+    // Beleuchtete Innenseite der hohlen Mauern (unbeleuchtet, Helligkeit über Vertexfarben).
+    plaster: new THREE.MeshBasicMaterial({ name: 'interiorGlow', vertexColors: true }),
+    backing: new THREE.MeshBasicMaterial({ name: 'windowBacking', color: 0x8a5a2c, side: THREE.DoubleSide }),
   };
 
   // Teilbereiche (Flügel) lassen sich gegen die Achsen drehen. frame(x, z, rot, fn) baut fn() in
@@ -76,9 +93,54 @@ export function createKit(THREE, group, opt) {
     return mesh;
   }
 
+  // Bauteile, in die Fenster echte Öffnungen schneiden können (Quader und Turmschäfte).
+  // Jedes Bauteil beschreibt seinen Grundriss als Liste von Seitenflächen (facets) in der Reihenfolge
+  // wachsenden Winkels: Normale (nx, nz), Abstand der Fläche vom Mittelpunkt (a, unten und oben),
+  // halbe Länge (hl, unten und oben) und tan(Winkel/2) für das Einrücken an den Ecken.
+  const hosts = [];
+  const wallThickness = (size) => Math.min(1.0, Math.max(0.35, 0.2 * size));
+
+  function boxFacets(w, d) {
+    return [
+      { nx: 0, nz: 1, aB: d / 2, aT: d / 2, hlB: w / 2, hlT: w / 2, tan: 1 },
+      { nx: 1, nz: 0, aB: w / 2, aT: w / 2, hlB: d / 2, hlT: d / 2, tan: 1 },
+      { nx: 0, nz: -1, aB: d / 2, aT: d / 2, hlB: w / 2, hlT: w / 2, tan: 1 },
+      { nx: -1, nz: 0, aB: w / 2, aT: w / 2, hlB: d / 2, hlT: d / 2, tan: 1 },
+    ];
+  }
+
+  function polyFacets(n, rB, rT, phase) {
+    const al = Math.PI / n;
+    const out = [];
+    for (let k = 0; k < n; k++) {
+      const phi = phase + al + 2 * al * k;
+      out.push({
+        nx: Math.sin(phi), nz: Math.cos(phi),
+        aB: rB * Math.cos(al), aT: rT * Math.cos(al),
+        hlB: rB * Math.sin(al), hlT: rT * Math.sin(al), tan: Math.tan(al),
+      });
+    }
+    return out;
+  }
+
   // Quader, Unterkante bei y0.
   function box(w, h, d, x, y0, z, material) {
-    return add(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material), x, y0 + h / 2, z);
+    const mesh = add(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material), x, y0 + h / 2, z);
+    hosts.push({ mesh, mat: material, F, x, z, y0, h, facets: boxFacets(w, d), t: wallThickness(Math.min(w, d)) });
+    return mesh;
+  }
+
+  // Turmschaft: Zylinder (rTop oben, rBottom unten) mit segs Seiten, um phase gedreht. Mit Fenstern
+  // wird er beim Abschluss zu einer hohlen Wand mit echten Öffnungen.
+  function shaft(x, z, rTop, rBottom, h, y0, segs, material, phase = 0) {
+    const geo = new THREE.CylinderGeometry(rTop, rBottom, h, segs);
+    if (phase) geo.rotateY(phase);
+    const mesh = add(new THREE.Mesh(geo, material), x, y0 + h / 2, z);
+    hosts.push({
+      mesh, mat: material, F, x, z, y0, h, facets: polyFacets(segs, rBottom, rTop, phase),
+      t: wallThickness(Math.min(rTop, rBottom)),
+    });
+    return mesh;
   }
 
   // Spitzes Dach (Kegel oder Pyramide) mit flacherem Rand am Fuß: Der Rand ist etwa 17 Grad geneigt
@@ -99,7 +161,8 @@ export function createKit(THREE, group, opt) {
 
   // Runder Turm mit Kegeldach. roofMat bestimmt die Dachfarbe, segs die Seitenzahl.
   function roundTower(x, z, r, h, roofH, roofMat, stoneMat, y0 = 0, segs = 12) {
-    add(new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.08, h, segs), stoneMat), x, y0 + h / 2, z);
+    // Eine Seitenfläche zeigt genau nach +z, +x, -z und -x (bei durch 4 teilbarer Seitenzahl).
+    shaft(x, z, r, r * 1.08, h, y0, segs, stoneMat, Math.PI / segs);
     // Auskragung unter dem Dach
     add(new THREE.Mesh(new THREE.CylinderGeometry(r * 1.18, r * 1.0, 1.1, segs), M.stoneDark), x, y0 + h + 0.55, z);
     add(new THREE.Mesh(roofGeo(r * 1.3, roofH, segs), roofMat), x, y0 + h + 1.1 + roofH / 2, z);
@@ -330,36 +393,304 @@ export function createKit(THREE, group, opt) {
     return geo;
   }
 
-  // Alle gesammelten Fenster als eine InstancedMesh mit Leuchtmaterial hinzufügen.
+  // ---------- Fenster ----------
+  // Spitzbogenfenster (Mitte bei 0, 0): Rechteck mit aufgesetztem Spitzbogen.
+  const archPts = (w, h) => [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, 0.15 * h], [0, h / 2], [-w / 2, 0.15 * h]];
+  const shapeOf = (pts) => {
+    const sh = new THREE.Shape();
+    pts.forEach(([x, y], i) => (i === 0 ? sh.moveTo(x, y) : sh.lineTo(x, y)));
+    return sh;
+  };
+  const FACE = { '+z': [0, 1], '-z': [0, -1], '+x': [1, 0], '-x': [-1, 0] };
+
+  // Mehrere Geometrien (ohne Index) zu einer zusammenfügen.
+  function mergeGeos(list) {
+    const parts = list.map((g) => (g.index ? g.toNonIndexed() : g));
+    let n = 0;
+    for (const g of parts) n += g.attributes.position.count;
+    const pos = new Float32Array(n * 3);
+    let o = 0;
+    for (const g of parts) { pos.set(g.attributes.position.array, o); o += g.attributes.position.count * 3; }
+    const out = new THREE.BufferGeometry();
+    out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    out.computeVertexNormals();
+    return out;
+  }
+
+  // Passt das Fenster w auf eine Seitenfläche des Bauteils? Liefert { f, u, err } oder null.
+  function matchWindow(host, w) {
+    if (Math.abs(host.F.rot - w.rot) > 1e-6) return null;
+    const c = Math.cos(host.F.rot);
+    const s = Math.sin(host.F.rot);
+    const dx = w.x - host.F.x;
+    const dz = w.z - host.F.z;
+    const xl = dx * c - dz * s - host.x;
+    const zl = dx * s + dz * c - host.z;
+    const k = (w.y - host.y0) / host.h;
+    if (k <= 0 || k >= 1) return null;
+    if (w.y - w.h / 2 < host.y0 + 0.3 || w.y + w.h / 2 > host.y0 + host.h - 0.25) return null;
+    const fv = FACE[w.face];
+    let best = null;
+    for (const f of host.facets) {
+      if (f.nx * fv[0] + f.nz * fv[1] < 0.95) continue;
+      const a = f.aB + (f.aT - f.aB) * k;
+      const err = Math.abs(xl * f.nx + zl * f.nz - a);
+      if (err > 0.5) continue;
+      const u = xl * f.nz - zl * f.nx;
+      const hl = f.hlB + (f.hlT - f.hlB) * k - host.t * f.tan;
+      if (Math.abs(u) + w.w / 2 > hl - 0.12) continue;
+      if (!best || err < best.err) best = { f, u, err };
+    }
+    return best;
+  }
+
+  // Ersetzt den vollen Block durch eine hohle Wand: Außenhaut (Material des Bauteils) und Innenhaut
+  // (warm erleuchtet) mit denselben Öffnungen, Laibungen dazwischen, Decke und Boden.
+  function hollowOut(host, items) {
+    const H = host.h;
+    const t = host.t;
+    const outer = [];
+    const inner = [];
+    const innerCol = [];
+    const WALL = new THREE.Color(0xe3b070);
+    const CEIL = new THREE.Color(0x8c6a44);
+    const FLOOR = new THREE.Color(0x9b7648);
+    const pt = (f, u, y, inset) => {
+      const a = f.aB + (f.aT - f.aB) * (y / H) - inset;
+      return [host.x + f.nx * a + f.nz * u, host.y0 + y, host.z + f.nz * a - f.nx * u];
+    };
+    const corner = (f, y, inset) => pt(f, f.hlB + (f.hlT - f.hlB) * (y / H) - inset * f.tan, y, inset);
+    // Innenhaut: Helligkeit je Ecke, in Raummitte am hellsten, zu Boden und Decke dunkler (Tiefenwirkung).
+    const shade = (col, y) => {
+      const k = Math.sin(Math.PI * Math.min(1, Math.max(0, y / H)));
+      const f = 0.42 + 0.58 * Math.pow(k, 0.7);
+      return [col.r * f, col.g * f, col.b * f];
+    };
+    const addInner = (a, b, c, col, byHeight) => {
+      inner.push(...a, ...b, ...c);
+      for (const q of [a, b, c]) {
+        const rgb = byHeight ? shade(col, q[1] - host.y0) : [col.r, col.g, col.b];
+        innerCol.push(...rgb);
+      }
+    };
+    const cross = (a, b, c) => {
+      const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+      const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+      return [uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx];
+    };
+
+    for (const f of host.facets) {
+      const mine = items.filter((it) => it.hit.f === f);
+      const holes = mine.map((it) => archPts(it.w.w, it.w.h).map(([du, dv]) => [it.hit.u + du, it.w.y - host.y0 + dv]));
+      for (const inset of [0, t]) {
+        const tn = inset * f.tan;
+        const contour = [[-(f.hlB - tn), 0], [f.hlB - tn, 0]];
+        // Seitenkanten unterteilen: mehr Ecken für den Helligkeitsverlauf der Innenhaut
+        const rows = inset ? Math.max(1, Math.ceil(H / 3)) : 1;
+        for (let r = 1; r < rows; r++) contour.push([f.hlB + (f.hlT - f.hlB) * (r / rows) - tn, H * (r / rows)]);
+        contour.push([f.hlT - tn, H], [-(f.hlT - tn), H]);
+        for (let r = rows - 1; r >= 1; r--) contour.push([-(f.hlB + (f.hlT - f.hlB) * (r / rows) - tn), H * (r / rows)]);
+        const all = [...contour, ...holes.flat()];
+        const tris = THREE.ShapeUtils.triangulateShape(
+          contour.map(([x, y]) => new THREE.Vector2(x, y)),
+          holes.map((h) => h.map(([x, y]) => new THREE.Vector2(x, y)))
+        );
+        for (const [i, j, k] of tris) {
+          const a = all[i];
+          let b = all[j];
+          let c = all[k];
+          if ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]) < 0) [b, c] = [c, b]; // gegen den Uhrzeigersinn = nach außen
+          const A = pt(f, a[0], a[1], inset);
+          const B = pt(f, b[0], b[1], inset);
+          const C = pt(f, c[0], c[1], inset);
+          if (inset) addInner(A, C, B, WALL, true);
+          else outer.push(...A, ...B, ...C);
+        }
+      }
+      // Laibungen: Außenkante und Innenkante jedes Fensters verbinden
+      holes.forEach((hole) => {
+        const O = hole.map(([u, y]) => pt(f, u, y, 0));
+        const I = hole.map(([u, y]) => pt(f, u, y, t));
+        const mid = [0, 1, 2].map((d) => (O.reduce((q, p) => q + p[d], 0) + I.reduce((q, p) => q + p[d], 0)) / (2 * hole.length));
+        const n = hole.length;
+        for (let i = 0; i < n; i++) {
+          const j = (i + 1) % n;
+          for (const tri of [[O[i], O[j], I[j]], [O[i], I[j], I[i]]]) {
+            const cen = [0, 1, 2].map((d) => (tri[0][d] + tri[1][d] + tri[2][d]) / 3);
+            const nrm = cross(tri[0], tri[1], tri[2]);
+            const dot = nrm[0] * (mid[0] - cen[0]) + nrm[1] * (mid[1] - cen[1]) + nrm[2] * (mid[2] - cen[2]);
+            if (dot > 0) outer.push(...tri[0], ...tri[1], ...tri[2]);
+            else outer.push(...tri[0], ...tri[2], ...tri[1]);
+          }
+        }
+      });
+    }
+    // Deckel (außen, sichtbar unter dem Dach), Decke und Boden (innen)
+    const fan = (ring, up, sink) => {
+      const cx = ring.reduce((q, p) => q + p[0], 0) / ring.length;
+      const cy = ring[0][1];
+      const cz = ring.reduce((q, p) => q + p[2], 0) / ring.length;
+      const out = [];
+      for (let i = 0; i < ring.length; i++) {
+        const a = ring[i];
+        const b = ring[(i + 1) % ring.length];
+        const tri = [a, b, [cx, cy, cz]];
+        const ny = cross(tri[0], tri[1], tri[2])[1];
+        out.push(ny > 0 === up ? tri : [tri[0], tri[2], tri[1]]);
+      }
+      return out.map((tri) => tri.map((p) => [p[0], p[1] + sink, p[2]]));
+    };
+    for (const tri of fan(host.facets.map((f) => corner(f, H, 0)), true, 0)) outer.push(...tri[0], ...tri[1], ...tri[2]);
+    for (const tri of fan(host.facets.map((f) => corner(f, H, t)), false, -0.02)) addInner(tri[0], tri[1], tri[2], CEIL);
+    for (const tri of fan(host.facets.map((f) => corner(f, 0, t)), true, 0.04)) addInner(tri[0], tri[1], tri[2], FLOOR);
+
+    const parent = host.mesh.parent;
+    parent.remove(host.mesh);
+    host.mesh.geometry.dispose();
+    const og = new THREE.BufferGeometry();
+    og.setAttribute('position', new THREE.BufferAttribute(new Float32Array(outer), 3));
+    og.computeVertexNormals();
+    const om = new THREE.Mesh(og, host.mat);
+    om.name = 'hollowWall';
+    const ig = new THREE.BufferGeometry();
+    ig.setAttribute('position', new THREE.BufferAttribute(new Float32Array(inner), 3));
+    ig.setAttribute('color', new THREE.BufferAttribute(new Float32Array(innerCol), 3));
+    ig.computeVertexNormals();
+    const im = new THREE.Mesh(ig, M.plaster);
+    im.name = 'interiorGlow';
+    parent.add(om);
+    parent.add(im);
+  }
+
+  // Fensterteile für eine Größe: Steinrahmen mit Sohlbank, Holzsprossen, Glas, Hintergrundplatte.
+  function windowParts(w, h) {
+    const casing = new THREE.ExtrudeGeometry(
+      (() => {
+        const sh = shapeOf(archPts(w + 0.4, h + 0.34));
+        sh.holes.push(shapeOf(archPts(w, h)));
+        return sh;
+      })(),
+      { depth: 0.16, bevelEnabled: false }
+    );
+    const sill = new THREE.BoxGeometry(w + 0.62, 0.1, 0.34);
+    sill.translate(0, -h / 2 - 0.2, 0.1);
+    const bars = [];
+    const ring = new THREE.ExtrudeGeometry(
+      (() => {
+        const sh = shapeOf(archPts(w + 0.04, h + 0.04));
+        sh.holes.push(shapeOf(archPts(w - 0.12, h - 0.12)));
+        return sh;
+      })(),
+      { depth: 0.06, bevelEnabled: false }
+    );
+    ring.translate(0, 0, -0.03);
+    bars.push(ring);
+    const vb = new THREE.BoxGeometry(0.05, h - 0.1, 0.05);
+    vb.translate(0, -0.05, 0);
+    bars.push(vb);
+    for (const y of h >= 1.4 ? [-0.2 * h, 0.08 * h] : [0]) {
+      const hb = new THREE.BoxGeometry(w - 0.06, 0.045, 0.045);
+      hb.translate(0, y, 0);
+      bars.push(hb);
+    }
+    return {
+      casing: mergeGeos([casing, sill]),
+      bars: mergeGeos(bars),
+      glass: new THREE.ShapeGeometry(shapeOf(archPts(w - 0.1, h - 0.1))),
+      backing: new THREE.ShapeGeometry(shapeOf(archPts(w, h))),
+    };
+  }
+
+  // Alle Fenster abschließen: Fenster in Wänden werden zu echten Öffnungen mit Glas, übrige Fenster
+  // sitzen als Rahmen mit Glas vor einer beleuchteten Platte. Gibt die Zählung zurück.
   function finish() {
-  const tmp = new THREE.Object3D();
-    // Spitzbogenfenster: Rechteck mit aufgesetztem Dreieck, Maße 1 x 1 (werden pro Fenster skaliert)
-    const winShape = new THREE.Shape();
-    winShape.moveTo(-0.5, -0.5);
-    winShape.lineTo(0.5, -0.5);
-    winShape.lineTo(0.5, 0.15);
-    winShape.lineTo(0, 0.5);
-    winShape.lineTo(-0.5, 0.15);
-    winShape.lineTo(-0.5, -0.5);
-    const winGeo = new THREE.ExtrudeGeometry(winShape, { depth: 0.18, bevelEnabled: false });
-    winGeo.translate(0, 0, -0.09);
-    const win = new THREE.InstancedMesh(winGeo, M.glow, windows.length);
-    windows.forEach((w, i) => {
-      tmp.position.set(w.x, w.y, w.z);
+    const stats = { total: windows.length, open: 0, loose: 0, openList: [] };
+    const byHost = new Map();
+    const looseList = [];
+    for (const w of windows) {
+      let best = null;
+      for (const host of hosts) {
+        const hit = matchWindow(host, w);
+        if (hit && (!best || hit.err < best.hit.err)) best = { host, hit };
+      }
+      if (!best) { looseList.push(w); continue; }
+      if (!byHost.has(best.host)) byHost.set(best.host, []);
+      byHost.get(best.host).push({ w, hit: best.hit });
+    }
+    // Einheitliche Liste der Fensterinstanzen (Weltkoordinaten)
+    const inst = [];
+    for (const [host, items] of byHost) {
+      hollowOut(host, items);
+      const c = Math.cos(host.F.rot);
+      const s = Math.sin(host.F.rot);
+      for (const { w, hit } of items) {
+        const f = hit.f;
+        const k = (w.y - host.y0) / host.h;
+        const a = f.aB + (f.aT - f.aB) * k;
+        const lx = host.x + f.nx * a + f.nz * hit.u;
+        const lz = host.z + f.nz * a - f.nx * hit.u;
+        inst.push({
+          w: w.w, h: w.h, y: w.y, open: true, depth: Math.min(0.5, 0.45 * host.t),
+          x: host.F.x + lx * c + lz * s, z: host.F.z - lx * s + lz * c,
+          yaw: Math.atan2(f.nx, f.nz) + host.F.rot,
+        });
+        stats.open++;
+        stats.openList.push({ x: inst[inst.length - 1].x, y: w.y, z: inst[inst.length - 1].z, yaw: inst[inst.length - 1].yaw });
+      }
+    }
+    for (const w of looseList) {
       const base = w.face === '+x' ? Math.PI / 2 : w.face === '-x' ? -Math.PI / 2 : w.face === '-z' ? Math.PI : 0;
-      tmp.rotation.set(0, base + w.rot, 0);
-      tmp.scale.set(w.w, w.h, 1);
+      inst.push({ w: w.w, h: w.h, y: w.y, open: false, depth: 0, x: w.x, z: w.z, yaw: base + w.rot });
+      stats.loose++;
+    }
+
+    const tmp = new THREE.Object3D();
+    const winGroup = new THREE.Group();
+    winGroup.name = 'windows';
+    const bySize = new Map();
+    for (const q of inst) {
+      const key = q.w.toFixed(2) + 'x' + q.h.toFixed(2);
+      if (!bySize.has(key)) bySize.set(key, []);
+      bySize.get(key).push(q);
+    }
+    const place = (mesh, i, q, back) => {
+      const nx = Math.sin(q.yaw);
+      const nz = Math.cos(q.yaw);
+      tmp.position.set(q.x - nx * back, q.y, q.z - nz * back);
+      tmp.rotation.set(0, q.yaw, 0);
+      tmp.scale.set(1, 1, 1);
       tmp.updateMatrix();
-      win.setMatrixAt(i, tmp.matrix);
-    });
-    tmp.rotation.set(0, 0, 0);
-    tmp.scale.set(1, 1, 1);
-    win.name = 'windows';
-    group.add(win);
+      mesh.setMatrixAt(i, tmp.matrix);
+    };
+    for (const [key, list] of bySize) {
+      const [w, h] = key.split('x').map(Number);
+      const parts = windowParts(w, h);
+      const casing = new THREE.InstancedMesh(parts.casing, M.stoneLight, list.length);
+      const bars = new THREE.InstancedMesh(parts.bars, M.mullion, list.length);
+      const glass = new THREE.InstancedMesh(parts.glass, M.glass, list.length);
+      glass.renderOrder = 2;
+      const loose = list.filter((q) => !q.open);
+      const backing = loose.length ? new THREE.InstancedMesh(parts.backing, M.backing, loose.length) : null;
+      let bi = 0;
+      list.forEach((q, i) => {
+        // Rahmen außen bündig mit der Wand (lose Fenster: 0,08 m vor der Wand, also 0,08 zurück)
+        place(casing, i, q, q.open ? 0 : 0.08);
+        place(bars, i, q, q.open ? q.depth : 0);
+        place(glass, i, q, q.open ? q.depth : 0);
+        if (!q.open) place(backing, bi++, q, 0.04);
+      });
+      casing.name = 'windowCasing';
+      bars.name = 'windowBars';
+      glass.name = 'windowGlass';
+      winGroup.add(casing, bars, glass);
+      if (backing) { backing.name = 'windowBacking'; winGroup.add(backing); }
+    }
+    group.add(winGroup);
+    return stats;
   }
 
   return {
-    M, colliders, windows, add, box, roundTower, pyramid, gable, roofGeo, dormer, windowRow,
+    M, colliders, windows, add, box, shaft, roundTower, pyramid, gable, roofGeo, dormer, windowRow,
     arcadePanel, arcadeSeg, wallSeg, frame, col, rock, oct, finish, mat, toWorld, palisade, fiale, buttress, door,
   };
 }

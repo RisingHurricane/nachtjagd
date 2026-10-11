@@ -19,7 +19,9 @@ import { createKit, PALETTE } from './kit.js';
 //   - group.userData.colliders: Liste der festen Körper in lokalen Koordinaten, damit das Layout
 //     die Kollision aus dem Modell übernehmen kann:
 //       { type: 'box', x, z, w, d, h } oder { type: 'circle', x, z, r, h }
-//   - Fenster sind eine InstancedMesh mit dem Namen 'windows' und leuchtendem Material (Name 'windowGlow').
+//   - Fenster sind echt: Wände mit Fenstern sind hohl (Netze 'hollowWall' außen, 'interiorGlow' innen), die
+//     Öffnungen gehen durch die Mauer. Rahmen, Sprossen und durchsichtiges Glas (Material 'windowGlass')
+//     liegen als Instanzen in der Gruppe 'windows'. userData.windows zählt offene und lose Fenster.
 //   - Einzelne Flügel sind gegen die Achsen gedreht. Ihre Box-Collider tragen dann zusätzlich
 //     { rot } (Drehung um y in Radiant, Konvention wie THREE.Object3D.rotation.y, Mittelpunkt x, z).
 //     Wer nur achsenparallele Boxen kennt, kann sie über den Kreis um (x, z) mit Radius
@@ -76,9 +78,9 @@ export function buildCastle(THREE, options = {}) {
   {
     const cx = -3.5;
     const cz = 2.6; // Nordfläche liegt bündig an der Palasfront (z = -1.5)
-    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(4.0, 4.4, 34, 8)), M.stone), cx, 17, cz);
+    kit.shaft(cx, cz, 4.0, 4.4, 34, 0, 8, M.stone, Math.PI / 8); // Fenster schneiden echte Öffnungen in den Schaft
     add(new THREE.Mesh(oct(new THREE.CylinderGeometry(5.2, 4.0, 1.2, 8)), M.stoneDark), cx, 34.6, cz);
-    add(new THREE.Mesh(oct(new THREE.CylinderGeometry(3.2, 3.2, 14, 8)), M.stoneLight), cx, 42.2, cz);
+    kit.shaft(cx, cz, 3.2, 3.2, 14, 35.2, 8, M.stoneLight, Math.PI / 8);
     add(new THREE.Mesh(oct(new THREE.CylinderGeometry(4.2, 3.2, 1, 8)), M.stoneDark), cx, 49.7, cz);
     add(new THREE.Mesh(oct(kit.roofGeo(4.3, 26, 8)), M.copper), cx, 50.2 + 13, cz);
     add(new THREE.Mesh(new THREE.ConeGeometry(0.25, 5, 6), M.dark), cx, 50.2 + 26 + 2.2, cz);
@@ -213,7 +215,7 @@ export function buildCastle(THREE, options = {}) {
   // weitere Fialen an den Giebeln des Palas
   for (const x of [-15.6, 7.6]) fiale(x, 12.2, -6, 4.2, 0.6);
 
-  kit.finish();
+  const windowStats = kit.finish();
 
   group.userData = {
     kind: 'castle',
@@ -221,6 +223,7 @@ export function buildCastle(THREE, options = {}) {
     height: 85,
     gate: { x: gateX, z: gateZ, w: 6, facing: '+z' },
     colliders,
+    windows: windowStats,
   };
   return group;
 }
