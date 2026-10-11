@@ -1,0 +1,84 @@
+{
+  "asset": "NachtjagdChurch",
+  "version": "1.0.0",
+  "units": "metres",
+  "upAxis": "Y",
+  "frontAxis": "+Z",
+  "pivot": "entrance threshold at local [0,0,0]",
+  "suggestedPlacement": {
+    "x": 91,
+    "z": 24.5,
+    "rotationY": 0,
+    "y": "height of the church approach at (91,25); sample once, do not fit each wall separately"
+  },
+  "bounds": {
+    "x": [
+      -7.12,
+      7.12
+    ],
+    "y": [
+      -1.4,
+      29.11
+    ],
+    "z": [
+      -30.76,
+      3
+    ]
+  },
+  "anchors": {
+    "entrance": [
+      0,
+      0,
+      0.2
+    ],
+    "seal": [
+      0,
+      0.4,
+      -25.6
+    ],
+    "bellInteract": [
+      0,
+      1.1,
+      -2
+    ],
+    "bellMount": [
+      0,
+      17.7,
+      -3.5
+    ]
+  },
+  "doorClearWidth": 2.7,
+  "doorClearHeightAtCenter": 4.2,
+  "centerAisleWidth": 2.8,
+  "colliderFile": "church-collision.json",
+  "doors": [
+    {
+      "node": "DoorHingeLeft",
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "closedAngle": 0,
+      "openAngle": -1.4835298641951802,
+      "defaultOpen": true
+    },
+    {
+      "node": "DoorHingeRight",
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "closedAngle": 0,
+      "openAngle": 1.4835298641951802,
+      "defaultOpen": true
+    }
+  ],
+  "limitations": [
+    "Bell tower has no walkable staircase in this asset version",
+    "Terrain requires one common floor pad; cut or lower terrain below nave",
+    "Door leaves are open by default; closed doors need dynamic collision"
+  ],
+  "estimatedTriangles": 26636
+}
