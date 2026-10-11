@@ -84,3 +84,5 @@ gameplay-core.js enthält einen rendererunabhängigen Solo-Kern nach den Waffen-
 ### Spielelogik Stufe 2 (Entwurf 14)
 
 `gameplay-core.js` deckt nun Spezialgegner, Luftgegner, Granaten, Molotows, Axt, Sprung, Händler, Schmied, Bildstöcke, Angelstellen, Notizen, Relikte, Wetter und Siegelwächter ab; Weltadapter-Teile dafür (`objectives[].guard`, `loots`, `merchant`, `smith`, `shrines`, `fishSpots`, `waterDepth`) sind optional. `play-spots.js` erzeugt diese Orte aus dem Layout. Tests: `test/gameplay-mechanics.test.js`. Fahrzeuge, Minentunnel und Koop fehlen. Details in `STATUS.md`.
+
+Fahrzeuge: `vehicles.js` (Physik, Fahrpläne), Anbindung in `gameplay-core.js` (Einsteigen, Sitze, Rammen), Platzhaltermodelle und Austauschpunkt in `vehicle-models.js`, Orte in `play-spots.js`. Die Welt liefert optional `jeeps`, `boats`, `rails`, `carts`, `gondola`, `waterLevel`, `boatOk`, `onRoad`. Tests: `test/vehicles.test.js`.

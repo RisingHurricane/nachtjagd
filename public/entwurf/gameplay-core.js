@@ -108,14 +108,17 @@
     const initialY = world.floor(start[0], start[1], 0);
     const floorAt = (x, z, y) => { const f = world.floor(x, z, y); return finite(f) ? f : y; };
     const place = (o, i) => ({ ...o, id: o.id === undefined ? i : o.id, y: finite(o.y) ? o.y : floorAt(o.x, o.z, initialY) });
+    // Fahrzeuge (Geländewagen, Lore, Gondel, Boot) kommen aus vehicles.js und den optionalen Weltlisten.
+    const VEH = root.NachtjagdVehicles;
+    const fleet = VEH ? VEH.create(world, floorAt) : { vehicles: [], info: {} };
     const state = {
       phase: 'ready', time: 0,
-      player: { x: start[0], y: initialY, z: start[1], yaw: 0, pitch: 0, hp: 100, maxHp: 100, vx: 0, vy: 0, vz: 0, onGround: true, hurtT: 0, bless: 0, slowT: 0, frozen: false, gren: 2, molo: 2 },
+      player: { x: start[0], y: initialY, z: start[1], yaw: 0, pitch: 0, hp: 100, maxHp: 100, vx: 0, vy: 0, vz: 0, onGround: true, hurtT: 0, bless: 0, slowT: 0, frozen: false, gren: 2, molo: 2, ride: null, eye: 1.75 },
       weapons: WDEF.map((w, i) => ({ ...w, owned: i === 0, ammo: w.mag, reserve: w.res, reloading: 0 })),
       current: 0, up: { dmg: 0, mag: 0, rel: 0, hp: 0, lamp: 0, silver: 0 },
       relics: { heart: false, compass: false, lamp: false, heartReady: 0 },
       waves: { n: 0, state: 'idle', timer: 3.5, toSpawn: 0, alive: 0, total: 0, spawnT: 0, finalT: 0, mod: 'normal' },
-      monsters: [], items: [], acids: [], nades: [], fires: [],
+      monsters: [], items: [], acids: [], nades: [], fires: [], vehicles: fleet.vehicles,
       loots: (world.loots || []).map((l, i) => ({ ...place(l, i), taken: false })),
       shrines: (world.shrines || []).map((s, i) => ({ ...place(s, i), used: false })),
       fishSpots: (world.fishSpots || []).map((s, i) => ({ ...place(s, i), cool: 0 })),
@@ -396,7 +399,7 @@
     }
     function shoot(input) {
       const w = state.weapons[state.current];
-      if (cooldown > 0 || swapTimer > 0 || w.reloading > 0 || state.melee.t > 0 || P.frozen) return;
+      if (cooldown > 0 || swapTimer > 0 || w.reloading > 0 || state.melee.t > 0 || P.frozen || (P.ride && P.ride.driver && P.ride.kind === 'jeep')) return;
       if (!w.ammo) { reload(); return; }
       w.ammo--; cooldown = w.rate;
       const cp = Math.cos(P.pitch), forward = { x: Math.sin(P.yaw) * cp, y: Math.sin(P.pitch), z: Math.cos(P.yaw) * cp };
@@ -407,7 +410,7 @@
         const spreadX = (random() * 2 - 1) * spread, spreadY = (random() * 2 - 1) * spread;
         let dx = forward.x + Math.cos(P.yaw) * spreadX, dy = forward.y + spreadY, dz = forward.z - Math.sin(P.yaw) * spreadX;
         const len = Math.hypot(dx, dy, dz) || 1; dx /= len; dy /= len; dz /= len;
-        const max = w.range, origin = { x: P.x, y: P.y + 1.75, z: P.z };
+        const max = w.range, origin = { x: P.x, y: P.y + P.eye, z: P.z };
         const obstruction = typeof world.rayDistance === 'function' ? world.rayDistance(origin, { x: dx, y: dy, z: dz }, max) : max;
         const limit = finite(obstruction) ? clamp(obstruction, 0, max) : max;
         const hit = traceMonsters(origin, { x: dx, y: dy, z: dz }, limit);
@@ -428,7 +431,7 @@
     // Axt: kurzer Schlag nach vorn, trifft nur, was im Blick und in Reichweite ist.
     function melee() {
       const m = state.melee;
-      if (state.phase !== 'playing' || m.cd > 0 || m.t > 0 || P.frozen) return false;
+      if (state.phase !== 'playing' || m.cd > 0 || m.t > 0 || P.frozen || P.ride) return false;
       state.weapons[state.current].reloading = 0;
       m.t = 0.46; m.cd = 0.75; m.hit = false; emit('swing'); return true;
     }
@@ -457,12 +460,12 @@
     }
     // Wurfgeschosse: Granate (Flächenschaden nach 1,9 s) und Molotow (Flammenteppich beim Aufprall).
     function throwNade(molo) {
-      if (state.phase !== 'playing' || nadeCool > 0 || P.frozen) return false;
+      if (state.phase !== 'playing' || nadeCool > 0 || P.frozen || P.ride) return false;
       if (molo ? P.molo <= 0 : P.gren <= 0) return false;
       if (molo) P.molo--; else P.gren--;
       nadeCool = 0.6;
       const cp = Math.cos(P.pitch), f = { x: Math.sin(P.yaw) * cp, y: Math.sin(P.pitch), z: Math.cos(P.yaw) * cp };
-      const eye = { x: P.x, y: P.y + 1.6, z: P.z };
+      const eye = { x: P.x, y: P.y + P.eye - 0.15, z: P.z };
       const h = typeof world.rayDistance === 'function' ? world.rayDistance(eye, f, 0.6) : 0.6;
       const reach = finite(h) && h < 0.6 ? Math.max(0.05, h - 0.2) : 0.5, sp = molo ? 14 : 15, up = molo ? 3.4 : 3.2;
       state.nades.push({ molo: !!molo, x: eye.x + f.x * reach, y: eye.y + f.y * reach, z: eye.z + f.z * reach, vx: f.x * sp + P.vx * 0.5, vy: f.y * sp + up, vz: f.z * sp + P.vz * 0.5, t: 0 });
@@ -729,6 +732,7 @@
     }
     // Das nächste benutzbare Ziel in Reichweite (gleiche Reichweiten wie im Original).
     function findInteract() {
+      if (P.ride) return { type: 'leave' };
       let best = null, bd = Infinity;
       const consider = (type, d, dy, lim, ref) => { if (d <= lim[0] && dy < lim[1] && d < bd) { bd = d; best = { type, ...ref }; } };
       state.loots.forEach((l, i) => { if (!l.taken) consider('loot', Math.hypot(P.x - l.x, P.z - l.z), Math.abs(P.y + 0.6 - l.y), [2.4, 2.6], { index: i, relic: !!l.relicId }); });
@@ -746,14 +750,27 @@
         const b = state.quest.bell, by = b.y === undefined ? floorAt(b.x, b.z, P.y) : b.y;
         consider('bell', Math.hypot(P.x - b.x, P.z - b.z), Math.abs(P.y - by), [3.2, 3], {});
       }
+      // Fahrzeuge haben Vorrang vor Beute, Angelplätzen und Bildstöcken; Händler, Schmied, Siegel und Glocke gehen vor, wenn sie 2 m näher sind.
+      let vb = null, vd = Infinity;
+      for (const v of fleet.vehicles) {
+        if (!canBoard(v)) continue;
+        const reach = vehicleReach(v), d = Math.hypot(P.x - v.x, P.z - v.z);
+        if (d <= reach[0] && Math.abs(P.y - v.y) < reach[1] && d < vd) { vd = d; vb = { type: 'vehicle', id: v.id, name: v.name }; }
+      }
+      if (vb && !(best && ['shop', 'smith', 'seal', 'bell'].includes(best.type) && bd < vd - 2)) best = vb;
       return best;
     }
     function prompt() {
       if (state.phase === 'shop') return 'Zahl drücken zum Kaufen · E schließt';
       if (state.phase !== 'playing') return '';
       const t = findInteract();
+      if (t && t.type === 'leave') {
+        const v = rideOf();
+        return v && v.kind === 'gondola' && VEH.gondolaDock(v) === null ? 'Aussteigen an der nächsten Station' : '[E] Aussteigen';
+      }
       if (t) {
         return {
+          vehicle: '[E] ' + t.name + ' besteigen',
           loot: t.relic ? '[E] Relikt nehmen' : '[E] Durchsuchen', shop: '[E] Handeln', smith: '[E] Beim Schmied schmieden', fish: t.cool > 0 ? 'Hier beißt gerade nichts' : '[E] Angeln',
           shrine: t.used ? 'Das Licht ist erloschen' : '[E] Beten (Segen)', seal: '[E] Mondsiegel nehmen', bell: '[E] Glocke läuten'
         }[t.type];
@@ -769,6 +786,8 @@
       if (state.phase !== 'playing' || P.frozen) return false;
       const t = findInteract();
       if (!t) return false;
+      if (t.type === 'leave') return leaveVehicle();
+      if (t.type === 'vehicle') return boardVehicle(fleet.vehicles.find(v => v.id === t.id));
       if (t.type === 'loot') { openLoot(state.loots[t.index]); return true; }
       if (t.type === 'shop' || t.type === 'smith') { state.phase = 'shop'; state.shop = { vendor: t.type === 'shop' ? 'h' : 's' }; emit('state', { phase: 'shop' }); return true; }
       if (t.type === 'fish') {
@@ -825,11 +844,101 @@
       const wx = state.weather;
       state.env = { light: lerp(wx.light, 1.32, sunrise) * (1 + 0.12 * dusk), cover: lerp(wx.cover, 0.12, sunrise), dusk, sunrise, mod: q.stage === 'final' ? 'blood' : w.mod };
     }
+    // ------------------------------------------------------------------ Fahrzeuge
+    const vctx = { world, floorAt, info: fleet.info };
+    const rideOf = () => P.ride ? fleet.vehicles.find(v => v.id === P.ride.id) || null : null;
+    const vehicleReach = v => v.kind === 'boat' ? [3.8, 3.4] : [4.5, 4];
+    const ramContacts = new Map();
+    function canBoard(v) {
+      if (P.ride || P.frozen || state.phase !== 'playing') return false;
+      if (!v.seats.some(x => x === null)) return false;
+      return v.kind !== 'gondola' || VEH.gondolaDock(v) !== null;
+    }
+    function setRide(v, seat) {
+      P.ride = { id: v.id, kind: v.kind, seat, driver: seat === 0 && v.kind !== 'gondola' };
+      P.eye = VEH.EYE[v.kind];
+    }
+    function attachRider(v) {
+      const pose = VEH.seatPose(v, P.ride.seat);
+      P.x = pose.x; P.y = pose.y; P.z = pose.z; P.vx = P.vz = P.vy = 0; P.onGround = true;
+    }
+    function boardVehicle(v) {
+      if (!v || !canBoard(v)) return false;
+      const reach = vehicleReach(v);
+      if (Math.hypot(P.x - v.x, P.z - v.z) > reach[0] || Math.abs(P.y - v.y) > reach[1]) return false;
+      const seat = v.seats.findIndex(x => x === null);
+      v.seats[seat] = 'p'; setRide(v, seat);
+      if (v.kind !== 'gondola') P.yaw = v.yaw;
+      attachRider(v);
+      state.weapons[state.current].reloading = 0;
+      emit('vehicle', { action: 'board', id: v.id, kind: v.kind, seat, name: v.name });
+      emit('notice', { text: v.name + ' · ' + (v.kind === 'gondola' ? 'Platz ' + (seat + 1) : VEH.SEAT_NAMES[seat] || 'Platz') });
+      return true;
+    }
+    function leaveVehicle() {
+      const v = rideOf();
+      if (!v) return false;
+      if (v.kind === 'gondola' && VEH.gondolaDock(v) === null) { emit('notice', { text: 'Die Gondel hält an der nächsten Station' }); return false; }
+      if ((v.kind === 'jeep' || v.kind === 'cart') && Math.abs(v.sp) > 2.5) { emit('notice', { text: 'Zum Aussteigen erst bremsen' }); return false; }
+      const pos = VEH.exitSpot(v, vctx);
+      if (!pos) { emit('notice', { text: v.kind === 'boat' ? 'Kein Ufer in der Nähe' : 'Hier ist kein Platz zum Aussteigen' }); return false; }
+      v.seats[P.ride.seat] = null;
+      P.x = pos.x; P.y = pos.y; P.z = pos.z; P.vx = P.vz = P.vy = 0; P.onGround = true;
+      P.ride = null; P.eye = 1.75;
+      emit('vehicle', { action: 'leave', id: v.id, kind: v.kind, name: v.name });
+      return true;
+    }
+    function changeSeat() {
+      const v = rideOf();
+      if (!v || state.phase !== 'playing') return false;
+      for (let k = 1; k < v.seats.length; k++) {
+        const n = (P.ride.seat + k) % v.seats.length;
+        if (v.seats[n] === null) {
+          v.seats[P.ride.seat] = null; v.seats[n] = 'p'; setRide(v, n);
+          emit('notice', { text: v.kind === 'gondola' ? 'Platz ' + (n + 1) : VEH.SEAT_NAMES[n] });
+          attachRider(v); return true;
+        }
+      }
+      return false;
+    }
+    // Der Geländewagen verletzt Gegner an der Stoßstange: ab 8 m/s tödlich, darunter nach Tempo.
+    function ramMonsters(v) {
+      const speed = Math.abs(v.sp), now = new Set(), prev = ramContacts.get(v.id) || new Set();
+      if (v.kind !== 'jeep' || speed < 2.5) { ramContacts.set(v.id, now); return; }
+      const sign = Math.sign(v.sp), dir = { x: Math.sin(v.yaw) * sign, z: Math.cos(v.yaw) * sign };
+      const sn = Math.sin(v.yaw), cs = Math.cos(v.yaw);
+      for (const m of state.monsters) {
+        if (m.state === 'dead' || m.state === 'emerge') continue;
+        const spec = ENEMIES[m.kind], feet = m.y + (spec.fly && !spec.air ? 1.3 : 0);
+        if (feet > v.y + 1.8 || feet < v.y - 1.6) continue;
+        const dx = m.x - v.x, dz = m.z - v.z, lx = dx * cs - dz * sn, lz = dx * sn + dz * cs;
+        const r = spec.rad * (m.sv || 1);
+        if (Math.hypot(Math.max(0, Math.abs(lx) - 1.08), Math.max(0, Math.abs(lz) - 2.08)) >= r) continue;
+        const id = 'm' + m.id; now.add(id);
+        if (prev.has(id)) continue;
+        hitMonster(m, speed >= 8 ? Math.max(m.hp, 200) : Math.round((speed - 2) * 16), false, dir);
+        emit('ram', { id: m.id, kind: m.kind, speed });
+      }
+      ramContacts.set(v.id, now);
+    }
+    function updateVehicles(dt, input) {
+      const ridden = rideOf(), yawBefore = ridden ? ridden.yaw : 0;
+      VEH.step(fleet, dt, vctx, v => v.seats[0] === 'p' ? input : {});
+      for (const v of fleet.vehicles) {
+        if (v.bump) { v.bump = false; emit('vehicle', { action: 'bump', id: v.id, kind: v.kind }); }
+        ramMonsters(v);
+      }
+      if (ridden) {
+        if (ridden.kind === 'jeep' && P.ride.driver) P.yaw += angDiff(ridden.yaw, yawBefore);
+        attachRider(ridden);
+      }
+    }
+
     function step(dt, input = {}) {
       if (!finite(dt) || dt <= 0 || !input || typeof input !== 'object') return snapshot();
       dt = Math.min(dt, 0.1);
       if (state.phase !== 'playing') return snapshot();
-      for (const k of ['forward', 'side']) if (input[k] !== undefined && !finite(input[k])) return snapshot();
+      for (const k of ['forward', 'side', 'turn']) if (input[k] !== undefined && !finite(input[k])) return snapshot();
       state.time += dt; state.weather = { ...weatherAt(state.time, state.weatherSeed), t: state.time, seed: state.weatherSeed };
       if (cooldown > 0) cooldown = Math.max(0, cooldown - dt);
       if (swapTimer > 0) swapTimer = Math.max(0, swapTimer - dt);
@@ -844,7 +953,8 @@
         state.fish.t -= dt;
         if (state.fish.t <= 0) { P.frozen = false; fishResult(state.fishSpots[state.fish.spot]); state.fish.spot = -1; }
       }
-      movePlayer(dt, input);
+      if (fleet.vehicles.length) updateVehicles(dt, input);
+      if (P.ride) { P.vx = P.vz = 0; } else movePlayer(dt, input);
       if (state.phase !== 'playing') return snapshot();
       updateMelee(dt);
       if (input.fire) shoot(input);
@@ -914,7 +1024,9 @@
       resume() { if (state.phase === 'paused') { state.phase = 'playing'; emit('state', { phase: 'playing' }); } return snapshot(); },
       setLook, step, reload, selectWeapon, interact, snapshot, drainEvents,
       melee, throwGrenade: () => throwNade(false), throwMolotov: () => throwNade(true),
-      buy, closeShop, shopList, prompt, relicStatus,
+      buy, closeShop, shopList, prompt, relicStatus, changeSeat,
+      // Feste Fahrzeugdaten (Schienennetz, Gondelstrecke) für die Darstellung.
+      layout: () => JSON.parse(JSON.stringify({ rails: fleet.info.rails || null, gondola: fleet.info.gondola || null })),
       // Gezieltes Auftauchen (Wächter an Siegeln, Tests, Prüfhaken); gibt die Gegner-Id zurück.
       spawn(kind, x, z, ready = true) {
         if (!ENEMIES[kind] || !finite(x) || !finite(z)) return null;

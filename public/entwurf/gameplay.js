@@ -13,10 +13,13 @@ globalThis.NachtjagdPlay = {
     function addEl(id,css,parent=hud) { const e=document.createElement('div'); e.id=id; e.style.cssText=css; parent.append(e); return e; }
     const box='position:absolute;padding:10px 14px;border-radius:6px;background:#152a31d9;max-width:90vw;';
     feed.style.top='176px'; const extra=addEl('game-extra',box+'top:108px;left:16px;font-size:13px;line-height:1.5;color:#cfe2ea');
+    const vehicleBox=addEl('game-vehicle',box+'bottom:70px;left:16px;font-size:13px;line-height:1.5;color:#e4eef2');
+    vehicleBox.hidden=true;
     const noteBox=addEl('game-note',box+'bottom:70px;left:50%;transform:translateX(-50%);width:min(620px,90vw);text-align:center;font-style:italic;line-height:1.5;transition:opacity .6s;opacity:0');
     const banner=addEl('game-banner',box+'top:22%;left:50%;transform:translateX(-50%);text-align:center;font-size:26px;transition:opacity .8s;opacity:0;background:#0b1620cc');
     const shopBox=addEl('game-shop',box+'top:50%;right:24px;transform:translateY(-50%);width:min(420px,92vw);background:#0b1620ee;pointer-events:auto',document.body);
     shopBox.style.zIndex=8; shopBox.hidden=true;
+    const vehicleLayer=NachtjagdVehicleModels.create({THREE,scene});
     const actors=new THREE.Group(),markers=new THREE.Group(),supplies=new THREE.Group(),props=new THREE.Group(),effects=new THREE.Group();
     scene.add(actors,markers,supplies,props,effects);
     const actorMeshes=new Map(),keys=new Set(),itemMeshes=[];
@@ -137,7 +140,7 @@ globalThis.NachtjagdPlay = {
       scene.fog=null; for(const l of lights) l.o.intensity=l.base; torch.intensity=0; snowMat.opacity=0;
     }
     // --- Zustand
-    let game=null,current=null,active=false,firing=false,aiming=false,drag=null,shotClick=false,flashT=0,hitT=0,boomT=0,clock=0;
+    let mouseSteer=0,game=null,current=null,active=false,firing=false,aiming=false,drag=null,shotClick=false,flashT=0,hitT=0,boomT=0,clock=0;
     const feedLines=[];
     let noteT=0,bannerT=0;
     const markerMeshes=world.objectives.map(o=>{
@@ -145,7 +148,7 @@ globalThis.NachtjagdPlay = {
     });
     const bellMesh=new THREE.Mesh(new THREE.ConeGeometry(.5,.8,8),bellMat); markers.add(bellMesh);
     const all=()=>[actors,markers,supplies,props,effects,weapon,tracer];
-    function setVisible(v) { for(const g of all()) g.visible=v; }
+    function setVisible(v) { for(const g of all()) g.visible=v; vehicleLayer.setVisible(v); }
     setVisible(false);
     function say(text,seconds=4) { feedLines.push({text,t:seconds}); while(feedLines.length>4) feedLines.shift(); }
     function show(el,text,seconds,key) { el.textContent=text; el.style.opacity=1; if(key==='note') noteT=seconds; else bannerT=seconds; }
@@ -178,6 +181,7 @@ globalThis.NachtjagdPlay = {
       camera.fov=74; camera.updateProjectionMatrix(); game.setLook(Math.PI,0); current=game.snapshot();
       feedLines.length=0; say('Finde die drei Mondsiegel bei Kirche, Mine und Burg.',8); torchOn=true;
       for(const m of actorMeshes.values()) actors.remove(m); actorMeshes.clear();
+      vehicleLayer.clear(); vehicleLayer.setStatic(NachtjagdVehicleModels.buildStatic(THREE,{world,layout:game.layout()})); mouseSteer=0;
       update(0); showPanel(); lockPointer();
     }
     function leave() {
@@ -208,7 +212,10 @@ globalThis.NachtjagdPlay = {
       if(document.pointerLockElement===canvas) { dx=e.movementX; dy=e.movementY; }
       else if(drag) { dx=e.clientX-drag.x; dy=e.clientY-drag.y; drag.x=e.clientX; drag.y=e.clientY; drag.total+=Math.abs(dx)+Math.abs(dy); }
       else return;
-      game.setLook(current.player.yaw-dx*.003,current.player.pitch-dy*.003); current=game.snapshot();
+      const ride=current.player.ride;
+      if(ride&&ride.driver&&ride.kind==='jeep') { mouseSteer=Math.max(-.8,Math.min(.8,mouseSteer-dx*.0042)); game.setLook(current.player.yaw,current.player.pitch-dy*.003); }
+      else game.setLook(current.player.yaw-dx*.003,current.player.pitch-dy*.003);
+      current=game.snapshot();
     });
     addEventListener('pointerup',e=>{
       if(!active) return;
@@ -217,7 +224,7 @@ globalThis.NachtjagdPlay = {
     });
     canvas.addEventListener('pointercancel',clearInput);
     document.addEventListener('pointerlockchange',()=>{ if(active && document.pointerLockElement!==canvas) pause(); });
-    const CONTROL_KEYS=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight','Space','KeyR','KeyE','KeyG','KeyT','KeyV','KeyF','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Escape'];
+    const CONTROL_KEYS=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight','Space','KeyR','KeyE','KeyG','KeyT','KeyV','KeyF','KeyC','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Escape'];
     addEventListener('keydown',e=>{
       if(!active || e.target.matches('input,textarea,select')) return;
       if(CONTROL_KEYS.includes(e.code)) e.preventDefault();
@@ -237,6 +244,7 @@ globalThis.NachtjagdPlay = {
       if(e.code==='KeyT') game.throwMolotov();
       if(e.code==='KeyV') game.melee();
       if(e.code==='KeyF') torchOn=!torchOn;
+      if(e.code==='KeyC') game.changeSeat();
       if(/^Digit[123]$/.test(e.code)) game.selectWeapon(Number(e.code.slice(-1))-1);
     });
     addEventListener('keyup',e=>keys.delete(e.code));
@@ -250,15 +258,30 @@ globalThis.NachtjagdPlay = {
         current=game.step(dt,{
           forward:Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown')),
           side:Number(keys.has('KeyD'))-Number(keys.has('KeyA')),sprint:keys.has('ShiftLeft')||keys.has('ShiftRight'),
-          jump:keys.has('Space'),fire:firing||shotClick,aim:aiming
+          jump:keys.has('Space'),fire:firing||shotClick,aim:aiming,turn:mouseSteer
         });
+        mouseSteer*=Math.exp(-dt*2.6);
         shotClick=false;
       }
       const p=current.player;
-      camera.position.set(p.x,p.y+1.75,p.z);
-      camera.lookAt(p.x+Math.sin(p.yaw)*Math.cos(p.pitch),p.y+1.75+Math.sin(p.pitch),p.z+Math.cos(p.yaw)*Math.cos(p.pitch));
+      camera.position.set(p.x,p.y+p.eye,p.z);
+      camera.lookAt(p.x+Math.sin(p.yaw)*Math.cos(p.pitch),p.y+p.eye+Math.sin(p.pitch),p.z+Math.cos(p.yaw)*Math.cos(p.pitch));
       const targetFov=aiming?(current.current===2?26:62):74;
       camera.fov+=(targetFov-camera.fov)*Math.min(1,dt*12); camera.updateProjectionMatrix();
+      // Fahrzeuge
+      vehicleLayer.update(current.vehicles,dt,clock);
+      const ride=p.ride,rv=ride&&current.vehicles.find(v=>v.id===ride.id);
+      weapon.visible=!(ride&&ride.driver&&ride.kind==='jeep');
+      vehicleBox.hidden=!rv;
+      if(rv) {
+        const names=['Fahrer','Beifahrer','Hinten links','Hinten rechts'],seat=rv.kind==='gondola'?'Platz '+(ride.seat+1):rv.kind==='boat'?'Ruderer':names[ride.seat];
+        const speed=Math.round(Math.abs(rv.sp)*3.6);
+        let hints='C Platz wechseln · E Aussteigen';
+        if(ride.driver) hints={jeep:'W/S Gas und Rückwärts · Maus oder A/D lenken · Leertaste bremsen · ',cart:'W/S vor und zurück · A/D Weiche · Leertaste bremsen · ',boat:'W/S rudern (Shift schneller) · A/D lenken · '}[rv.kind]+hints;
+        else if(rv.kind==='gondola') hints=rv.dock===null?'Maus umsehen · Klick schießen · C Platz · Aussteigen an der Station':'E Aussteigen · C Platz · Abfahrt in '+Math.ceil(Math.max(0,(rv.dock===0?8-rv.phase:62-rv.phase)))+' s';
+        else hints='Maus und Klick schießen · '+hints;
+        vehicleBox.innerHTML=`<b>${rv.name} · ${seat}${rv.kind==='gondola'?'':' · '+speed+' km/h'}</b><br><small style="color:#9fc0cc">${hints}</small>`;
+      }
       // Gegner
       for(const m of current.monsters) {
         const group=actor(m),spec=ENEMIES[m.kind],d=group.userData;

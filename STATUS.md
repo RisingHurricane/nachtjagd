@@ -1,6 +1,6 @@
 # STATUS
 
-Letzte Aktualisierung: 2026-10-11 (Claude, Spielelogik Entwurf 14; davor Codex, grober Weltentwurf auf Basis von `nachtjagd-neu`)
+Letzte Aktualisierung: 2026-10-11 (Claude, Fahrzeuge Entwurf 14; davor Codex, grober Weltentwurf auf Basis von `nachtjagd-neu`)
 
 ## Aktueller grober Weltentwurf
 
@@ -21,7 +21,16 @@ Letzte Aktualisierung: 2026-10-11 (Claude, Spielelogik Entwurf 14; davor Codex, 
 - `gameplay.js` zeigt alles an: Tasten Leertaste, G, T, V, F, E, 1–3, Ziffern im Laden; Platzhalterfiguren je Gegnerart (Hexe schwebt, Flugmonster mit Flügeln), Beute, Relikte, Notizen, Händler, Schmied, Bildstöcke, Angelfähnchen, Wurfgeschosse, Feuer, Säure, Nacht-/Nebel-/Schneestimmung und Taschenlampe.
 - Tests: `test/gameplay-mechanics.test.js` (25 Tests) und der angepasste Kerntest; `npm test` 105 grün. Im Browser geprüft: alle neun Weltprüfungen bestanden, Client startet ohne Fehler, zehn Gegnerarten laufen. Ein einfacher Bot erreicht die Endphase und stirbt dort bzw. an den Fledermäusen; die Schwierigkeit entspricht der Vorlage.
 - Bewusste Annäherungen: Trefferkugeln von Spucker, Blähling und Brocken sind geschätzt; Flugmonster bleiben 11 m über blockierten Zellen und kennen keine Höhlenvariante; Winterherz-Abklingzeit zählt in Spielzeit.
-- Noch offen: Fahrzeuge (Jeep, Wagen, Gondel, Boote), Minentunnel mit Höhlenfledermäusen, explosive Fässer, Ton/Musik, Online-Koop. Platzhalterfiguren sollen durch die Modelle von ChatGPT (Jeep, Häuser, Monster) und die Burg ersetzt werden; die Kern-API bleibt dafür gleich.
+- Noch offen: Minentunnel mit Höhlenfledermäusen, explosive Fässer, Ton/Musik, Online-Koop. Platzhalterfiguren sollen durch die Modelle von ChatGPT (Jeep, Häuser, Monster) und die Burg ersetzt werden; die Kern-API bleibt dafür gleich.
+
+### Fahrzeuge (Platzhalter, Entwurf 14)
+
+- `vehicles.js`: Physik und Fahrpläne ohne Darstellung. Geländewagen (Fahrmodell aus dem Original: Radstand 2,51 m, Lenkung nimmt mit Tempo ab, Haftung auf Straße 0,92 und im Gelände 0,57, bis 22 m/s vorwärts und 7,5 m/s rückwärts, Hangabtrieb, Stopp an Hindernissen und Steilkanten), Lore auf Schienen mit Weichen (A/D wählt links/rechts, Wende am Streckenende, Rollen ohne Gas), Gondel im Fahrplan (zwei Kabinen auf zwei Seilen, 8 s Halt, 46 s Fahrt, Aussteigen nur am Halt) und Ruderboot (W/S rudern, Shift schneller, A/D lenken, prallt am Ufer ab).
+- Im Spielkern: `E` besteigt das nächste Fahrzeug (Vorrang vor Truhen und Angelplätzen), `E` steigt aus (Wagen und Lore erst unter 2,5 m/s, Gondel nur an der Station), `C` wechselt den Sitz. Der Wagen überfährt Gegner: ab 8 m/s tödlich, darunter nach Tempo, ein Treffer je Berührung. Ohne Fahrer bremst der Wagen. Der Fahrer des Wagens kann nicht schießen und lenkt mit der Maus; Beifahrer, Bootsfahrer und Gondelgäste schießen. Axt und Würfe sind in Fahrzeugen gesperrt. `snapshot().vehicles` und `player.ride`/`player.eye` liefern den Zustand, `layout()` die festen Strecken.
+- Orte (`play-spots.js`): zwei Geländewagen an West- und Osttor des Dorfs, Lorenschienen entlang der Wege `mine-west` und `mine-north` (je zwei Loren), Talstation am Osttor (200, 50) und Bergstation auf dem Nordostgrat (300, −240), rund 300 m und 97 m Höhenunterschied, vier Boote (zwei am Stegende, zwei am Südufer). Welt-Prüfungen: Wagen frei, Schienen frei, Stationen begehbar, Boote im Wasser.
+- `vehicle-models.js`: Platzhaltermodelle und Austauschpunkt `NachtjagdVehicleModels.builders[kind](THREE)` (Vertrag im Kopfkommentar der Datei: Ursprung am Boden, Blick +z, `userData.wheels/oars/light`). Dazu Schienen, Stationen mit Holzrahmen, Seile und drei Stützen.
+- Tests: `test/vehicles.test.js` (13 Tests), `npm test` 118 grün. Im Browser gefahren: Wagen bis zum Osttor in 17 s ohne Hängenbleiben, Gondel hinauf, Boot gerudert, Lore bis zum Minenvorstollen.
+- Offen: Minentunnel mit Weichen im Untergrund (die Schienen laufen bisher nur an der Oberfläche), Mehrspieler-Sitzplätze (Datenmodell vorhanden: vier Sitze), Motor- und Ruderton, Scheinwerfer nur als Platzhalterkegel, Aussichtsplattform an der Bergstation ist Platzhalter ohne Kollision.
 
 ### Bisheriger spielbarer Vergleich
 
@@ -125,3 +134,5 @@ Erster separater Solo-Kern mit Waffenwerten aus nachtjagd-neu, Revolver/Nachlade
 Automatischer Durchlauf mit einem Browser-Bot (Weg über das Straßennetz, Siegel Kirche, Burg, Mine, Glocke, Endkampf) erreicht den Sieg. Dabei gefunden und behoben: (1) Der Burghof hatte am Tor eine etwa 2 m hohe Kante, das Burgsiegel war nicht erreichbar; `gameFloor` lässt die Hofplatte jetzt über 6 m als Rampe auslaufen. (2) Gegner blieben an Baumstämmen hängen; `moveMonster` in `gameplay-core.js` weicht jetzt seitlich aus. (3) Wo eine Straße höher oder tiefer als das Gelände liegt (zum Beispiel am Glockenplatz, 1,35 m), blieb eine Stufe, die Gegner nicht überwinden konnten und die deshalb nie angriffen; `shoulderHeight` in `blockout.js` rampt den Straßenrand 2,5 m lang aus. (4) Die Wegsuche der Gegner läuft nur noch alle 0,2 s pro Gegner. Neue Tests: Ausweichen an einer Säule, Rampe zum erhöhten Spieler (80 Node-Tests grün). Mit `?test` gibt es zusätzlich den Prüfhaken `NachtjagdDebug` für automatische Durchläufe. Noch offen: übrige Mechanik aus dem Monolithen (Sondergegner, Händler, Reliquien, Wetter, Fahrzeuge), Koop, Burg- und Kirchenmodelle einbinden, echte durchsichtige Fenster.
 
 - 2026-10-11, Claude: Restliche Spielelogik aus dem Altay-Original in `gameplay-core.js` portiert (siehe Abschnitt Entwurf 14), `play-spots.js` neu, `gameplay.js` neu geschrieben, Versionskennung auf 14. 105 Tests grün, Browserlauf geprüft. Kein Merge nach `main`, kein Push auf `gh-pages`. Nächste Schritte: 3D-Modelle einhängen, Fahrzeuge, Burg und Kirche in die Welt, Koop.
+
+- 2026-10-11, Claude: Fahrzeuge als Platzhalter umgesetzt (Geländewagen, Lore, Gondel, Boot): `vehicles.js`, `vehicle-models.js`, Anbindung im Kern, Orte in `play-spots.js`, Client-Steuerung. 118 Tests grün, Browserfahrten geprüft. Kein Merge nach `main`, kein Push auf `gh-pages`. Nächste Schritte: Modelle von ChatGPT über `NachtjagdVehicleModels.builders` einhängen, Minentunnel mit Schienennetz, Burg und Kirche in die Welt, Koop.
