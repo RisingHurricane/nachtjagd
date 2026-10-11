@@ -114,11 +114,19 @@ globalThis.NachtjagdPlay = {
     // --- Umgebung: Nacht, Nebel, Schnee, Taschenlampe
     const mix=(a,b,k)=>a+(b-a)*k;
     const lights=[];
-    scene.traverse(o=>{ if(o.isLight&&!o.userData.outdoor&&o!==torch&&o!==flash&&o!==boomFlash&&!sky.owns(o)) lights.push({o,base:o.intensity}); });
+    scene.traverse(o=>{ if(o.isLight&&!o.userData.outdoor&&!o.userData.building&&o!==torch&&o!==flash&&o!==boomFlash&&!sky.owns(o)) lights.push({o,base:o.intensity}); });
     const snowCount=2000,snowGeo=new THREE.BufferGeometry(),snowPos=new Float32Array(snowCount*3);
     for(let i=0;i<snowCount;i++) { snowPos[i*3]=(Math.random()-.5)*60; snowPos[i*3+1]=Math.random()*30; snowPos[i*3+2]=(Math.random()-.5)*60; }
     snowGeo.setAttribute('position',new THREE.BufferAttribute(snowPos,3));
-    const snowMat=new THREE.PointsMaterial({color:0xffffff,size:.19,transparent:true,opacity:.8,depthWrite:false}),snow=new THREE.Points(snowGeo,snowMat); snow.frustumCulled=false; effects.add(snow);
+    // Weiche runde Flocken; eine kleine gemeinsame Alpha-Textur für alle Partikel.
+    const flakeSize=32,flakeData=new Uint8Array(flakeSize*flakeSize*4);
+    for(let y=0;y<flakeSize;y++) for(let x=0;x<flakeSize;x++) {
+      const r=Math.hypot((x+.5-flakeSize/2)/(flakeSize/2),(y+.5-flakeSize/2)/(flakeSize/2)),i=(y*flakeSize+x)*4;
+      flakeData[i]=flakeData[i+1]=flakeData[i+2]=255;flakeData[i+3]=Math.round(255*Math.max(0,Math.min(1,(1-r)*5)));
+    }
+    const flakeMap=new THREE.DataTexture(flakeData,flakeSize,flakeSize,THREE.RGBAFormat);
+    flakeMap.magFilter=flakeMap.minFilter=THREE.LinearFilter;flakeMap.needsUpdate=true;
+    const snowMat=new THREE.PointsMaterial({color:0xffffff,map:flakeMap,alphaTest:.03,size:.16,transparent:true,opacity:.8,depthWrite:false}),snow=new THREE.Points(snowGeo,snowMat); snow.frustumCulled=false; effects.add(snow);
     let torchOn=true,indoorK=0;
     function applyEnv(s,dt) {
       const e=s.env,w=s.weather;
@@ -375,7 +383,7 @@ globalThis.NachtjagdPlay = {
       const relic=game.relicStatus(); if(relic) extra.textContent+='\n'+relic;
       extra.style.whiteSpace='pre-line';
       const remaining=current.quest.objectives.filter(o=>!o.found);
-      objective.textContent=current.quest.stage==='final'?`Bis zum Morgengrauen: ${Math.ceil(current.waves.finalT)} s`:current.quest.stage==='bell'?'Läute die Glocke vor der Kirche':`Mondsiegel ${3-remaining.length}/3 · ${remaining.map(o=>`${o.name} ${Math.round(Math.hypot(p.x-o.x,p.z-o.z))} m`).join(' · ')}`;
+      objective.textContent=current.quest.stage==='final'?`Bis zum Morgengrauen: ${Math.ceil(current.waves.finalT)} s`:current.quest.stage==='bell'?'Läute die Glocke im Kirchenvorraum':`Mondsiegel ${3-remaining.length}/3 · ${remaining.map(o=>`${o.name} ${Math.round(Math.hypot(p.x-o.x,p.z-o.z))} m`).join(' · ')}`;
       const prompt=game.prompt();
       hint.textContent=prompt||'WASD · Shift laufen · Leertaste springen · Klick schießen · R nachladen · 1–3 Waffen · G Granate · T Molotow · V Axt · M Karte · N Musik · Esc Pause';
       const report=document.querySelector('#game-tests');

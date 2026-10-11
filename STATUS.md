@@ -1,6 +1,16 @@
 # STATUS
 
-Letzte Aktualisierung: 2026-10-11 (Codex, Entwurf 23 veröffentlicht: Wald, Nacht, Laternen, Wachturm)
+Letzte Aktualisierung: 2026-10-11 (Codex, Entwurf 24 vorbereitet: Kirche, Dorfhäuser, Schnee)
+
+## Entwurf 24 · Kirche, Dorfhäuser und Schnee
+
+Branch `codex/village-church-snow` basiert auf Entwicklungsstand 23 (`8b47ff8`). Die vorhandene Kirche 1.1 aus `codex/church-asset` ist über `imported-models.js` eingebunden: Ursprung (91, Straßenhöhe + 0,25, 24,5), begehbares Schiff und Turmvorraum, Siegel im hinteren Mittelgang, Glockeninteraktion im Vorraum. Minimalimport mit GLB, Manifest, Kollision und Adapter; Blender-Quelle und Generator bleiben im Modellbranch. Seitenkapelle/Sakristei sind geschlossene Baukörper, der Glockenturm hat noch keinen Aufstieg.
+
+Alle 28 Dorfplatzhalter verwenden die vier vorhandenen Hausmodelle: steile Satteldächer mit Schnee, offene Fenster-/Türöffnungen, jeweils zwei Zugänge, Innentreppen, Geländer und einfaches Mobiliar. `building-site.js` verbindet lokale Modellmaße mit Weltposition, Gehflächen, Kollision, Innenlicht und Schussabfragen. Erprobte Raummaße bleiben erhalten; südliche Häuser drehen die Eingänge zu den Gassen. Haus 21 ist von (174,89) nach (182,85) versetzt, um den zweiten Zugang des Nachbarhauses frei zu halten. Ein zusammenhängender Dorfhang nach dem vorhandenen Straßenprofil und großzügige Bauplatzübergänge vermeiden tiefe Einzelgruben; Höhenunterschied im Dorf weiterhin über 15 m. Straßen bleiben quer waagerecht. Steinsockel und Außentreppen schließen Modelle an den Boden an. Gebäudehöhen bleiben beim Geländeformen fest, Innenflächen werden gegen eindringendes Gelände geschützt.
+
+Statische Häuser werden nach gemeinsamen Materialien zusammengefasst, die Kirche ebenfalls; UVs und eingebettete Texturen bleiben erhalten. Genau zwei geteilte Innenlampen ersetzen einzelne Hauslampen. Das begrenzt die zusätzlichen Zeichenaufrufe, ist aber keine FPS-Zusage. Boden und getretene Wege sind schneeweiß; Schneepartikel verwenden eine runde, weich auslaufende RGBA-Maske. Versionskennung und alle Skriptzusätze stehen gemeinsam auf 24. Keine neuen Abhängigkeiten. Burg-/Fahrzeugsteuerung und Nachtzeit aus 23 bleiben erhalten.
+
+Validierung: 189/189 Node-Tests grün. Im lokalen Browser 23/23 Geländeprüfungen und 154/154 Spielprüfungen grün: beide Hauszugänge samt Außentreppen, alle oberen Etagen, Kirchenweg vom Vorplatz zum Siegel und zurück, Schusskollision, Straßen und Viadukt. Sichtkontrolle von Kirche, Dorf und Schnee. Entwurf 24 ist vorbereitet, noch nicht auf GitHub Pages veröffentlicht; die öffentliche Seite bleibt Entwurf 23. Kein Push auf `main` oder `gh-pages`, keine Kopie unter `modelltest/`.
 
 ## Entwurf 23 · Wald, Licht und Laufzeit
 
@@ -193,3 +203,5 @@ Automatischer Durchlauf mit einem Browser-Bot (Weg über das Straßennetz, Siege
 - 2026-10-11, Claude: Entwurf 21: Jeep-Lenkung neu, dichter Himmel mit schnellerer Dämmerung und mehr Schnee, Burg aus `claude/burg` im Spiel begehbar (Rittersaal, Bibliothek, Hauptturm bis ins Turmzimmer). 161 Tests grün, 22 Geländeprüfungen bestanden. Kein Merge nach `main`, kein Push auf `gh-pages`. Nächste Schritte: Keller und weitere Räume, Beute und Wächter in der Burg, Töne, Minentunnel, Koop.
 
 - 2026-10-11, Codex: Entwurf 23 auf codex/forest-night-performance vorbereitet: Fernkegel durch Astetagen ersetzt, Nacht nach 35 s, Laternen mit drei geteilten Lichtern, warme Blockout-Fenster, grober Wachturm am Osttor, Instanzbündelung und Schatten-Zwischenspeicher gegen Ruckeln. 184 Tests grün; Startpunkt etwa 42 % weniger Zeichenaufrufe. Veröffentlichung wartet auf Freigabe für diesen Stand. Burg und separate Hausmodelle unverändert.
+
+- 2026-10-11, Codex: Entwurf 24 auf codex/village-church-snow: Kirche 1.1 und alle 28 begehbaren Häuser eingebaut, Hanganschlüsse und Innenraumkollision, weißer Schneeboden und runde Flocken. 189 Node-Tests, 23 Gelände- und 154 Spielprüfungen grün. Veröffentlichung offen, öffentlicher Stand weiterhin 23. Kein main-/gh-pages-Push. Nächste Schritte nach Freigabe: Entwurf 24 veröffentlichen; später Kirchenanbauten/Turmaufstieg und Türeninteraktion.
