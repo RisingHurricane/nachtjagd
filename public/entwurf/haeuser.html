@@ -2,58 +2,121 @@
 <html lang="de">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Nachtjagd · Vier Hausformen</title>
+<title>Nachtjagd · Vier begehbare Dorfhäuser</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#e6e9e4;color:#293734;font:14px system-ui,sans-serif}header{padding:28px 32px 0}h1{font-size:24px;font-weight:550;margin:0 0 8px}header p{margin:0;color:#64716b;line-height:1.6}.studies{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:26px 24px}article{min-width:0;background:#f5f6f1;border:1px solid #cbd3cb;border-radius:8px;overflow:hidden}.view{height:58vh;min-height:240px;touch-action:none;cursor:grab}article h2{font-size:16px;margin:0;padding:18px 18px 8px;border-top:1px solid #d8ded6}article p{font-size:12px;line-height:1.5;margin:0;padding:0 18px 20px;color:#64716b}canvas{position:fixed;inset:0;pointer-events:none}footer{padding:0 32px 24px;color:#64716b;font-size:12px}@media(max-width:800px){.studies{grid-template-columns:repeat(2,1fr)}.view{height:32vh;min-height:200px}header{padding:20px 24px 0}}
+*{box-sizing:border-box}body{margin:0;background:#e6e9e4;color:#293734;font:14px system-ui,sans-serif}header{padding:24px 28px 0;position:relative;z-index:2}h1{font-size:24px;font-weight:550;margin:0 0 8px}header p{margin:0;color:#64716b;line-height:1.6}button{font:inherit;color:inherit;border:1px solid #b9c5ba;border-radius:4px;background:#edf0e9;padding:7px 10px;cursor:pointer}button:hover{background:#dce4d9}button:focus-visible{outline:2px solid #48675e;outline-offset:3px}button[aria-pressed=true]{background:#3d5b50;color:#fff;border-color:#3d5b50}.all-views{display:flex;gap:8px;align-items:center;margin-top:14px;font-size:12px}.studies{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:20px 22px}article{min-width:0;background:#f5f6f1;border:1px solid #cbd3cb;border-radius:8px;overflow:hidden}.view{height:52vh;min-height:250px;touch-action:none;cursor:grab}.caption{position:relative;z-index:2;background:#f5f6f1;border-top:1px solid #d8ded6;padding:15px}article h2{font-size:16px;margin:0 0 7px}article p{font-size:12px;line-height:1.5;margin:0 0 12px;color:#64716b}.controls{display:flex;gap:5px;flex-wrap:wrap;font-size:11px}.controls .walk{width:100%;margin-top:4px;background:#dce6d9}canvas{position:fixed;inset:0;pointer-events:none;z-index:1}footer{padding:0 28px 24px;color:#64716b;font-size:12px}.walk-panel{position:fixed;inset:0;z-index:4;background:#dce2d8;display:flex;flex-direction:column}.walk-panel[hidden]{display:none}.walk-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:15px 20px;background:#eef1e9;z-index:6}.walk-bar strong{margin-right:auto}.walk-view{flex:1;min-height:0;touch-action:none;cursor:grab}.walk-help{padding:14px 20px;margin:0;background:#eef1e9;z-index:6;color:#53645b;font-size:12px}@media(max-width:850px){.studies{grid-template-columns:repeat(2,1fr)}.view{height:36vh;min-height:240px}}@media(max-width:480px){.studies{grid-template-columns:1fr}.view{height:47vh}header{padding:20px 22px 0}.all-views{flex-wrap:wrap}}
 </style>
 </head>
 <body>
-<header><h1>Vier Dorfhäuser · Formstudien 03</h1><p>Nur Satteldächer · erste Fenster, Türen und Balken. Ziehen: drehen · Mausrad: näher / weiter</p></header>
-<main class="studies">
-<article><div class="view" aria-label="3D-Studie kleines Wohnhaus"></div><h2>01 · Bergwohnhaus</h2><p>Überstehendes Obergeschoss, Vorbau, Seitentrakt und Dachgaube.</p></article>
-<article><div class="view" aria-label="3D-Studie langes Bauernhaus"></div><h2>02 · Bauernhof</h2><p>Hohes Satteldach, querstehende Scheune und zwei große Gauben.</p></article>
-<article><div class="view" aria-label="3D-Studie hohes Giebelhaus"></div><h2>03 · Bürgerhaus</h2><p>Hoher Hauptgiebel, Zwerchgiebel, Erker und rückwärtiger Anbau.</p></article>
-<article><div class="view" aria-label="3D-Studie Winkelhaus mit Anbau"></div><h2>04 · Winkelhaus</h2><p>Versetzte Flügel mit unterschiedlichen Firsthöhen und offener Vorhalle.</p></article>
-</main>
-<footer>Separate Formstudien · noch nicht im Dorf eingebaut.</footer>
-<script src="./vendor/three.min.js"></script><script src="./village-houses.js?v=haeuser3"></script>
+<header><h1>Vier Dorfhäuser · Begehbare Modelle 04</h1><p>Steile Satteldächer · echte Öffnungen · eingerichtete Räume und Treppen. Ziehen: drehen · Mausrad: näher / weiter</p><nav class="all-views" aria-label="Alle Häuser anzeigen"><span>Alle Häuser:</span><button data-all="outside">Außen</button><button data-all="ground">Erdgeschoss</button><button data-all="upper">Obergeschoss</button></nav></header>
+<main class="studies"></main>
+<footer>Separate Hausvorschau · noch nicht im Dorf eingebaut. Geschossansichten öffnen Dach und Vorderwände für den Einblick.</footer>
+<section class="walk-panel" hidden aria-label="Hausrundgang"><div class="walk-bar"><strong id="walk-title"></strong><button data-place="entrance">Eingang</button><button data-place="ground">Erdgeschoss</button><button data-place="upper">Obergeschoss</button><button id="leave-walk">Zurück zu den Häusern</button></div><div class="walk-view" aria-label="Begehbarer Innenraum" tabindex="0"></div><p class="walk-help">WASD: gehen · Shift: schneller · Maus ziehen oder Pfeiltasten: umsehen · Esc: zurück. Türen stehen offen; Treppen führen in die oberen Geschosse.</p></section>
+<script src="./vendor/three.min.js"></script><script src="./village-houses.js?v=haeuser4"></script>
 <script>
 'use strict';
-const renderer = new THREE.WebGLRenderer({antialias:true,alpha:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.outputEncoding = THREE.sRGBEncoding;
-document.body.append(renderer.domElement);
-renderer.domElement.style.width='100vw';renderer.domElement.style.height='100vh';
-const materials = {house:new THREE.MeshLambertMaterial({color:'#cfba9c'}),castle:new THREE.MeshLambertMaterial({color:'#728583'})};
-const builder = NachtjagdVillageHouses.create(THREE,materials);
-const dimensions = [[8,9,7],[7.5,13,7],[7,9,8],[10,11,8]];
-const studies = [...document.querySelectorAll('.view')].map((element,index) => {
-  const scene = new THREE.Scene(); scene.background = new THREE.Color('#f5f6f1');
-  scene.add(new THREE.HemisphereLight(0xffffff,0x9eaca0,.7));
-  const sun = new THREE.DirectionalLight(0xffffff,.55); sun.position.set(-15,25,20); scene.add(sun);
-  scene.add(builder.build(...dimensions[index],index));
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(32,32),new THREE.MeshLambertMaterial({color:'#dce2d8'}));
-  ground.rotation.x=-Math.PI/2; ground.position.y=-.02; scene.add(ground);
-  const grid = new THREE.GridHelper(32,16,0xc3cdc2,0xcfd7cc); grid.position.y=.01; scene.add(grid);
-  return {element,scene,camera:new THREE.OrthographicCamera(-12,12,16,-16,.1,150)};
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.outputEncoding=THREE.sRGBEncoding;
+document.body.append(renderer.domElement);renderer.domElement.style.width='100vw';renderer.domElement.style.height='100vh';
+const materials={house:new THREE.MeshLambertMaterial({color:'#cfba9c'}),castle:new THREE.MeshLambertMaterial({color:'#728583'})};
+const builder=NachtjagdVillageHouses.create(THREE,materials),dimensions=[[8,9,7],[7.5,13,7],[7,9,8],[10,11,8]];
+const descriptions=[
+  'Stube mit Feuerstelle, Schlafkammer oben, Vorratsraum und Vorraum. Zwei Zugänge.',
+  'Wohnteil, Schlafkammer und angeschlossene Scheune mit Werkbank und Vorräten. Zwei Zugänge.',
+  'Drei Geschosse, Erker, Schlafkammer und Schreibstube. Innere Rücklauftreppe und zwei Zugänge.',
+  'Stube und Küche in versetzten Flügeln, Schlafkammer oben, hinterer Wirtschaftsraum. Zwei Zugänge.'
+];
+function makeScene(index) {
+  const scene=new THREE.Scene();scene.background=new THREE.Color('#f5f6f1');
+  scene.add(new THREE.HemisphereLight(0xffffff,0x9eaca0,.9));
+  const sun=new THREE.DirectionalLight(0xffffff,.75);sun.position.set(-15,25,20);scene.add(sun);
+  const model=builder.build(...dimensions[index],index);scene.add(model);
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(80,80),new THREE.MeshLambertMaterial({color:'#dce2d8'}));
+  ground.rotation.x=-Math.PI/2;ground.position.y=-.02;scene.add(ground);
+  const grid=new THREE.GridHelper(40,40,0xc3cdc2,0xcfd7cc);grid.position.y=.01;scene.add(grid);
+  return {scene,model};
+}
+const studies=dimensions.map((_,index)=>{
+  const built=makeScene(index),article=document.createElement('article');
+  article.innerHTML=`<div class="view" aria-label="3D-Modell ${built.model.name}"></div><div class="caption"><h2>0${index+1} · ${built.model.name}</h2><p>${descriptions[index]}</p><div class="controls"><button data-view="outside" aria-pressed="true">Außen</button><button data-view="ground" aria-pressed="false">EG</button><button data-view="upper" aria-pressed="false">${index===2?'1. OG':'OG'}</button>${index===2?'<button data-view="top" aria-pressed="false">2. OG</button>':''}<button class="walk">Haus betreten</button></div></div>`;
+  document.querySelector('.studies').append(article);
+  return {article,element:article.querySelector('.view'),...built,camera:new THREE.OrthographicCamera(-12,12,16,-16,.05,150),mode:'outside',index};
 });
-let yaw=.6, polar=1.08, zoom=1, drag=null;
-document.querySelectorAll('.view').forEach(element => {
-  element.addEventListener('pointerdown',event => {drag={x:event.clientX,y:event.clientY};element.setPointerCapture(event.pointerId);});
-  element.addEventListener('pointermove',event => {if(!drag)return;yaw-=(event.clientX-drag.x)*.009;polar=THREE.MathUtils.clamp(polar+(event.clientY-drag.y)*.007,.25,1.48);drag={x:event.clientX,y:event.clientY};});
-  element.addEventListener('pointerup',()=>{drag=null;}); element.addEventListener('pointercancel',()=>{drag=null;});
-  element.addEventListener('wheel',event => {event.preventDefault();zoom=THREE.MathUtils.clamp(zoom*Math.exp(-event.deltaY*.001),.65,1.8);},{passive:false});
-});
-function frame() {
-  renderer.setSize(innerWidth,innerHeight,false); renderer.setScissorTest(false); renderer.setClearColor(0x000000,0); renderer.clear(); renderer.setScissorTest(true);
-  for(const {element,scene,camera} of studies) {
-    const rect=element.getBoundingClientRect(),aspect=rect.width/rect.height;
-    camera.left=-10;camera.right=10;camera.top=10/aspect;camera.bottom=-10/aspect;camera.zoom=zoom;camera.updateProjectionMatrix();
-    camera.position.set(Math.sin(yaw)*40*Math.sin(polar),6+Math.cos(polar)*40,Math.cos(yaw)*40*Math.sin(polar));camera.lookAt(0,6,0);
-    renderer.setViewport(rect.left,innerHeight-rect.bottom,rect.width,rect.height);renderer.setScissor(rect.left,innerHeight-rect.bottom,rect.width,rect.height);renderer.render(scene,camera);
+let yaw=.6,polar=1.08,zoom=1,drag=null,walking=null,lastTime=0;
+const keys=new Set(),panel=document.querySelector('.walk-panel'),walkView=document.querySelector('.walk-view');
+function setView(study,mode) {
+  study.mode=mode;study.model.userData.house.setView(mode);
+  study.article.querySelectorAll('[data-view]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.view===mode)));
+}
+for(const study of studies) {
+  study.article.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>setView(study,button.dataset.view)));
+  study.article.querySelector('.walk').addEventListener('click',()=>enter(study.index));
+  const element=study.element;
+  element.addEventListener('pointerdown',event=>{drag={x:event.clientX,y:event.clientY};element.setPointerCapture(event.pointerId);});
+  element.addEventListener('pointermove',event=>{if(!drag)return;yaw-=(event.clientX-drag.x)*.009;polar=THREE.MathUtils.clamp(polar+(event.clientY-drag.y)*.007,.25,1.48);drag={x:event.clientX,y:event.clientY};});
+  element.addEventListener('pointerup',()=>{drag=null;});element.addEventListener('pointercancel',()=>{drag=null;});
+  element.addEventListener('wheel',event=>{event.preventDefault();zoom=THREE.MathUtils.clamp(zoom*Math.exp(-event.deltaY*.001),.65,2.1);},{passive:false});
+}
+document.querySelectorAll('[data-all]').forEach(button=>button.addEventListener('click',()=>studies.forEach(s=>setView(s,button.dataset.all))));
+function place(where) {
+  if(!walking)return;
+  const house=walking.model.userData.house,entry=house.entries[0];
+  if(where==='entrance') {
+    walking.position={...entry.outside};walking.yaw=Math.atan2(entry.outside.x-entry.inside.x,entry.outside.z-entry.inside.z);walking.pitch=0;return;
+  }
+  const level=where==='upper'?1:0,y=house.plan.base+level*house.plan.storey,main=house.plan.volumes[0];
+  // Nur freie Standpunkte auf einer echten Geschossplatte wählen.
+  for(let z=main.z1-.65;z>main.z0+.4;z-=.3)for(let x=(main.x0+main.x1)/2;x<main.x1-.4;x+=.3) {
+    if(Math.abs(house.walk.floor(x,z,y)-y)<.01&&!house.walk.blocked(x,z,y)) {
+      walking.position={x,y,z};walking.yaw=0;walking.pitch=0;return;
+    }
+  }
+}
+function enter(index) {
+  walking={...makeScene(index),camera:new THREE.PerspectiveCamera(70,1,.04,100),index,yaw:0,pitch:0};
+  panel.hidden=false;renderer.domElement.style.zIndex=5;document.querySelector('#walk-title').textContent=walking.model.name;
+  keys.clear();place('entrance');walkView.focus();
+}
+function leave() {
+  if(walking)walking.scene.traverse(o=>{
+    if(o.geometry&&['ExtrudeGeometry','PlaneGeometry'].includes(o.geometry.type))o.geometry.dispose();
+    if(o.type==='GridHelper'){o.geometry.dispose();o.material.dispose();}
+  });
+  walking=null;panel.hidden=true;renderer.domElement.style.zIndex=1;keys.clear();drag=null;
+}
+document.querySelector('#leave-walk').addEventListener('click',leave);
+document.querySelectorAll('[data-place]').forEach(button=>button.addEventListener('click',()=>place(button.dataset.place)));
+walkView.addEventListener('pointerdown',event=>{drag={x:event.clientX,y:event.clientY};walkView.setPointerCapture(event.pointerId);});
+walkView.addEventListener('pointermove',event=>{if(!drag||!walking)return;walking.yaw-=(event.clientX-drag.x)*.005;walking.pitch=THREE.MathUtils.clamp(walking.pitch-(event.clientY-drag.y)*.005,-1.2,1.2);drag={x:event.clientX,y:event.clientY};});
+walkView.addEventListener('pointerup',()=>{drag=null;});walkView.addEventListener('pointercancel',()=>{drag=null;});
+window.addEventListener('keydown',event=>{if(!walking)return;if(event.code==='Escape'){leave();return;}if(/^(Key[WASD]|Shift|Arrow)/.test(event.code)){event.preventDefault();keys.add(event.code);}});
+window.addEventListener('keyup',event=>keys.delete(event.code));window.addEventListener('blur',()=>{keys.clear();drag=null;});
+function draw(element,scene,camera) {
+  const rect=element.getBoundingClientRect();
+  renderer.setViewport(rect.left,innerHeight-rect.bottom,rect.width,rect.height);renderer.setScissor(rect.left,innerHeight-rect.bottom,rect.width,rect.height);renderer.render(scene,camera);
+}
+function frame(time) {
+  const dt=Math.min((time-lastTime)/1000,.05)||0;lastTime=time;
+  renderer.setSize(innerWidth,innerHeight,false);renderer.setScissorTest(false);renderer.setClearColor(0x000000,0);renderer.clear();renderer.setScissorTest(true);
+  if(walking) {
+    walking.yaw+=((keys.has('ArrowLeft')?1:0)-(keys.has('ArrowRight')?1:0))*dt*1.7;
+    walking.pitch=THREE.MathUtils.clamp(walking.pitch+((keys.has('ArrowUp')?1:0)-(keys.has('ArrowDown')?1:0))*dt*1.3,-1.2,1.2);
+    const f=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0),s=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0),scale=dt*(keys.has('ShiftLeft')?4:2.3)/Math.max(1,Math.hypot(f,s));
+    walking.position=walking.model.userData.house.walk.move(walking.position,(-Math.sin(walking.yaw)*f+Math.cos(walking.yaw)*s)*scale,(-Math.cos(walking.yaw)*f-Math.sin(walking.yaw)*s)*scale);
+    const camera=walking.camera,rect=walkView.getBoundingClientRect(),p=walking.position;
+    camera.aspect=rect.width/rect.height;camera.updateProjectionMatrix();camera.position.set(p.x,p.y+1.68,p.z);camera.rotation.order='YXZ';camera.rotation.set(walking.pitch,walking.yaw,0);
+    draw(walkView,walking.scene,camera);
+  } else for(const study of studies) {
+    const {element,scene,camera,mode}=study,rect=element.getBoundingClientRect(),aspect=rect.width/rect.height;
+    const interior=mode!=='outside',targetY=interior?(mode==='ground'?1.1:mode==='upper'?4.2:7.4):6;
+    camera.left=-10.8;camera.right=10.8;camera.top=10.8/aspect;camera.bottom=-10.8/aspect;camera.zoom=zoom*(interior?1.15:1);camera.updateProjectionMatrix();
+    const angle=interior?Math.min(polar,.72):polar;
+    camera.position.set(Math.sin(yaw)*40*Math.sin(angle),targetY+Math.cos(angle)*40,Math.cos(yaw)*40*Math.sin(angle));camera.lookAt(0,targetY,0);
+    draw(element,scene,camera);
   }
   requestAnimationFrame(frame);
 }
-frame();
+requestAnimationFrame(frame);
 </script>
 </body>
 </html>

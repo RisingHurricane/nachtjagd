@@ -1,10 +1,20 @@
 # STATUS
 
-Letzte Aktualisierung: 2026-10-11 (Codex, gemeinsamer Entwurf 22 auf Claudes Entwurf 21)
+Letzte Aktualisierung: 2026-10-11 (Codex, Entwurf 22 veröffentlicht; Hausmodelle 04 separat)
+
+## Veröffentlichung · Entwurf 22 · 2026-10-11
+
+Nach ausdrücklicher Freigabe von Light wurde `gh-pages` von `87a7ef867a11d75a06773753f8ea10819f7c089e` ohne Force auf Claudes vorbereiteten Release-Commit `f35c56d30e2daf3270f518494c05b1edd103ddfe` vorgespult. `entwurf/` ist exakt der freigegebene Stand von `codex/unified-ui` `2bf8296`; der Verzeichnisbaum wurde vor Veröffentlichung verglichen. Änderungen liegen ausschließlich in `entwurf/`, `assets/imported/`, `assets/music/` und `models/`; `modelltest/` und übrige Dateien sind unverändert. Kein Push auf main. Live: https://risinghurricane.github.io/nachtjagd/entwurf/?v=22 . Im Browser Versionskennung „Entwurf 22 · Gemeinsame Spielversion“, Hauptmenü, Burgmodell, Spielstart, Welle 1, HUD/Minikarte und Pause/Neustart geprüft, keine Konsolenfehler. Musikstückliste und alle sieben MP3-Dateien sowie Burg- und Bergdatei liefern HTTP 200; Ton wurde nicht akustisch beurteilt. Die neuen Hausmodelle 04 sind ausdrücklich nicht Teil dieser Veröffentlichung und bleiben auf dem Arbeitsbranch.
 
 ## Gemeinsame Spielversion · Entwurf 22
 
 Branch `codex/unified-ui` basiert direkt auf `origin/claude/spiellogik` (`46561bd`, Entwurf 21). Menü mit Überflug, HUD, Waffenansichten, Kompass, Minikarte und große Karte aus `codex/game-screen` sind gezielt in `public/entwurf/` übertragen. Claudes Gegneranimationen, Bergkulisse, Musik-Regie, Schnee/Himmel, A/D-Fahrzeuglenkung mit freiem Mausblick, `indoorK` und Burg-Anbindung bleiben erhalten; Weltdefinition, Spielkern, Fahrzeugphysik, Modell-Austauschpunkte und Burgdateien wurden nicht geändert. M öffnet die Karte mit Solopause, N schaltet Musik stumm. Sichtbare Version und alle vorhandenen `?v=`-Zusätze in `index.html` stehen auf 22. `npm test`: 165/165 grün (161 Bestandstests plus vier UI-Tests). Three.js 0.170.0 ist nun fest als Entwicklungsabhängigkeit samt Lockdatei eingetragen, weil die übernommenen Burgtests das Paket bereits benötigen. Hauptmenü, Spielstart, HUD, Minikarte, Karte/Pause und N-Musik im lokalen Browser ohne Konsolenfehler geprüft. Vier separate, drehbare Haus-Volumenstudien liegen unter `public/entwurf/haeuser.html` und `village-houses.js`; sie sind ausdrücklich noch nicht in die Welt eingebaut. Kein neuer Spielpfad und keine neue Kopie unter `modelltest/`. Kein Merge oder Push auf main oder gh-pages; öffentliche Umschaltung und spätere Ablösung der alten Modelltest-Seite warten auf Lights Freigabe.
+
+## Separate Hausmodelle 04
+
+Validierung: vollständiger Testlauf `node --test` (entspricht dem npm-Testskript) 181/181 grün. Außenansichten, EG-Schnitt, Eingang mit WASD und OG-Rundgang im lokalen Browser ohne Konsolenfehler geprüft. Screenshot der Innenansichten liegt außerhalb des Repositorys im Arbeitsordner.
+
+`public/entwurf/haeuser.html` zeigt vier begehbare, einfach eingerichtete Hausmodelle aus `village-houses.js`: Bergwohnhaus, Bauernhof mit Scheune, dreigeschossiges Bürgerhaus und Winkelhaus. Ausschließlich steile Satteldächer, Dachgauben, transparente Fenster in echten Wandöffnungen, jeweils zwei offene Außenzugänge, freie Innendurchgänge, Geschossplatten mit ausgeschnittenen Treppenlöchern, Gerade- beziehungsweise Rücklauftreppen und Geländer. Möbel: Tisch/Stühle, Bett, Schrank, Bücherregale, Küchennische, Feuerstelle, Werkbank und Vorräte. Geschossansichten und Ego-Rundgang (WASD, Maus ziehen/Pfeiltasten, Esc zurück) gehören zur selben Vorschauseite. Modell und Bewegung teilen Maße; lokale Meter, y=0 Gelände, +z Vorderseite. Vertrag in der Kopfzeile und AGENTS.md. Alle Räume einschließlich Schlafkammern sind vom Haupteingang erreichbar; 16 neue Tests prüfen Zugänge, Kollisionen, Treppen und Raumverbindungen. Keine Türinteraktion, keine begehbaren Dachböden, keine Fototexturen. Hausmodelle bleiben auf Nutzerwunsch außerhalb des Dorfs; spätere Platzierung und Weltadapter-Anbindung offen. Spielversion 22 unverändert, Hauskennung `haeuser4`, keine neuen Abhängigkeiten und kein Push auf main/gh-pages.
 
 ## Aktueller grober Weltentwurf
 
@@ -83,6 +93,10 @@ Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` un
 - Die Berge am Kartenrand ragen stellenweise ein Stück auf die Karte hinein (Kulisse). Das lässt sich verschieben, wenn es stört.
 
 ## Übergabe-Log
+
+- 2026-10-11, Codex: Entwurf 22 nach Lights ausdrücklicher Freigabe unter `/nachtjagd/entwurf/` veröffentlicht (Release `f35c56d`, Fast-Forward auf gh-pages, kein Force). Link https://risinghurricane.github.io/nachtjagd/entwurf/?v=22 im Browser geprüft: richtige Versionskennung, Menü, Burg, Spielstart/Welle 1, HUD und Minikarte. Musikdateien erreichbar. Keine Änderungen an main oder modelltest, keine neuen Hausmodelle in der Veröffentlichung.
+
+- 2026-10-11, Codex: Vier Hausmodelle 04 auf `codex/unified-ui` zu begehbaren Hüllen mit zwei Zugängen, Treppen, getrennten Schlafkammern und einfachem Mobiliar ausgebaut; EG/OG-Schnitt und Rundgang in `haeuser.html`. Tür- und Treppenmaße sind gemeinsame Quelle für Darstellung und Kollision; räumliche Indizes halten Bewegungsabfragen klein. 16 Hausprüfungen einschließlich vollständiger Raumerreichbarkeit ergänzt. Weiterhin separat, keine Platzierung im Dorf, keine Änderungen an Claudes Spiellogik oder Burg, keine Veröffentlichung auf main/gh-pages. Nächster Schritt nach Nutzerfeedback: Platzierung samt Weltkoordinaten-Adapter, kein zweiter Spielpfad.
 
 - 2026-10-11, Codex: Hausstudien 03: Auf ausdrücklichen Nutzerwunsch sämtliche Dächer einschließlich Erker und Vorhalle als Satteldächer; Walmdach-Geometrie entfernt. Kleine Detailstufe mit einfachen Fensterflächen/Kreuzrahmen, Türen, Scheunentor, Eingangsstufen, Traufbalken und Ortgangbrettern. Keine Texturen oder Innenräume. Separate Studien bleiben außerhalb des Dorfs; Spielversion 22 unverändert. Cachekennung `haeuser3`, keine Veröffentlichung auf main/gh-pages.
 
