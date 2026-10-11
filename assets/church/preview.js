@@ -37,9 +37,9 @@ for (const x of [-3.4,3.4]) for (const z of [-13,-21]) {
   scene.add(light);
 }
 const views = {
-  outside: {eye:[35,23,43], target:[0,11,-13]},
+  outside: {eye:[39,27,47], target:[0,14,-13]},
   inside: {eye:[0,2.1,-5], target:[0,5.6,-24]},
-  side: {eye:[37,16,-14], target:[0,10,-15]}
+  side: {eye:[-44,19,-14], target:[0,13,-15]}
 };
 function setView(name) {
   const view = views[name];
@@ -60,7 +60,7 @@ document.getElementById('night').onclick = () => {
   document.getElementById('night').classList.toggle('active',night);
 };
 setView('outside');
-new THREE.GLTFLoader().load('church.glb', (gltf) => {
+new THREE.GLTFLoader().load('church.glb?v=1.1', (gltf) => {
   gltf.scene.traverse((node) => { if (node.isMesh) {node.castShadow=true; node.receiveShadow=true;} });
   scene.add(gltf.scene);
   window.churchPreview = {scene, camera, controls, model:gltf.scene, renderer};
