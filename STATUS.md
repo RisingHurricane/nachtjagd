@@ -1,6 +1,14 @@
 # STATUS
 
-Letzte Aktualisierung: 2026-10-11 (Codex, Entwurf 22 veröffentlicht; Hausmodelle 04 separat)
+Letzte Aktualisierung: 2026-10-11 (Codex, Entwurf 23 vorbereitet: Wald, Nacht, Laternen, Wachturm)
+
+## Entwurf 23 · Wald, Licht und Laufzeit
+
+Separater Branch `codex/forest-night-performance`, Basis `codex/unified-ui` `99ba461`. Das aktuelle Altay-Spiel `/nachtjagd-neu/` im Browser und dessen gesicherter Quellstand wurden verglichen. Die vorhandene Übertragung der Siegel-, Waffen-, Wellen- und Fahrzeugregeln bleibt bestehen. Übernommen wird insbesondere die sparsame Aktualisierung der Schatten statt einer neuen Schattenkarte in jedem Bild. In der gemeinsamen Welt ersetzen vier gezackte, farbige Astetagen die Fernkegel und die drei Inselkegel; nahe Bäume bleiben die importierten GLB-Modelle. Detailradius 95 m, ferne Bäume ohne Schattenberechnung. Baukörper werden nach Material und Schattenverhalten instanziert; Originalnetze bleiben für Höhenanker und Schussabfragen erhalten. Schattenkarte 1024 statt 2048, Aktualisierung höchstens 10 Hz im Spiel bzw. 2,5 Hz in ruhigen Ansichten. HUD 20 Hz, Minikarte weiter 10 Hz. Kleine Höhenstufen der Ego-Kamera sind geglättet, Sprünge/Fahrzeuge bleiben direkt; A/D-Lenkung, Mausblick, `indoorK` und Burg-Begehbarkeit bleiben erhalten.
+
+Volle Nacht nach 35 statt 110 Spielsekunden; Pausen zählen nicht. `outdoor-details.js` ergänzt Laternen an Dorfstraßen und einzelnen Waldwegen, warme Fenster an den bestehenden Blockout-Häusern sowie einen groben offenen Holzwachturm am Osttor (191,29) mit Satteldach. Die Laternen teilen genau drei echte schattenlose Lichter, dazu einfache Geländelichtflecken. Wachturm nur als Baukörper, noch ohne Aufstieg; die vier separat entwickelten Hausmodelle bleiben außerhalb des Dorfs. Geländeänderungen führen Instanzen und Lichtflecken nach. Lesbarkeit des Pause-/Todesdialogs korrigiert.
+
+Prüfung: 184 Node-Tests grün, einschließlich Nachtzeit/Pause, Fernbaumgeometrie/-abstandsstufe und Laternen-Lichtbudget. Browservergleich am Startpunkt: zuvor etwa 436 Zeichenaufrufe, danach etwa 254 (rund 42 % weniger; nicht als feste FPS-Zusage zu verstehen). Im Testbrowser wurden danach ungefähr 24–28 ms Bildzeit beobachtet, abhängig von Blickrichtung und dynamischer Auflösung; keine Messung auf Lights Hardware. `?perf=1` zeigt echte Bildzeiten und Renderzahlen nur auf ausdrücklichen Aufruf. Versionskennung und alle `?v=`-Zusätze in `index.html` gemeinsam auf 23 angehoben. Keine neuen Abhängigkeiten. Noch nicht auf GitHub Pages veröffentlicht; bisherige Freigabe betraf ausdrücklich Entwurf 22. `main`, `gh-pages` und `modelltest/` bleiben unverändert.
 
 ## Veröffentlichung · Entwurf 22 · 2026-10-11
 
@@ -177,3 +185,5 @@ Automatischer Durchlauf mit einem Browser-Bot (Weg über das Straßennetz, Siege
 
 - 2026-10-11, Claude: Entwurf 20: Jeep mit drehenden und lenkenden Rädern, Wendigo-Gegner mit Lauf- und Angriffsbewegung, Wolf als Sprungpose, Bergkulisse aus dem Berg-Download, Musik-Regie mit sieben Stücken. 138 Tests grün. Kein Merge nach `main`, kein Push auf `gh-pages`. Nächste Schritte: Töne für Schüsse, Schritte, Motor und Wind; Burg und Kirche als Modelle; Minentunnel; Koop.
 - 2026-10-11, Claude: Entwurf 21: Jeep-Lenkung neu, dichter Himmel mit schnellerer Dämmerung und mehr Schnee, Burg aus `claude/burg` im Spiel begehbar (Rittersaal, Bibliothek, Hauptturm bis ins Turmzimmer). 161 Tests grün, 22 Geländeprüfungen bestanden. Kein Merge nach `main`, kein Push auf `gh-pages`. Nächste Schritte: Keller und weitere Räume, Beute und Wächter in der Burg, Töne, Minentunnel, Koop.
+
+- 2026-10-11, Codex: Entwurf 23 auf codex/forest-night-performance vorbereitet: Fernkegel durch Astetagen ersetzt, Nacht nach 35 s, Laternen mit drei geteilten Lichtern, warme Blockout-Fenster, grober Wachturm am Osttor, Instanzbündelung und Schatten-Zwischenspeicher gegen Ruckeln. 184 Tests grün; Startpunkt etwa 42 % weniger Zeichenaufrufe. Veröffentlichung wartet auf Freigabe für diesen Stand. Burg und separate Hausmodelle unverändert.

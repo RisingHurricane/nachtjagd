@@ -54,8 +54,8 @@ globalThis.NachtjagdInterface = (() => {
   }
   function create({world,onPlay,onLayout,onMap}) {
     const menu=document.querySelector('#main-menu'),map=document.querySelector('#world-map'),hud=document.querySelector('#game-hud');
-    const q=id=>document.getElementById(id);
-    let latest=null,selected=null,mapOpen=false,mapPaused=false,lastDraw=-1,miniClock=0;
+    const elements=new Map(),q=id=>{if(!elements.has(id))elements.set(id,document.getElementById(id));return elements.get(id);};
+    let latest=null,selected=null,mapOpen=false,mapPaused=false,lastDraw=-1,miniClock=0,hudClock=0;
     const layout=NachtjagdLayout,routes=NachtjagdRoadLayout({height:layout.naturalHeight,castle:layout.castle}).routes;
     const ctx=q('map-canvas').getContext('2d'),back=document.createElement('canvas');back.width=back.height=720;
     const b=back.getContext('2d'),px=x=>(x+600)/1200*720,pz=z=>(z+550)/1100*720;
@@ -97,6 +97,11 @@ globalThis.NachtjagdInterface = (() => {
     q('minimap-open').addEventListener('click',()=>setMap(true));
     document.addEventListener('keydown',e=>{if(!menu.hidden&&e.code==='Escape'){menu.hidden=true;document.body.classList.remove('in-menu');onLayout();}});
     function update(s,dt){
+      latest=s; hudClock+=dt;
+      // Anzeigen mit 20 Hz, Kamera und Waffe weiter in jedem Bild. Vermeidet
+      // insbesondere das ständige Neuerzeugen der Kompass-DOM-Knoten.
+      if(dt>0&&hudClock<.05)return;
+      const displayDt=hudClock; hudClock=0;
       latest=s;const p=s.player,w=s.weapons[s.current],target=targetFor(s,selected),done=s.quest.objectives.filter(o=>o.found).length;
       q('hud-health').textContent=Math.ceil(p.hp);q('hud-healthbar').style.width=Math.max(0,p.hp/p.maxHp*100)+'%';hud.classList.toggle('low-health',p.hp<30);
       q('hud-ammo').textContent=String(w.ammo).padStart(2,'0');q('hud-reserve').textContent='/ '+w.reserve;q('hud-weapon').textContent=w.name;
@@ -110,7 +115,7 @@ globalThis.NachtjagdInterface = (() => {
       q('hud-arrow').hidden=!target;if(target)q('hud-arrow').style.transform=`rotate(${-wrap(Math.atan2(target.x-p.x,target.z-p.z)-p.yaw)*180/Math.PI}deg)`;
       q('hud-directions').innerHTML=['N','O','S','W'].map((label,i)=>{const bearing=Math.PI-i*Math.PI/2,dx=-wrap(bearing-p.yaw)*140;return Math.abs(dx)<145?`<span style="left:calc(50% + ${dx}px)">${label}</span>`:'';}).join('');
       q('hud-slots').textContent=s.weapons.map((a,i)=>(i===s.current?'▸ ':'')+(i+1)+' '+(a.owned?a.name:'🔒')).join('   ');
-      miniClock+=dt;if(miniClock>=.1||dt===0){drawMini(s,target);miniClock=0;}
+      miniClock+=displayDt;if(miniClock>=.1||dt===0){drawMini(s,target);miniClock=0;}
       if(mapOpen&&s.time-lastDraw>.1){drawMap();lastDraw=s.time;}
     }
     const targetButtons=q('map-targets');world.objectives.forEach(o=>{const button=document.createElement('button');button.textContent=o.name;button.addEventListener('click',()=>{selected=o.id;for(const b of targetButtons.children)b.setAttribute('aria-pressed',String(b===button));if(latest){update(latest,0);drawMap();}});button.setAttribute('aria-pressed','false');targetButtons.append(button);});

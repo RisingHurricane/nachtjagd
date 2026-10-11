@@ -839,8 +839,8 @@
     function updateEnv() {
       const w = state.waves, q = state.quest;
       const runProgress = Math.max(0, w.n - 1) + q.got.length * 0.22;
-      // Die Dunkelheit kommt zuerst mit der Zeit (volle Nacht nach gut 100 s), danach hält der Spielfortschritt sie.
-      const dusk = 1 - Math.max(smooth(0.15, 2.6, runProgress), smooth(8, 110, state.time));
+      // Kurzer Sonnenuntergang: nach 35 Spielsekunden Nacht; Pausen zählen nicht mit.
+      const dusk = 1 - Math.max(smooth(0.15, 2.6, runProgress), smooth(2, 35, state.time));
       const sunrise = q.stage === 'final' ? smooth(0, 76, 76 - w.finalT) : state.phase === 'won' ? 1 : 0;
       const wx = state.weather;
       state.env = { light: lerp(wx.light, 1.32, sunrise) * (1 + 0.12 * dusk), cover: lerp(wx.cover, 0.12, sunrise), dusk, sunrise, mod: q.stage === 'final' ? 'blood' : w.mod };

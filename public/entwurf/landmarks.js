@@ -57,7 +57,8 @@ globalThis.NachtjagdLandmarks = {
     const islandTrees=layout.island.trees.map(([dx,dz],i)=>{
       const x=layout.island.x+dx,z=layout.island.z+dz,height=10+i*1.7;
       box(x,z,.7,.7,4.2,'landmark');
-      const crown=new THREE.Mesh(new THREE.ConeGeometry(3+i*.25,height,7),materials.forest);
+      const crown=new THREE.Mesh(NachtjagdImportedModels.pineGeometry(),materials.forest);
+      crown.scale.set(3+i*.25,height,3+i*.25);
       crown.position.set(x,groundHeight(x,z)+4+height/2,z); crown.castShadow=true; scene.add(crown);
       return {x,z,height,crown};
     });

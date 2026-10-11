@@ -12,13 +12,14 @@
     status.textContent = 'Grafik konnte nicht gestartet werden.';
     return;
   }
-  // Auflösung wird bei langsamen Geräten automatisch gesenkt (siehe frame()); Start mit der Bildschirmdichte, höchstens 2.
-  let pixelRatio = Math.min(devicePixelRatio, 2); const maxPixelRatio = pixelRatio;
+  // Moderate Startauflösung; langsame Geräte werden zusätzlich automatisch entlastet.
+  let pixelRatio = Math.min(devicePixelRatio, 1.25);
   renderer.setPixelRatio(pixelRatio);
   renderer.setSize(innerWidth, innerHeight);
   renderer.outputEncoding = THREE.sRGBEncoding;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.autoUpdate = false;
   document.body.prepend(renderer.domElement);
   renderer.domElement.setAttribute('aria-label', 'Dreidimensionaler Blockout des Bergdorfs auf der Hochebene');
   const scene = new THREE.Scene();
@@ -29,7 +30,7 @@
   const sun = new THREE.DirectionalLight(0xfff7e5, .7);
   sun.position.set(-80, 180, 110);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(1024, 1024);
   Object.assign(sun.shadow.camera, { left: -260, right: 260, top: 260, bottom: -260, far: 650 });
   sun.shadow.bias = -.0005;
   scene.add(sun);
@@ -39,7 +40,8 @@
   const colors = { ground: '#e4e7df', house: '#d6ba92', landmark: '#b59370', forest: '#658777', path: '#b9a78b', castle: '#8a9aab', viaduct: '#b7ad97', water: '#8eb0bc', hill: '#bac3b4' };
   const materials = {};
   for (const [key, value] of Object.entries(colors)) materials[key] = new THREE.MeshLambertMaterial({ color: new THREE.Color(value).convertSRGBToLinear() });
-  const boxGeometry = new THREE.BoxGeometry(1, 1, 1), coneGeometry = new THREE.ConeGeometry(1, 1, 7);
+  const boxGeometry = new THREE.BoxGeometry(1, 1, 1), coneGeometry = NachtjagdImportedModels.pineGeometry();
+  materials.forest.vertexColors = true; materials.forest.color.setRGB(1,1,1);
   const edgeGeometry = new THREE.EdgesGeometry(boxGeometry);
   const edgeMaterial = new THREE.LineBasicMaterial({ color: '#526266', transparent: true, opacity: .3 });
   const colliders = [], anchors = [], roadMeshes = [], labelAnchors = [], treePlacements = [], coverPlacements=[];
@@ -371,6 +373,7 @@
   label('Viadukt · sieben Bögen', ...viaductMiddle, viaduct.top(viaduct.length/2)-groundHeight(...viaductMiddle)+14, 64);
   label('Hochgebirge · Norden', -20, -300, 28, 100);
   landmarks=NachtjagdLandmarks.create({THREE,scene,materials,box,label,groundHeight,streetHeight,layout});
+  const outdoor=NachtjagdOutdoor.create({THREE,scene,layout,routes,height:groundHeight,clearance:(x,z)=>roadNetwork.clearance(x,z),box,label,houses:houseMeshes});
   // Reproduzierbarer Wald; Wege, See und Gebäuderänder bleiben frei.
   let seed = 71;
   function random() { seed = (1664525 * seed + 1013904223) >>> 0; return seed / 4294967296; }
@@ -492,7 +495,7 @@
   function setView(view) {
     const walking = view === 'walk' || view === 'forest' || view === 'bridgewalk' || view === 'stairswalk';
     if (walking && editing) toggleEditor(false);
-    mode = walking ? 'walk' : view; keys.clear(); labels.visible = !walking && !editing && !['wind','stones','ruin','lakeside','mines','northmine','gondola','talstation','jeep','boats','carts','peaks','valley'].includes(view); grid.visible = editing || view === 'map';
+    mode = walking ? 'walk' : view; keys.clear(); labels.visible = !walking && !editing && !['wind','stones','ruin','lakeside','mines','northmine','gondola','talstation','jeep','boats','carts','peaks','valley','watchtower'].includes(view); grid.visible = editing || view === 'map';
     document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
     if (walking) {
       const start = view === 'bridgewalk' ? viaduct.point(viaduct.length-4) : view === 'forest' ? [221,60] : view === 'stairswalk' ? [120,58] : [90,45];
@@ -608,6 +611,8 @@
       dummy.position.y = groundHeight(tree.x,tree.z) + (tree.clearance + 2) / 2; dummy.scale.set(.4, tree.clearance + 2, .4); dummy.updateMatrix(); trunks.setMatrixAt(i, dummy.matrix);
     });
     importedForest.update();
+    outdoor.refresh(); updateBoxBatches();
+    renderer.shadowMap.needsUpdate = true;
     forest.instanceMatrix.needsUpdate = true;
     trunks.instanceMatrix.needsUpdate = true;
     coverPlacements.forEach((plant,i)=>{
@@ -700,9 +705,18 @@
   let previous = performance.now(),menuTime=0;
   const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const perf = { sum: 0, frames: 0, last: performance.now(), level: 0 };
+  let shadowTime=-Infinity,shadowX=Infinity,shadowZ=Infinity;
+  const perfReport = new URLSearchParams(location.search).has('perf') ? document.createElement('output') : null;
+  const timings = [];
+  if (perfReport) {
+    perfReport.id = 'render-stats';
+    perfReport.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:30;background:#101821dd;color:white;padding:8px;font:12px monospace;white-space:pre';
+    document.body.append(perfReport);
+  }
   function frame(now) {
     requestAnimationFrame(frame);
-    const dt = Math.min((now - previous) / 1000, .05); previous = now;
+    const elapsed = (now - previous) / 1000;
+    const dt = Math.min(elapsed, .1); previous = now;
     if (sculpting && now - lastSculpt >= 50) { applySculpt(Math.min((now - lastSculpt) / 1000, .1)); lastSculpt = now; }
     sky.update(camera, dt);
     importedForest.lod(camera);
@@ -740,7 +754,21 @@
       camera.position.set(target.x + distance * Math.sin(polar) * Math.sin(yaw), target.y + distance * Math.cos(polar), target.z + distance * Math.sin(polar) * Math.cos(yaw));
       camera.lookAt(target);
     }
+    outdoor.update(camera,gameplay?.active?sky.state.night:layoutSky.night,gameplay?.active?world.indoor(camera.position.x,camera.position.y-1.75,camera.position.z):0);
+    // Wie im Altay-Spiel: Schatten zwischenspeichern. Bewegte Gegner höchstens
+    // zehnmal pro Sekunde, ruhige Layoutansichten nur bei Kamera-/Geländeänderungen.
+    if(now-shadowTime>(gameplay?.active?100:400) || Math.hypot(camera.position.x-shadowX,camera.position.z-shadowZ)>6) {
+      renderer.shadowMap.needsUpdate=true; shadowTime=now; shadowX=camera.position.x; shadowZ=camera.position.z;
+    }
     renderer.render(scene, camera);
+    if (perfReport && !document.hidden) {
+      if(elapsed<.25) timings.push(elapsed * 1000); if (timings.length > 120) timings.shift();
+      if (timings.length % 20 === 0) perfReport.textContent = JSON.stringify({
+        frameMs: Math.round(timings.reduce((a,b)=>a+b,0)/timings.length*10)/10,
+        calls: renderer.info.render.calls, triangles: renderer.info.render.triangles,
+        pixelRatio, shadow: renderer.shadowMap.enabled
+      }, null, 2);
+    }
   }
   // Kleine Prüfberichte sind nur im ausdrücklich aufgerufenen QA-Modus sichtbar.
   if (new URLSearchParams(location.search).has('test')) {
@@ -822,6 +850,27 @@
   // Der Weltadapter hält Spielregeln unabhängig von späteren Burg-/Kirchenmodellen.
   const shotMeshes=[];
   scene.traverse(child=>{ if(child.isMesh && child!==lake && child!==forest && child!==undergrowth) shotMeshes.push(child); });
+  // Baukörper behalten ihre Originalnetze für Schussabfragen und Geländeanker.
+  // Sichtbar sind wenige Instanznetze je Material statt hunderter Einzelwürfel und Kanten.
+  const boxBatches=[];
+  const boxGroups=new Map();
+  for(const a of anchors) {
+    const key=a.mesh.material.uuid+'|'+a.mesh.castShadow;
+    if(!boxGroups.has(key)) boxGroups.set(key,[]);
+    boxGroups.get(key).push(a.mesh); a.mesh.visible=false;
+  }
+  for(const meshes of boxGroups.values()) {
+    const mesh=new THREE.InstancedMesh(boxGeometry,meshes[0].material,meshes.length);
+    mesh.castShadow=meshes[0].castShadow; mesh.receiveShadow=true; mesh.frustumCulled=false;
+    scene.add(mesh); boxBatches.push({mesh,meshes});
+  }
+  function updateBoxBatches() {
+    for(const batch of boxBatches) {
+      batch.meshes.forEach((m,i)=>{m.updateMatrix();batch.mesh.setMatrixAt(i,m.matrix);});
+      batch.mesh.instanceMatrix.needsUpdate=true;
+    }
+  }
+  updateBoxBatches();
   const shotRay=new THREE.Raycaster();
   // Wo die Straße höher oder tiefer als das Gelände liegt, läuft der Rand 2,5 m lang als Rampe aus.
   // Sonst bliebe an der Kante eine Stufe, die Spielfigur und Gegner nicht überwinden.
@@ -941,5 +990,12 @@
     views.carts={target:[world.rails.nodes[0].x,gameFloor(world.rails.nodes[0].x,world.rails.nodes[0].z)+1,world.rails.nodes[0].z],distance:40,yaw:.5,polar:.4,name:'Minenschienen mit Loren · Platzhaltermodell'};
   }
   setView('world');
+  const nightButton=document.createElement('button'); nightButton.textContent='Nacht ansehen'; document.querySelector('header').append(nightButton);
+  nightButton.addEventListener('click',()=>{
+    layoutSky.night=layoutSky.night?0:1; scene.background=sky.apply(layoutSky); backdrop.setMood(layoutSky.night?sky.fogColor:null);
+    nightButton.textContent=layoutSky.night?'Dämmerung ansehen':'Nacht ansehen'; renderer.shadowMap.needsUpdate=true;
+  });
+  views.watchtower={target:[outdoor.tower.x,outdoor.tower.top-2,outdoor.tower.z],distance:42,yaw:-1.2,polar:1.12,name:'Wachturm am Osttor'};
+  const towerOption=document.createElement('option'); towerOption.value='watchtower'; towerOption.textContent='Wachturm'; document.querySelector('#place-view').append(towerOption);
   requestAnimationFrame(frame);
 })();

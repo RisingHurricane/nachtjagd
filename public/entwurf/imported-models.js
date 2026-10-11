@@ -3,7 +3,7 @@
 // Ausschließlich Darstellung: Spielregeln, Sitzplätze und Kollisionen bleiben beim Spielkern.
 globalThis.NachtjagdImportedModels = (() => {
   const T = THREE, templates = {}, errors = [];
-  const LOD_RADIUS = 140;
+  const LOD_RADIUS = 95;
   const MOUNTAIN_CUT = 10;
   // Auf GitHub Pages liegen die Modelle eine Ebene über dem Ordner entwurf/, in der Artifact-Vorschau neben der Seite.
   const scriptUrl = document.currentScript.src;
@@ -11,6 +11,33 @@ globalThis.NachtjagdImportedModels = (() => {
   const base = new URL(onPages ? '../assets/imported/' : './assets/imported/', scriptUrl);
   // Die Artifact-Vorschau liefert keine .glb-Dateien aus, dort liegen dieselben Bytes als Base64-Text unter der Endung .txt.
   const suffix = onPages ? '' : '.txt';
+  // Vier gezackte Astetagen statt glatter Kegel. Eine Geometrie für alle Fernbäume,
+  // knapp hundert Dreiecke; normalisierte Krone von -0,5 bis +0,5 wie der alte Platzhalter.
+  function pineGeometry() {
+    const p = [], colors = [], dark = new T.Color('#24483e').convertSRGBToLinear();
+    const green = new T.Color('#496656').convertSRGBToLinear(), snow = new T.Color('#bdc8c4').convertSRGBToLinear();
+    function triangle(a,b,c,tint) {
+      p.push(...a,...b,...c);
+      for(let i=0;i<3;i++) colors.push(tint.r,tint.g,tint.b);
+    }
+    for(let tier=0;tier<4;tier++) {
+      const y=-.5+tier*.235,r=1-tier*.21,tip=Math.min(.5,y+.39);
+      for(let i=0;i<8;i++) {
+        const a=i*Math.PI/4+tier*.31,b=(i+1)*Math.PI/4+tier*.31;
+        const ra=r*(i%2?.75:1),rb=r*((i+1)%2?.75:1);
+        const A=[Math.cos(a)*ra,y+(i%2)*.035,Math.sin(a)*ra];
+        const B=[Math.cos(b)*rb,y+((i+1)%2)*.035,Math.sin(b)*rb];
+        const C=[.03*Math.sin(tier*2),tip,.02*Math.cos(tier)];
+        triangle(A,C,B,i%3===0?snow:green);
+        triangle(A,B,[0,y+.07,0],dark);
+      }
+    }
+    const g = new T.BufferGeometry();
+    g.setAttribute('position',new T.Float32BufferAttribute(p,3));
+    g.setAttribute('color',new T.Float32BufferAttribute(colors,3));
+    g.computeVertexNormals(); g.computeBoundingSphere();
+    return g;
+  }
   async function loadGltf(url) {
     const loader = new T.GLTFLoader();
     if (!suffix) return loader.loadAsync(url);
@@ -206,7 +233,7 @@ globalThis.NachtjagdImportedModels = (() => {
       if (far) { far.forestFull = forest.instanceMatrix.array.slice(0, placements.length * 16); far.trunkFull = trunks.instanceMatrix.array.slice(0, placements.length * 16); dirty = true; }
     }
     // Abstandsstufe: Nur Bäume im Umkreis von LOD_RADIUS zeigen das detaillierte Modell (einige hundert Dreiecke),
-    // alle anderen die einfachen Kegel (wenige Dreiecke). So bleibt die Dreieckszahl unabhängig von der Waldgröße klein.
+    // alle anderen gezackte Astetagen. Die einfachen Fernbäume benötigen keine Schattenkarte.
     // Die Aufteilung wird nur neu berechnet, wenn sich die Kamera um mehr als 8 m bewegt hat.
     const last = { x: Infinity, z: Infinity };
     let far = null, dirty = false;
@@ -253,8 +280,8 @@ globalThis.NachtjagdImportedModels = (() => {
         trunks: new T.InstancedMesh(trunks.geometry, trunks.material, placements.length)
       };
       // Fernbäume dunkler, damit sie am Rand der Abstandsstufe zu den Nadelmodellen passen.
-      if (far && forest.material.color) { far.forest.material = forest.material.clone(); far.forest.material.color.multiplyScalar(.5); }
-      if (far) for (const m of [far.forest, far.trunks]) { m.castShadow = forest.castShadow; m.frustumCulled = false; m.count = 0; scene.add(m); }
+      if (far && forest.material.color) { far.forest.material = forest.material.clone(); }
+      if (far) for (const m of [far.forest, far.trunks]) { m.castShadow = false; m.receiveShadow = true; m.frustumCulled = false; m.count = 0; scene.add(m); }
       update(); forest.visible = trunks.visible = false;
       root.userData.treeCount = placements.length;
       root.userData.variantCount = variants.length;
@@ -389,5 +416,5 @@ globalThis.NachtjagdImportedModels = (() => {
       return group;
     };
   }
-  return { ready, errors, buildForest, buildBackdrop, decorateEnemy, updateEnemy, disposeEnemy, installJeep };
+  return { ready, errors, pineGeometry, buildForest, buildBackdrop, decorateEnemy, updateEnemy, disposeEnemy, installJeep };
 })();
