@@ -161,6 +161,52 @@ test('bats circle, dive, bite and are shot down with a single hit', () => {
   assert.equal(g2.snapshot().monsters.length, 0);
 });
 
+test('flying tunnel guards stay below the roof and use collision-free positions', () => {
+  const tunnel={
+    objectives:[seal('mine',0,0,{guard:'deep'})],
+    floor:(x,z,feet=0)=>Math.hypot(x,z)<4.5&&Math.abs(feet)<3.5?0:null,
+    ceiling:(x,z,feet=0)=>Math.hypot(x,z)<4.5&&Math.abs(feet)<3.5?3.2:null,
+    blocked:(x,z,feet=0)=>Math.hypot(x,z)>=3.25&&Math.hypot(x,z)<5&&feet<3.2
+  };
+  const {game}=make(tunnel);game.start();assert.equal(game.interact(),true);
+  let monsters=game.snapshot().monsters;
+  assert.equal(monsters.filter(m=>m.kind==='reaper').length,2);
+  assert.equal(monsters.filter(m=>m.kind==='bat').length,5);
+  const check=()=>{
+    for(const m of game.snapshot().monsters) {
+      const cr=m.kind==='reaper' ? .9 : .42;
+      assert.ok(Math.hypot(m.x,m.z)<3.25,'Wächter bleiben im freien Tunnelquerschnitt');
+      assert.equal(tunnel.blocked(m.x,m.z,.2),false);
+      assert.ok(m.y+cr<=tunnel.ceiling(m.x,m.z,m.y)-.1,'Flieger bleiben unter der Decke');
+      assert.ok(m.y-cr>=tunnel.floor(m.x,m.z,m.y)+.1,'Flieger bleiben über dem Boden');
+    }
+  };
+  check();advance(game,3,{},check);
+  monsters=game.snapshot().monsters;
+  assert.equal(monsters.length,7);
+});
+
+test('player jump is stopped by a mine roof while outdoor jump keeps its arc', () => {
+  const caveWorld = {
+    floor: () => 0,
+    ceiling: (x, z, feet = 0) => Math.abs(feet) < 3 ? 2.4 : null
+  };
+  const cave = make(caveWorld).game; cave.start();
+  cave.step(0.1, { jump: true });
+  let maxHead = 0;
+  advance(cave, 1.2, {}, () => {
+    const p = cave.snapshot().player;
+    maxHead = Math.max(maxHead, p.y + 1.75);
+    assert.ok(p.y + 1.75 <= 2.4 - 0.05 + 0.001, 'Kopf bleibt unter dem Tunneldach');
+  });
+  assert.ok(maxHead >= 2.34 && maxHead <= 2.351, `Sprung wird an der Decke abgefangen (${maxHead})`);
+
+  const outdoors = make().game; outdoors.start();
+  outdoors.step(0.1, { jump: true });
+  advance(outdoors, 0.2);
+  assert.ok(outdoors.snapshot().player.y > 0.8, 'ohne ceiling bleibt die Außen-Sprungbahn erhalten');
+});
+
 test('seal guards: castle seal wakes an alpha with two lycans, deep seal wakes reapers and bats', () => {
   const objectives = [seal('church'), seal('mine', 0, 0, { guard: 'deep' }), seal('castle', 0, 0, { guard: 'alpha' })];
   const { game } = make({ objectives, bell: { x: 0, z: 0 } }); game.start();
@@ -279,10 +325,10 @@ test('fishing freezes the player for 2.8 seconds, pays out and then needs 40 sec
 
 test('waves vary: blood moon is larger, bats storm, fog nights, and enemy kinds unlock with the wave number', () => {
   const total = n => { const { game } = make({}, { startWave: n }); game.start(); advance(game, 4); const w = game.snapshot().waves; return [w.n, w.mod, w.total]; };
-  assert.deepEqual(total(1), [1, 'normal', 9]);
-  assert.deepEqual(total(2), [2, 'bats', 12]);
-  assert.deepEqual(total(3), [3, 'fog', 15]);
-  assert.deepEqual(total(5), [5, 'blood', 26]);
+  assert.deepEqual(total(1), [1, 'normal', 13]);
+  assert.deepEqual(total(2), [2, 'bats', 17]);
+  assert.deepEqual(total(3), [3, 'fog', 21]);
+  assert.deepEqual(total(5), [5, 'blood', 36]);
   const kindsAt = n => {
     const kinds = new Set();
     const { game } = make({ spawnEnemy: () => [0, 170] }, { startWave: n, random: seeded(11) });

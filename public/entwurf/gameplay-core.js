@@ -91,7 +91,7 @@
   ];
 
   /* Optionaler Weltadapter (alles außer floor und blocked ist freiwillig):
-       spawn [x,z], floor(x,z,fromY) -> y, blocked(x,z,y) -> bool, rayDistance(origin,dir,max) -> Distanz bis zum Hindernis,
+       spawn [x,z], floor(x,z,fromY) -> y, blocked(x,z,y) -> bool, ceiling(x,z,feet) -> y|null, rayDistance(origin,dir,max) -> Distanz bis zum Hindernis,
        chaseTarget(m,p) -> [dx,dz], spawnEnemy(player,random) -> [x,z] | null,
        objectives [{id,name,x,z,y?,guard?:'alpha'|'deep'}], bell {x,z,y?},
        loots [{x,z,y?,special?,noteId?,relicId?}], merchant {x,z}, smith {x,z},
@@ -149,13 +149,14 @@
       const hit = world.rayDistance({ x: x0, y: y0, z: z0 }, { x: dx / d, y: dy / d, z: dz / d }, d);
       return !finite(hit) || hit >= d - 0.35;
     }
-    function freeNear(cx, cz, rMin, rMax) {
+    function freeNear(cx, cz, rMin, rMax, fromY=P.y, salt=0) {
       for (let i = 0; i < 28; i++) {
-        const a = i * 2.399 + 0.7, r = rMin + (rMax - rMin) * ((i % 7) / 6);
-        const x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r, y = floorAt(x, z, P.y);
-        if (!world.blocked(x, z, y)) return [x, z];
+        const a = (i + salt * 2.7) * 2.399 + 0.7, r = rMin + (rMax - rMin) * ((i % 7) / 6);
+        const x = cx + Math.sin(a) * r, z = cz + Math.cos(a) * r, y = world.floor(x, z, fromY);
+        if (finite(y) && !world.blocked(x, z, y)) return [x, z];
       }
-      return [cx, cz];
+      const y = world.floor(cx, cz, fromY);
+      return finite(y) && !world.blocked(cx, cz, y) ? [cx, cz] : null;
     }
     function spawnPosition() {
       if (typeof world.spawnEnemy === 'function') {
@@ -173,13 +174,47 @@
       }
       return null;
     }
-    // Über Gebäude und Bäumen fliegen Flieger höher.
-    function airFloor(x, z, y) { const g = floorAt(x, z, y); return world.blocked(x, z, g) ? g + 11 : g; }
+    function tunnelAt(x,z,feet) {
+      if(typeof world.ceiling!=='function')return null;
+      for(const reference of [feet,P.y]) {
+        if(!finite(reference))continue;
+        const floor=world.floor(x,z,reference),ceiling=world.ceiling(x,z,reference);
+        if(finite(floor)&&finite(ceiling))return {floor,ceiling};
+      }
+      return null;
+    }
+    function airLimits(x,z,feet,spec) {
+      const tunnel=tunnelAt(x,z,feet);
+      if(!tunnel)return null;
+      return {low:tunnel.floor+spec.cr+.12,high:tunnel.ceiling-spec.cr-.12,floor:tunnel.floor,ceiling:tunnel.ceiling};
+    }
+    function airPathClear(x0,y0,z0,x1,y1,z1,spec) {
+      const distance=Math.hypot(x1-x0,z1-z0),steps=Math.max(1,Math.ceil(distance/.35));
+      for(let i=1;i<=steps;i++) {
+        const t=i/steps,x=x0+(x1-x0)*t,y=y0+(y1-y0)*t,z=z0+(z1-z0)*t,limits=airLimits(x,z,y,spec);
+        if(!limits)continue;
+        if(limits.high<limits.low||y<limits.low-.03||y>limits.high+.03||world.blocked(x,z,limits.floor+.2))return false;
+        for(let side=0;side<8;side++) {
+          const angle=side*Math.PI/4,sx=x+Math.cos(angle)*spec.cr*.78,sz=z+Math.sin(angle)*spec.cr*.78;
+          const edge=airLimits(sx,sz,y,spec);
+          if(edge&& (edge.high<edge.low||y<edge.low-.03||y>edge.high+.03||world.blocked(sx,sz,edge.floor+.2)))return false;
+          if(!edge&&world.blocked(sx,sz,limits.floor+.2))return false;
+        }
+      }
+      return true;
+    }
+    // Über Häusern und Bäumen fliegen Flieger höher; im Tunnel zählt dessen geschlossene Decke.
+    function airFloor(x, z, y) {
+      const tunnel=tunnelAt(x,z,y);
+      if(tunnel)return tunnel.floor;
+      const g=floorAt(x,z,y);
+      return world.blocked(x,z,g)?g+11:g;
+    }
 
     // ------------------------------------------------------------------ Gegner
-    function spawnMonster(kind, x, z, ready) {
+    function spawnMonster(kind, x, z, ready, referenceY=P.y) {
       const spec = ENEMIES[kind];
-      const g = floorAt(x, z, P.y);
+      const g = floorAt(x, z, referenceY);
       const m = {
         id: nextId++, kind, x, z, y: g, hp: spec.hp, state: ready ? 'walk' : 'emerge', em: 0, t: 0, seed: random() * 6,
         yaw: Math.atan2(P.x - x, P.z - z), attack: 0, wind: 0, hit: 0, lift: 0, side: random() < 0.5 ? -1 : 1,
@@ -188,6 +223,8 @@
       if (spec.air) {
         let y0 = g + spec.alt * (0.8 + random() * 0.5) + 6;
         y0 = Math.max(y0, airFloor(x, z, g) + 2);
+        const limits=airLimits(x,z,g,spec);
+        if(limits&&limits.high>=limits.low)y0=clamp(y0,limits.low,limits.high);
         m.y = y0;
         m.A = { ph: 'circle', t: 0, ang: random() * TAU, dir: random() < 0.5 ? -1 : 1, rad: spec.orb * (0.8 + random() * 0.5), alt: spec.alt * (0.8 + random() * 0.5), cd: 3 + random() * 4, vx: 0, vy: 0, vz: 0, hit: false };
       }
@@ -329,7 +366,7 @@
       const w = state.waves;
       w.n++;
       w.mod = w.n % 5 === 0 ? 'blood' : w.n % 4 === 2 ? 'bats' : w.n % 3 === 0 ? 'fog' : 'normal';
-      w.total = Math.min(Math.round((6 + w.n * 3) * (w.mod === 'blood' ? 1.25 : 1)), 46);
+      w.total = Math.min(Math.round((9 + w.n * 4) * (w.mod === 'blood' ? 1.25 : 1)), 58);
       w.toSpawn = w.total; w.alive = 0; w.state = 'active'; w.spawnT = 1;
       for (const s of state.shrines) s.used = false;
       for (const l of state.loots) if (l.taken && !l.special && !l.relicId && random() < 0.7) l.taken = false;
@@ -371,7 +408,14 @@
         if (p.y - g > 0.6) p.onGround = false; else p.y = g;
       }
       if (!p.onGround) {
-        p.vy -= 22 * dt; p.y += p.vy * dt;
+        p.vy -= 22 * dt;
+        const nextY = p.y + p.vy * dt;
+        const roof = typeof world.ceiling === 'function' ? world.ceiling(p.x, p.z, p.y) : null;
+        if (finite(roof)) {
+          const maxFeet = roof - p.eye - 0.05;
+          if (nextY >= maxFeet) { p.y = maxFeet; p.vy = 0; }
+          else p.y = nextY;
+        } else p.y = nextY;
         const g = floorAt(p.x, p.z, p.y);
         if (p.y <= g) {
           const fall = p.vy;
@@ -597,7 +641,8 @@
           // Die Wegsuche ist teuer: pro Gegner nur alle 0,2 s neu, dazwischen gilt die letzte Richtung.
           m.routeT = (m.routeT || 0) - dt;
           if (m.routeT <= 0 || !m.route) {
-            m.routeT = 0.2;
+            // Unterschiedliche Zeitfenster verhindern gleichzeitige Wegsuchen aller Gegner.
+            m.routeT = 0.18+(m.id%7)*.025;
             const route = world.chaseTarget({ ...m }, { ...P });
             m.route = Array.isArray(route) && route.length >= 2 && route.every(finite) ? [route[0], route[1]] : null;
           }
@@ -652,6 +697,8 @@
         if (A.t > 1.9) { A.ph = 'circle'; A.ang = Math.atan2(m.z - pz, m.x - px); }
       }
       if (A.ph !== 'dive') ty = Math.max(ty, airFloor(tx, tz, m.y) + spec.cr + 1.5);
+      const targetLimits=airLimits(tx,tz,P.y,spec)||airLimits(tx,tz,m.y,spec);
+      if(targetLimits&&targetLimits.high>=targetLimits.low)ty=clamp(ty,targetLimits.low,targetLimits.high);
       const ex = tx - m.x, ey = ty - m.y, ez = tz - m.z, el = Math.hypot(ex, ey, ez) || 1, k = Math.min(1, dt * (A.ph === 'dive' ? 3.5 : 1.8));
       A.vx += (ex / el * sp - A.vx) * k; A.vy += (ey / el * sp * 0.8 - A.vy) * k; A.vz += (ez / el * sp - A.vz) * k;
       // Flieger untereinander auf Abstand halten
@@ -661,9 +708,18 @@
         const qx = m.x - o.x, qy = m.y - o.y, qz = m.z - o.z, d = Math.hypot(qx, qy, qz), mn = (spec.scale + os.scale) * 4;
         if (d < mn && d > 0.001) { const f = (mn - d) * 2.5; A.vx += qx / d * f * dt; A.vy += qy / d * f * dt; A.vz += qz / d * f * dt; }
       }
-      m.x += A.vx * dt; m.y += A.vy * dt; m.z += A.vz * dt;
-      const gmin = airFloor(m.x, m.z, m.y) + (A.ph === 'dive' ? 0.8 : 2.2);
-      if (m.y < gmin) { m.y = gmin; if (A.vy < 0) A.vy = 0; }
+      const nx=m.x+A.vx*dt,ny=m.y+A.vy*dt,nz=m.z+A.vz*dt;
+      if(airPathClear(m.x,m.y,m.z,nx,ny,nz,spec)) {m.x=nx;m.y=ny;m.z=nz;}
+      else {
+        A.vx*=-.2;A.vz*=-.2;A.vy=Math.max(0,A.vy);
+        if(A.ph==='dive'){A.ph='rise';A.t=0;A.cd=1.8+random()*2.2;}
+      }
+      const limits=airLimits(m.x,m.z,m.y,spec);
+      if(limits&&limits.high>=limits.low)m.y=clamp(m.y,limits.low,limits.high);
+      else {
+        const gmin=airFloor(m.x,m.z,m.y)+(A.ph==='dive' ? .8 : 2.2);
+        if(m.y<gmin){m.y=gmin;if(A.vy<0)A.vy=0;}
+      }
       if (Math.hypot(A.vx, A.vz) > 0.5) m.yaw += angDiff(Math.atan2(A.vx, A.vz), m.yaw) * Math.min(1, dt * 5);
     }
 
@@ -721,12 +777,20 @@
     function sealGuard(o) {
       if (o.guard === 'alpha') {
         const a = freeNear(o.x, o.z, 8, 14);
+        if(!a)return;
         spawnMonster('samca', a[0], a[1], true); state.waves.alive++;
-        for (const side of [-1, 1]) { const l = freeNear(a[0] + side * 6, a[1], 0, 3); spawnMonster('lycan', l[0], l[1], true); state.waves.alive++; }
+        for (const side of [-1, 1]) { const l = freeNear(a[0] + side * 6, a[1], 0, 3); if(l){spawnMonster('lycan', l[0], l[1], true); state.waves.alive++;} }
         emit('notice', { text: 'Der Burgwächter erwacht', detail: 'Ein Alpha-Lykaner und seine Brut ziehen heran' });
       } else if (o.guard === 'deep') {
-        for (let k = 0; k < 2; k++) { const a = k * Math.PI + 0.5, m = spawnMonster('reaper', o.x + Math.cos(a) * 5, o.z + Math.sin(a) * 5, true); m.y = Math.max(m.y, floorAt(m.x, m.z, o.y) + 6); state.waves.alive++; }
-        for (let k = 0; k < 5; k++) { const a = k * 1.25, m = spawnMonster('bat', o.x + Math.cos(a) * 7, o.z + Math.sin(a) * 7, true); m.y = Math.max(m.y, floorAt(m.x, m.z, o.y) + 3); state.waves.alive++; }
+        const referenceY=finite(o.y)?o.y:P.y;
+        for (let k = 0; k < 2; k++) {
+          const p=freeNear(o.x,o.z,.2,1.8,referenceY,k);
+          if(p){spawnMonster('reaper',p[0],p[1],true,referenceY);state.waves.alive++;}
+        }
+        for (let k = 0; k < 5; k++) {
+          const p=freeNear(o.x,o.z,.2,1.8,referenceY,k+2);
+          if(p){spawnMonster('bat',p[0],p[1],true,referenceY);state.waves.alive++;}
+        }
         emit('notice', { text: 'Die Tiefe erwacht', detail: 'Fledermäuse stürzen aus der Dunkelheit' });
       }
     }
@@ -990,16 +1054,16 @@
         if (w.timer <= 0) startWave();
       } else {
         w.spawnT -= dt;
-        const cap = Math.min(7 + Math.floor(w.n * 1.6), 16);
+        const cap = Math.min(10 + Math.floor(w.n * 1.7), 20);
         if (w.toSpawn > 0 && w.spawnT <= 0 && w.alive < cap && spawnWaveMonster()) {
-          w.toSpawn--; w.spawnT = Math.max(0.7, 2.2 - w.n * 0.1);
+          w.toSpawn--; w.spawnT = Math.max(0.65, 1.65 - w.n * 0.08);
         }
         if (w.toSpawn === 0 && w.alive === 0) {
           w.state = 'break'; w.timer = 12; P.hp = Math.min(P.maxHp, P.hp + 20);
           addReserve(0.5);
           state.stats.lei += 20 + w.n * 10;
-          const a = freeNear(P.x + 2, P.z + 2, 0, 2); dropItem('ammo', a[0], a[1]);
-          if (P.hp < P.maxHp * 0.7) { const h = freeNear(P.x - 2, P.z - 3, 0, 2); dropItem('health', h[0], h[1]); }
+          const a = freeNear(P.x + 2, P.z + 2, 0, 2); if(a)dropItem('ammo', a[0], a[1]);
+          if (P.hp < P.maxHp * 0.7) { const h = freeNear(P.x - 2, P.z - 3, 0, 2); if(h)dropItem('health', h[0], h[1]); }
           emit('notice', { text: 'Welle überstanden', reward: 20 + w.n * 10 });
         }
       }

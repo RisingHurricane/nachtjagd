@@ -11,11 +11,11 @@ globalThis.NachtjagdRoadLayout = ({ height,castle }) => {
   const shoreRoute=[...southRoad,...southLoop.slice(1)];
   const routes=[
     { id:'castle',points:castleRoute,width:6,bridge:7 },
-    { id:'east',points:[[90,45],[185,45],[221,60],[245,99]],width:7 },
+    { id:'east',points:[[90,45],[125,41],[156,47],[185,45],[221,60],[245,99]],width:7 },
     { id:'church',points:[[90,45],[90,25]],width:5 },
     { id:'south',points:southRoad,width:5 },
-    { id:'lane-north',points:[[10,33],[60,33],[90,25],[145,33],[178,33]],width:3.5 },
-    { id:'lane-south',points:[[10,57],[60,57],[115,57],[178,57]],width:3.5 },
+    { id:'lane-north',points:[[40,45],[40,34],[60,33],[78,28.2],[90,25],[110,31],[110,43]],width:3.5 },
+    { id:'lane-south',points:[[12,45],[18,58],[45,61],[72,55],[90,45],[115,57],[145,60],[172,54],[185,45]],width:3.5 },
     { id:'stairs-north',stairs:true,points:[[78,28.2],[78,2]],width:2.8 },
     { id:'stairs-south',stairs:true,points:[[120,57],[120,87]],width:3 },
     { id:'south-loop',points:southLoop,width:5 },
@@ -26,8 +26,8 @@ globalThis.NachtjagdRoadLayout = ({ height,castle }) => {
     { id:'wind-path',points:[[215,240],[245,260],[250,255]],width:3 },
     { id:'stone-path',points:[[135,-145],[170,-130],[170,-110]],width:3 },
     { id:'ruin-path',points:[[275,145],[300,150],[300,132]],width:3 },
-    { id:'mine-west',points:[[-270,-20],[-310,-5],[-340,-15],[-355,-35]],width:3.5 },
-    { id:'mine-north',points:[[-65,-145],[-40,-170],[-55,-185],[-65,-215]],width:3.5 }
+    { id:'mine-west',points:[[-270,-20],[-310,-5],[-340,-15]],width:3.5 },
+    { id:'mine-north',points:[[-65,-145],[-40,-170],[-55,-185]],width:3.5 }
   ];
   const anchors=[
     { point:[90,45],height:height(90,45) },

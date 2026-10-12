@@ -85,6 +85,24 @@
     return {floor,blocked,indoor};
   }
 
+  // Grobes Raster spart den linearen Lauf über alle Häuser bei jeder Spielabfrage.
+  // 11 m Reserve deckt die bis zu 10 m langen Außentreppen samt halber Stufenbreite ab.
+  function spatialIndex(houses,cellSize=32,margin=11) {
+    const cells=new Map();
+    const key=(x,z)=>`${Math.floor(x/cellSize)},${Math.floor(z/cellSize)}`;
+    for(const house of houses) {
+      const b=house.spec.bounds;
+      const x0=Math.floor((b.x0-margin)/cellSize),x1=Math.floor((b.x1+margin)/cellSize);
+      const z0=Math.floor((b.z0-margin)/cellSize),z1=Math.floor((b.z1+margin)/cellSize);
+      for(let x=x0;x<=x1;x++) for(let z=z0;z<=z1;z++) {
+        const k=`${x},${z}`;
+        if(!cells.has(k)) cells.set(k,[]);
+        cells.get(k).push(house);
+      }
+    }
+    return {query:(x,z)=>cells.get(key(x,z))||[],cellSize,margin};
+  }
+
   function create({THREE:T,scene,specs,height,churchOrigin}) {
     const builder=root.NachtjagdVillageHouses.create(T),sources=[],houses=[];
     const group=new T.Group();group.name='VillageBuildings';scene.add(group);
@@ -128,7 +146,10 @@
     const lamps=Array.from({length:2},()=>{
       const l=new T.PointLight(0xffdbad,0,11,2);l.userData.building=true;scene.add(l);return l;
     });
-    const near=(x,z)=>houses.filter(h=>x>=h.spec.bounds.x0-11&&x<=h.spec.bounds.x1+11&&z>=h.spec.bounds.z0-11&&z<=h.spec.bounds.z1+11);
+    const index=spatialIndex(houses);
+    const near=(x,z)=>index.query(x,z).filter(h=>{
+      const b=h.spec.bounds;return x>=b.x0-index.margin&&x<=b.x1+index.margin&&z>=b.z0-index.margin&&z<=b.z1+index.margin;
+    });
     const ready=root.NachtjagdImportedModels.loadChurch({origin:churchOrigin}).then(asset=>{
       church=asset;merge(T,[asset.root],churchGroup);return asset;
     }).catch(error=>{churchFailure=error;console.error('Kirche konnte nicht geladen werden:',error);return null;});
@@ -165,5 +186,5 @@
       targets:()=>[...group.children,...churchGroup.children],
       refresh:()=>{merge(T,sources,group);if(church)merge(T,[church.root],churchGroup);}};
   }
-  root.NachtjagdBuildings={describe,spatial,merge,create};
+  root.NachtjagdBuildings={describe,spatial,spatialIndex,merge,create};
 })(globalThis);

@@ -112,6 +112,10 @@ test('Alle Entfernungen behalten die importierten Baumformen; nur nahe Modelle w
   for(const [near,far] of pairs) {assert.equal(near.count,0);assert.equal(far.count,far.instanceMatrix.count);}
   result.update();result.lod(camera);
   for(const [near,far] of pairs)assert.equal(near.count+far.count,far.instanceMatrix.count,'Auch nach Geländeänderung kein Baum verloren');
+  camera.position.x=0;result.lod(camera,180);
+  const reduced=pairs.reduce((n,[a,b])=>n+a.count+b.count,0);
+  result.lod(camera);
+  assert.ok(pairs.reduce((n,[a,b])=>n+a.count+b.count,0)>reduced,'Im undurchsichtigen Nebel werden nur unsichtbare Ferninstanzen ausgespart');
 });
 
 test('Nur unsichtbare Fernbäume werden ausgespart; Drehen und Geländeänderung aktualisieren den Sichtbereich',async()=>{

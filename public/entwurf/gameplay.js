@@ -114,8 +114,8 @@ globalThis.NachtjagdPlay = {
     // --- Umgebung: Nacht, Nebel, Schnee, Taschenlampe
     const mix=(a,b,k)=>a+(b-a)*k;
     const lights=[];
-    scene.traverse(o=>{ if(o.isLight&&!o.userData.outdoor&&!o.userData.building&&o!==torch&&o!==flash&&o!==boomFlash&&!sky.owns(o)) lights.push({o,base:o.intensity}); });
-    const snowCount=2000,snowGeo=new THREE.BufferGeometry(),snowPos=new Float32Array(snowCount*3);
+    scene.traverse(o=>{ if(o.isLight&&!o.userData.outdoor&&!o.userData.building&&!o.userData.mineLight&&o!==torch&&o!==flash&&o!==boomFlash&&!sky.owns(o)) lights.push({o,base:o.intensity}); });
+    const snowCount=2400,snowGeo=new THREE.BufferGeometry(),snowPos=new Float32Array(snowCount*3);
     for(let i=0;i<snowCount;i++) { snowPos[i*3]=(Math.random()-.5)*60; snowPos[i*3+1]=Math.random()*30; snowPos[i*3+2]=(Math.random()-.5)*60; }
     snowGeo.setAttribute('position',new THREE.BufferAttribute(snowPos,3));
     // Weiche runde Flocken; eine kleine gemeinsame Alpha-Textur für alle Partikel.
@@ -126,7 +126,7 @@ globalThis.NachtjagdPlay = {
     }
     const flakeMap=new THREE.DataTexture(flakeData,flakeSize,flakeSize,THREE.RGBAFormat);
     flakeMap.magFilter=flakeMap.minFilter=THREE.LinearFilter;flakeMap.needsUpdate=true;
-    const snowMat=new THREE.PointsMaterial({color:0xffffff,map:flakeMap,alphaTest:.03,size:.16,transparent:true,opacity:.8,depthWrite:false}),snow=new THREE.Points(snowGeo,snowMat); snow.frustumCulled=false; effects.add(snow);
+    const snowMat=new THREE.PointsMaterial({color:0xffffff,map:flakeMap,alphaTest:.03,size:.21,transparent:true,opacity:.8,depthWrite:false}),snow=new THREE.Points(snowGeo,snowMat); snow.frustumCulled=false; effects.add(snow);
     let torchOn=true,indoorK=0;
     function applyEnv(s,dt) {
       const e=s.env,w=s.weather;
@@ -140,15 +140,16 @@ globalThis.NachtjagdPlay = {
       const color=sky.apply({night,sunrise:e.sunrise,cover:e.cover,grey:w.fog>1.2?.25:0,blood:e.mod==='blood'&&e.sunrise<.4?.55:0,lightK:Math.max(.55,k)*(1-.7*indoorK)});
       scene.background=color; backdrop?.setMood(color);
       scene.fog=scene.fog||new THREE.FogExp2(color,.002);
-      scene.fog.color.copy(color); scene.fog.density=.0016*(1+.9*night)*w.fog*(e.mod==='fog'?1.9:1)*(e.sunrise>0?.8:1);
+      scene.fog.color.copy(color); scene.fog.density=.0022*(1+.9*night)*w.fog*(e.mod==='fog'?2.1:1)*(e.sunrise>0?.8:1);
       for(const l of lights) l.o.intensity=l.base*k;
       const lampBonus=(s.up.lamp+(s.relics.lamp?1:0));
       torch.intensity=torchOn?1.35+.25*lampBonus:0; torch.distance=70+14*lampBonus; torch.angle=.5+.07*lampBonus;
-      snowMat.opacity=Math.min(.95,.5+w.snow*.6)*(e.sunrise>.7?0:1)*(1-indoorK);
+      snowMat.opacity=Math.min(.98,.62+w.snow*.5)*(e.sunrise>.7?0:1)*(1-indoorK);
       // Stärke des Schneefalls bestimmt, wie viele der Flocken gezeichnet werden.
-      snowGeo.setDrawRange(0,Math.round(snowCount*(.4+.6*w.snow)));
+      const activeSnow=Math.round(snowCount*(.45+.55*w.snow));
+      snowGeo.setDrawRange(0,activeSnow);
       const pos=snowGeo.attributes.position,px=s.player.x,py=s.player.y,pz=s.player.z;
-      for(let i=0;i<snowCount;i++) {
+      for(let i=0;i<activeSnow;i++) {
         let x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i);
         y-=dt*(1.4+w.wind*.8); x+=dt*w.wind*1.2+Math.sin(clock*.7+i)*dt*.3; z+=Math.cos(clock*.5+i*.3)*dt*.3;
         if(y<py-2) y=py+20+Math.random()*6; if(x-px>30) x-=60; if(x-px<-30) x+=60; if(z-pz>30) z-=60; if(z-pz<-30) z+=60; if(Math.abs(y-py)>40) y=py+Math.random()*24;
@@ -173,7 +174,8 @@ globalThis.NachtjagdPlay = {
     setVisible(false);
     function say(text,seconds=4) { feedLines.push({text,t:seconds}); while(feedLines.length>4) feedLines.shift(); }
     function show(el,text,seconds,key) { el.textContent=text; el.style.opacity=1; if(key==='note') noteT=seconds; else bannerT=seconds; }
-    function clearInput() { keys.clear(); firing=aiming=shotClick=false; drag=null; }
+    let pendingInteract=false;
+    function clearInput() { keys.clear(); firing=aiming=shotClick=pendingInteract=false; drag=null; }
     function releasePointer() { if(document.pointerLockElement===canvas) document.exitPointerLock(); }
     function lockPointer() {
       try { const result=canvas.requestPointerLock(); if(result && result.catch) result.catch(()=>{}); } catch {}
@@ -235,7 +237,7 @@ globalThis.NachtjagdPlay = {
       else return;
       // Im Jeep lenken nur A/D und die Pfeiltasten, die Maus schaut frei um (dreht mit dem Wagen mit).
       game.setLook(current.player.yaw-dx*.003,current.player.pitch-dy*.003);
-      current=game.snapshot();
+      current.player.yaw-=dx*.003; current.player.pitch=THREE.MathUtils.clamp(current.player.pitch-dy*.003,-1.5,1.5);
     });
     addEventListener('pointerup',e=>{
       if(!active) return;
@@ -261,7 +263,8 @@ globalThis.NachtjagdPlay = {
       keys.add(e.code);
       if(e.repeat) return;
       if(e.code==='KeyR') game.reload();
-      if(e.code==='KeyE') { game.interact(); current=game.snapshot(); if(current.phase==='shop') { showPanel(); renderShop(); releasePointer(); } }
+      // Eine Aktion je Tastendruck; der Eingabehandler selbst führt keine Weltabfragen aus.
+      if(e.code==='KeyE') pendingInteract=true;
       if(e.code==='KeyG') game.throwGrenade();
       if(e.code==='KeyT') game.throwMolotov();
       if(e.code==='KeyV') game.melee();
@@ -275,6 +278,10 @@ globalThis.NachtjagdPlay = {
     document.addEventListener('visibilitychange',()=>{ if(document.hidden) pause(); });
     function update(dt) {
       if(!active) return;
+      if(pendingInteract && current.phase==='playing') {
+        pendingInteract=false; game.interact(); current=game.snapshot();
+        if(current.phase==='shop') { showPanel(); renderShop(); releasePointer(); }
+      }
       clock+=dt; music.setPaused(current.phase==='paused'||current.phase==='shop'); music.update(current,dt);
       if(current.phase==='playing') {
         const ride=current.player.ride, steering=!!(ride&&ride.driver&&(ride.kind==='jeep'||ride.kind==='boat'||ride.kind==='cart'));

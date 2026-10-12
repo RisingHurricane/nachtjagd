@@ -48,6 +48,10 @@ globalThis.NachtjagdOutdoor = {
       part(iron,lx,y+4.52,lz,.82,.16,.82);
       part(snow,lx,y+4.63,lz,.85,.07,.85);
       for(const dx of [-.29,.29]) for(const dz of [-.29,.29]) part(iron,lx+dx,y+4.2,lz+dz,.055,.55,.055);
+      // Schmiedeeiserne Kragen und kleine Dachspitze geben der Laterne mehr Silhouette.
+      part(iron,lx,y+3.72,lz,.34,.12,.34);
+      part(iron,lx,y+4.82,lz,.3,.12,.3);
+      part(iron,lx,y+4.98,lz,.12,.2,.12);
     }
     // Offener Holzwachturm am Osttor, mit Querstreben, Brüstung und steilem Satteldach.
     const tx=191,tz=29,base=height(tx,tz),top=base+11,towerParts=[];
@@ -107,10 +111,10 @@ globalThis.NachtjagdOutdoor = {
       const p=camera.position,order=lamps.map(l=>({l,d:(l.x-p.x)**2+(l.z-p.z)**2})).sort((a,b)=>a.d-b.d);
       pool.forEach((light,i)=>{
         const target=order[i];
-        light.intensity=target&&target.d<48*48?(1.3+night*.9)*(1-indoor):0;
+        light.intensity=target&&target.d<48*48?(1.7+night*1.1)*(1-indoor):0;
         if(target) light.position.set(target.l.x,target.l.y,target.l.z);
       });
-      glowMaterial.uniforms.strength.value=.16+.32*night;
+      glowMaterial.uniforms.strength.value=.2+.38*night;
     }
     refresh();
     return {lamps,pool,refresh,update,tower:{x:tx,z:tz,top}};

@@ -25,11 +25,20 @@ test('Skizzenanordnung: See südwestlich, Burg westlich, Gebirge nördlich des D
   assert.ok(layout.naturalHeight(-40,-550) > 230);
   assert.ok(layout.naturalHeight(90,45) < layout.castle.height);
 });
-test('Dorfgrund besitzt Gefälle und mehr als eine Gebäudeform', () => {
+test('Dorfgrund besitzt ein sanftes Gefälle und mehr als eine Gebäudeform', () => {
   const heights = layout.houses.map(h => layout.naturalHeight(h[0],h[1]));
   assert.ok(layout.houses.length >= 28);
-  assert.ok(Math.max(...heights) - Math.min(...heights) > 8);
+  const span=Math.max(...heights)-Math.min(...heights);
+  assert.ok(span > 1 && span < 10, `Dorfgefälle ${span} m`);
   assert.equal(new Set(layout.houses.map(h => h[6])).size, 4);
+});
+test('Gondeltrasse bleibt einschließlich Kronenbreite frei',()=>{
+  const [a,b]=layout.gondolaCorridor;
+  for(let t=0;t<=1;t+=.02) {
+    const x=a[0]+(b[0]-a[0])*t,z=a[1]+(b[1]-a[1])*t;
+    assert.equal(layout.gondolaClear(x,z,8),false);
+    assert.equal(layout.gondolaClear(x+70,z,8),true);
+  }
 });
 test('Burg steht auf einem freien Sporn mit niedrigerem Gelände auf drei Seiten', () => {
   const { x,z } = layout.castle, top = layout.naturalHeight(x,z);

@@ -73,23 +73,7 @@ globalThis.NachtjagdLandmarks = {
     label('Steg',...dock.b,8,36);
 
     // Zwei kurze Vorstollen mit Holzrahmen, Dach und Schienen; spätere Tiefen sind angedeutet.
-    for(const mine of layout.mines) {
-      const dx=mine.b[0]-mine.a[0],dz=mine.b[1]-mine.a[1],length=Math.hypot(dx,dz),ux=dx/length,uz=dz/length;
-      const count=Math.ceil(length/4.5),rotation=-Math.atan2(dz,dx);
-      const floor=(x,z)=>streetHeight(x,z) ?? groundHeight(x,z)+.4;
-      for(let i=0;i<=count;i++) {
-        const t=i/count,x=mine.a[0]+dx*t,z=mine.a[1]+dz*t,y=floor(x,z);
-        for(const side of [-1,1]) box(x-uz*side*mine.width/2,z+ux*side*mine.width/2,.7,.7,5.5,'landmark',0,y);
-        box(x,z,mine.width+.7,.8,.7,'landmark',rotation+Math.PI/2,y+5.2,false);
-        if(i<count) {
-          const mx=x+dx/count/2,mz=z+dz/count/2,my=floor(mx,mz);
-          box(mx,mz,length/count+.2,mine.width+1,.95,'castle',rotation,my+5.15,false);
-          for(const side of [-1,1]) box(mx-uz*side*.8,mz+ux*side*.8,length/count+.1,.12,.12,'mine',rotation,my+.03,false);
-        }
-      }
-      box(mine.b[0]+ux*3,mine.b[1]+uz*3,mine.width,1,5.8,'mine',rotation+Math.PI/2,floor(...mine.b));
-      label(mine.id==='mine-west'?'Westmine':'Nordmine',...mine.a,13,52);
-    }
+    for(const mine of layout.mines) label(mine.id==='mine-west'?'Westmine':'Nordmine',...mine.a,13,52);
     return {
       stoneCount:positions.length,lakeHouseCount:layout.lakeHomes.length,islandTreeCount:islandTrees.length,islandTrees,
       refresh() {

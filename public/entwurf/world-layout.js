@@ -122,11 +122,19 @@ globalThis.NachtjagdLayout = (() => {
       const ridge = (94 - 48 * along) * (1 - smooth(9, 30, Math.abs(z + 82 - 18 * along)));
       h = Math.max(h, ridge);
     }
+    // Sanft geneigter Dorfhang: kurze Höhenwege bleiben, steile Hausinseln entfallen.
+    const villageEdge=villageDistance(x,z);
+    if(villageEdge<35) {
+      const villageY=40+(x-90)*.018+(z-45)*.022+.45*Math.sin(x/45)*Math.cos(z/50);
+      h=villageY+(h-villageY)*smooth(-8,35,villageEdge);
+    }
     const shore = lakeDistance(x, z);
     // Breiter, sanfter Ufersaum; die Hügel steigen erst hinter dem Strand an.
     // Kleine Insel mit sanft unter Wasser auslaufendem Ufer.
     const islandHeight=island.height*(1-((x-island.x)/island.rx)**2-((z-island.z)/island.rz)**2);
     return shore < 0 ? Math.max(-7, shore * .25, islandHeight) : shore * .07 * (1-smooth(30,130,shore)) + Math.max(3,h) * smooth(30,130,shore);
   }
-  return { landmarkSites, lakeHomes, island, mines, village, villageOutline, villageGates, villageWalls, castle, lake, houses, forestBands, treeGroups, foothillGroups, ridgeGroups, clearings, middlePeaks, highPeaks, smooth, segmentDistance, lakeDistance, villageDistance, clearingWeight, forestWeight, treeWeight, naturalHeight, basis: 'bergdorf-seeinsel-2026-10-11-v8' };
+  const gondolaCorridor=[[200,50],[300,-240]];
+  const gondolaClear=(x,z,radius=0)=>segmentDistance(x,z,...gondolaCorridor)>18+radius;
+  return { gondolaCorridor,gondolaClear,landmarkSites, lakeHomes, island, mines, village, villageOutline, villageGates, villageWalls, castle, lake, houses, forestBands, treeGroups, foothillGroups, ridgeGroups, clearings, middlePeaks, highPeaks, smooth, segmentDistance, lakeDistance, villageDistance, clearingWeight, forestWeight, treeWeight, naturalHeight, basis: 'bergdorf-minen-2026-10-12-v9' };
 })();

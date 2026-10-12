@@ -26,6 +26,17 @@ test('Alle 28 Weltplatzierungen teilen Türen, Mauern und gedrehte Gehflächen m
   }
 });
 
+test('Räumliches Raster findet Innenräume und bis zu 10 m entfernte Außentreppen, weit entfernte Punkte bleiben leer',()=>{
+  const houses=specs.map((spec)=>({spec})),index=ctx.NachtjagdBuildings.spatialIndex(houses);
+  const spec=specs[0],data=builder.build(spec.w,spec.d,spec.height,spec.type).userData.house;
+  const entry=data.entries[0],inside=spec.toWorld(entry.inside.x,entry.inside.z);
+  assert.ok(index.query(inside.x,inside.z).some(h=>h.spec===spec),'Haus-Bounds enthalten den Innenraum');
+  const approach=spec.approaches[0],dx=approach.x-spec.x,dz=approach.z-spec.z,length=Math.hypot(dx,dz);
+  const stair={x:approach.x+dx/length*10,z:approach.z+dz/length*10};
+  assert.ok(index.query(stair.x,stair.z).some(h=>h.spec===spec),'10-m-Treppenreserve wird auch gedreht berücksichtigt');
+  assert.equal(index.query(10000,10000).length,0,'weit entfernte Abfragen prüfen keine Haus-Walks');
+});
+
 test('Zusammengefasste Modelle behalten UVs, Farben und Welttransformation; Originalgeometrien bleiben nutzbar',()=>{
   const source=new THREE.Group(),material=new THREE.MeshLambertMaterial(),g=new THREE.BoxGeometry(1,1,1);
   const mesh=new THREE.Mesh(g,material);mesh.position.set(4,3,2);source.add(mesh);
