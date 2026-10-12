@@ -1,6 +1,6 @@
 # STATUS
 
-Letzte Aktualisierung: 2026-10-11 (Codex, Entwurf 24 vorbereitet: Kirche, Dorfhäuser, Schnee)
+Letzte Aktualisierung: 2026-10-12 (Codex, Entwurf 24 veröffentlicht: Kirche, Dorfhäuser, Schnee)
 
 ## Entwurf 24 · Kirche, Dorfhäuser und Schnee
 
@@ -10,7 +10,11 @@ Alle 28 Dorfplatzhalter verwenden die vier vorhandenen Hausmodelle: steile Satte
 
 Statische Häuser werden nach gemeinsamen Materialien zusammengefasst, die Kirche ebenfalls; UVs und eingebettete Texturen bleiben erhalten. Genau zwei geteilte Innenlampen ersetzen einzelne Hauslampen. Das begrenzt die zusätzlichen Zeichenaufrufe, ist aber keine FPS-Zusage. Boden und getretene Wege sind schneeweiß; Schneepartikel verwenden eine runde, weich auslaufende RGBA-Maske. Versionskennung und alle Skriptzusätze stehen gemeinsam auf 24. Keine neuen Abhängigkeiten. Burg-/Fahrzeugsteuerung und Nachtzeit aus 23 bleiben erhalten.
 
-Validierung: 189/189 Node-Tests grün. Im lokalen Browser 23/23 Geländeprüfungen und 154/154 Spielprüfungen grün: beide Hauszugänge samt Außentreppen, alle oberen Etagen, Kirchenweg vom Vorplatz zum Siegel und zurück, Schusskollision, Straßen und Viadukt. Sichtkontrolle von Kirche, Dorf und Schnee. Entwurf 24 ist vorbereitet, noch nicht auf GitHub Pages veröffentlicht; die öffentliche Seite bleibt Entwurf 23. Kein Push auf `main` oder `gh-pages`, keine Kopie unter `modelltest/`.
+Validierung: 189/189 Node-Tests grün. Im lokalen Browser 23/23 Geländeprüfungen und 154/154 Spielprüfungen grün: beide Hauszugänge samt Außentreppen, alle oberen Etagen, Kirchenweg vom Vorplatz zum Siegel und zurück, Schusskollision, Straßen und Viadukt. Sichtkontrolle von Kirche, Dorf und Schnee. Nach Lights ausdrücklicher Freigabe am 2026-10-12 veröffentlicht; Details im folgenden Abschnitt. Kein Push auf `main`, keine neue Kopie unter `modelltest/`.
+
+## Veröffentlichung · Entwurf 24 · 2026-10-12
+
+Light hat „Ja, Entwurf 24 veröffentlichen“ ausdrücklich bestätigt. `gh-pages` ohne Force von `3e1196a166f9d8259d640bdb395a3e31ce46583a` auf `937272f5ace9eff576019788466297bc4e1abf1d` vorgespult. Releasebaum `8bfece4331c8bdab459b26f0e0c2b3aba2a05702` übernimmt die freigegebenen Dateien aus Entwicklungscommit `dccf53c`; nur `entwurf/` und `assets/church/README.md` unterscheiden sich vom vorigen Release. Die übrigen Kirchendateien waren bereits mit identischen Bytes vorhanden. Kein neuer Spielpfad, keine Änderungen an `modelltest/` oder main. Vor Veröffentlichung 189/189 Tests erneut grün. Live-Link: https://risinghurricane.github.io/nachtjagd/entwurf/?v=24 . Öffentliche Versionsanzeige, Menü, geladene Kirche/Häuser, Spielstart und HUD/Minikarte im Browser geprüft. Der erste Modellabruf scheiterte bei langsamer Verbindung; nach Neuladen startet das Spiel. Kirchen-GLB vollständig mit HTTP 200 und 3.370.500 Bytes geprüft. Live-Bild im Sitzungsordner unter `outputs/entwurf24-live-spiel.png`.
 
 ## Entwurf 23 · Wald, Licht und Laufzeit
 
@@ -205,3 +209,5 @@ Automatischer Durchlauf mit einem Browser-Bot (Weg über das Straßennetz, Siege
 - 2026-10-11, Codex: Entwurf 23 auf codex/forest-night-performance vorbereitet: Fernkegel durch Astetagen ersetzt, Nacht nach 35 s, Laternen mit drei geteilten Lichtern, warme Blockout-Fenster, grober Wachturm am Osttor, Instanzbündelung und Schatten-Zwischenspeicher gegen Ruckeln. 184 Tests grün; Startpunkt etwa 42 % weniger Zeichenaufrufe. Veröffentlichung wartet auf Freigabe für diesen Stand. Burg und separate Hausmodelle unverändert.
 
 - 2026-10-11, Codex: Entwurf 24 auf codex/village-church-snow: Kirche 1.1 und alle 28 begehbaren Häuser eingebaut, Hanganschlüsse und Innenraumkollision, weißer Schneeboden und runde Flocken. 189 Node-Tests, 23 Gelände- und 154 Spielprüfungen grün. Veröffentlichung offen, öffentlicher Stand weiterhin 23. Kein main-/gh-pages-Push. Nächste Schritte nach Freigabe: Entwurf 24 veröffentlichen; später Kirchenanbauten/Turmaufstieg und Türeninteraktion.
+
+- 2026-10-12, Codex: Nach Lights ausdrücklicher Freigabe Entwurf 24 unter /nachtjagd/entwurf/?v=24 veröffentlicht. gh-pages ohne Force auf 937272f; nur freigegebene Spieldateien, modelltest und main unverändert. 189 Tests erneut grün, öffentlicher Spielstart mit HUD/Minikarte geprüft. Erster langsamer Modellabruf nach Neuladen erfolgreich.
