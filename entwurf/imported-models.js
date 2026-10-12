@@ -216,14 +216,16 @@ globalThis.NachtjagdImportedModels = (() => {
   function buildForest({ scene, placements, heightAt, forest, trunks }) {
     const root = new T.Group(), batches = [], dummy = new T.Object3D();
     const frustum=new T.Frustum(),projection=new T.Matrix4(),sphere=new T.Sphere();
-    const radii=new Float32Array(placements.length);
+    const radii=new Float32Array(placements.length),groundY=new Float32Array(placements.length);
+    const near=new Uint8Array(placements.length),visible=new Uint8Array(placements.length);
     root.name = 'ImportedForest'; scene.add(root);
     function update() {
+      placements.forEach((tree,i)=>groundY[i]=heightAt(tree.x,tree.z));
       for (const batch of batches) {
         const { mesh, trees } = batch;
         trees.forEach(({ tree, index }, i) => {
           const height = tree.height + tree.clearance;
-          dummy.position.set(tree.x, heightAt(tree.x, tree.z), tree.z);
+          dummy.position.set(tree.x, groundY[index], tree.z);
           dummy.rotation.set(0, index * 2.39996323, 0);
           dummy.scale.set(height, height, height); dummy.updateMatrix();
           mesh.setMatrixAt(i, dummy.matrix);
@@ -239,24 +241,26 @@ globalThis.NachtjagdImportedModels = (() => {
     }
     // Überall dieselben importierten Modelle. Nur Schatten und unsichtbare Ferninstanzen
     // werden ausgespart; die Baumform bleibt unabhängig vom Abstand erhalten.
-    const last = { x: Infinity, y:Infinity, z: Infinity, quaternion:new T.Quaternion(), projection:0 };
+    const last = { x: Infinity, y:Infinity, z: Infinity, quaternion:new T.Quaternion(), projection:0,range:Infinity };
     let dirty = true;
-    function lod(camera) {
+    function lod(camera,maxDistance=Infinity) {
       if (!batches.length) return;
       const p=camera.position,canCull=!!camera.projectionMatrix;
       const projectionKey=canCull?camera.projectionMatrix.elements[0]+camera.projectionMatrix.elements[5]:0;
+      const range=Number.isFinite(maxDistance)?Math.ceil(maxDistance/25)*25:Infinity;
       const turned=canCull&&last.quaternion.angleTo(camera.quaternion)>.015;
-      if(!dirty&&!turned&&projectionKey===last.projection&&Math.abs(p.x-last.x)+Math.abs((p.y??0)-last.y)+Math.abs(p.z-last.z)<8)return;
-      dirty=false;last.x=p.x;last.y=p.y??0;last.z=p.z;last.projection=projectionKey;
+      if(!dirty&&!turned&&projectionKey===last.projection&&range===last.range&&Math.abs(p.x-last.x)+Math.abs((p.y??0)-last.y)+Math.abs(p.z-last.z)<8)return;
+      dirty=false;last.x=p.x;last.y=p.y??0;last.z=p.z;last.projection=projectionKey;last.range=range;
       if(canCull) {
         camera.updateMatrixWorld(true);last.quaternion.copy(camera.quaternion);
         frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
       }
-      const near=new Uint8Array(placements.length),visible=new Uint8Array(placements.length);
       placements.forEach((tree,i)=>{
         near[i]=(tree.x-p.x)**2+(tree.z-p.z)**2<SHADOW_RADIUS**2?1:0;
-        sphere.center.set(tree.x,heightAt(tree.x,tree.z)+(tree.height+tree.clearance)/2,tree.z);
-        sphere.radius=radii[i];visible[i]=near[i]||!canCull||frustum.intersectsSphere(sphere)?1:0;
+        sphere.center.set(tree.x,groundY[i]+(tree.height+tree.clearance)/2,tree.z);
+        sphere.radius=radii[i];
+        const inRange=(tree.x-p.x)**2+(tree.z-p.z)**2<=(range+radii[i])**2;
+        visible[i]=near[i]||(inRange&&(!canCull||frustum.intersectsSphere(sphere)))?1:0;
       });
       for (const batch of batches) {
         const close=batch.mesh.instanceMatrix.array,distant=batch.far.instanceMatrix.array;let n=0,f=0;

@@ -59,6 +59,15 @@
       const base = modelBase();
       const [{ buildCastle }, { buildCastleInterior }] = await Promise.all([import(base + 'castle.js'), import(base + 'castle-interior.js')]);
       const outside = buildCastle(THREE), inside = buildCastleInterior(THREE);
+      const windowGlows=new Map();
+      outside.traverse(o=>{
+        if(o.material?.name!=='interiorGlow')return;
+        if(!windowGlows.has(o.material)) {
+          const material=o.material.clone();material.color.multiplyScalar(1.4);material.toneMapped=false;
+          windowGlows.set(o.material,material);
+        }
+        o.material=windowGlows.get(o.material);
+      });
       const glow = [];
       outside.traverse((o) => {
         const h = o.name === 'interiorGlow' && o.userData.host;
@@ -101,7 +110,7 @@
         const e = order[i];
         if (!e || e.d > e.l.distance * 1.6) { light.visible = false; return; }
         light.visible = true; light.position.set(e.l.x, e.l.y, e.l.z); light.color.setHex(e.l.color);
-        light.intensity = e.l.intensity * 1.0; light.distance = e.l.distance * 1.25;
+        light.intensity = e.l.intensity * 1.3; light.distance = e.l.distance * 1.35;
       });
     };
     // Innen (Raum oder Treppe)? 1 oder 0 für Licht- und Schneeregler.

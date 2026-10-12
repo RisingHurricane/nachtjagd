@@ -127,7 +127,7 @@ globalThis.NachtjagdSpots = {
         }
         return { x, z, y: floor(x, z), name };
       };
-      const gondola = { stations: [station(layout.villageGates[1][0] + 15, layout.villageGates[1][1] + 5, 'Talstation'), station(300, -240, 'Bergstation')] };
+      const gondola = { stations: layout.gondolaCorridor ? layout.gondolaCorridor.map(([x,z],i)=>({x,z,y:floor(x,z),name:i?'Bergstation':'Talstation'})) : [station(layout.villageGates[1][0] + 15, layout.villageGates[1][1] + 5, 'Talstation'), station(300, -240, 'Bergstation')] };
 
       // Boote: am Seesteg und an den Angelstellen am Ufer.
       const boats = [];
