@@ -1,6 +1,6 @@
 'use strict';
 
-// Bodenmaterial mit Fels, Schichtung und Schnee. Die Vertexfarben tragen weiter Wiese und Waldboden;
+// Winterboden mit Fels, Schichtung und Schnee. Die Vertexfarben tragen weißen Schnee;
 // ab etwa 70 m mischt der Shader nach Neigung und Höhe dunklen, geschichteten Fels dazu, darüber Schnee.
 // Das Rauschen kommt aus einer kleinen, einmalig berechneten 256×256-Textur (drei Abfragen je Pixel statt rechnerischem Rauschen),
 // die Feinstruktur der Normalen aus Bildschirmableitungen. Es gibt keine Bilddateien.
@@ -70,7 +70,7 @@ float gRock, gSnow, gFine;`)
     rock = mix(rock, rockC, smoothstep(.5, .8, nLow) * .55);
     rock *= .78 + .3 * mix(band2, nMid, .6) * (.4 + .6 * streak);
     gRock = smoothstep(.18, .42, slope + (nMid - .5) * .14) * smoothstep(70., 115., hgt);
-    vec3 tundra = lin(vec3(.30, .31, .24)) * (.8 + .4 * nMid);
+    vec3 tundra = lin(vec3(.93, .95, .97)) * (.94 + .08 * nMid);
     float gentle = smoothstep(95., 150., hgt) * (1. - gRock);
     vec3 base = mix(diffuseColor.rgb, tundra, gentle * .65);
     base = mix(base, rock, gRock);
@@ -78,8 +78,9 @@ float gRock, gSnow, gFine;`)
     float snow = smoothstep(line, line + 90., hgt);
     snow *= 1. - smoothstep(.40, .74, slope + (nMid - .5) * .26 - streak * .12);
     snow += smoothstep(.56, .78, nMid) * (1. - smoothstep(.0, .34, slope)) * smoothstep(150., 230., hgt) * .55;
+    snow = max(snow, (1. - smoothstep(.42, .78, slope)) * .96);
     gSnow = clamp(snow, 0., 1.) * uSnowAmount;
-    vec3 snowCol = lin(vec3(.86, .89, .94)) * (.9 + .12 * nMid);
+    vec3 snowCol = lin(vec3(.96, .97, .99)) * (.94 + .08 * nMid);
     diffuseColor.rgb = mix(base, snowCol, gSnow);
   }
 }`)
@@ -100,7 +101,7 @@ float gRock, gSnow, gFine;`)
   }
 }`);
     };
-    material.customProgramCacheKey = () => 'nachtjagd-terrain-3';
+    material.customProgramCacheKey = () => 'nachtjagd-terrain-4-winter';
     return material;
   }
 };

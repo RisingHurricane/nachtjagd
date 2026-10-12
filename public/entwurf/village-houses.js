@@ -1,6 +1,6 @@
 'use strict';
 
-// Vier eigenständige Häuser, noch nicht im Dorf platziert.
+// Vier begehbare Hausmodelle für die separate Vorschau und die Dorfplatzierung.
 // Vertrag: 1 Einheit = 1 m, Ursprung auf dem Gelände, Vorderseite +z.
 // build(w,d,height,type) liefert eine Group; userData.house enthält Grundriss,
 // Zugänge und walk.{floor,blocked,move,indoor}. Weltplatzierung muss Punkte
@@ -127,7 +127,7 @@
     const palette = {
       house:materials.house || mat('#cfba9c'), castle:materials.castle || mat('#728583'),
       plaster:mat('#e1d4bb'), wood:mat('#76604b'), darkWood:mat('#473c32'),
-      floor:mat('#a58b68'), board:mat('#ac9270'), slate:mat('#586b6d'),
+      floor:mat('#a58b68'), board:mat('#ac9270'), slate:mat('#edf1f4'),
       glass:mat('#92b4bc',{transparent:true,opacity:.24,depthWrite:false,side:THREE.DoubleSide}),
       metal:mat('#3e4847'), cloth:mat('#879587'), linen:mat('#ded4b9'), rug:mat('#796455'),
       hay:mat('#baa474'), paper:mat('#cabb9d'), ember:mat('#d79044',{emissive:'#a44d19'}),

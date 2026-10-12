@@ -37,7 +37,7 @@
   const sky = NachtjagdSky.create({ THREE, scene, sun, hemi });
   const layoutSky = { night: 0, sunrise: 0, cover: .62, grey: 0, blood: 0, lightK: 1 };
   scene.background = sky.apply(layoutSky);
-  const colors = { ground: '#e4e7df', house: '#d6ba92', landmark: '#b59370', forest: '#658777', path: '#b9a78b', castle: '#8a9aab', viaduct: '#b7ad97', water: '#8eb0bc', hill: '#bac3b4' };
+  const colors = { ground: '#e4e7df', house: '#d6ba92', landmark: '#b59370', forest: '#658777', path: '#dfe6eb', castle: '#8a9aab', viaduct: '#b7ad97', water: '#8eb0bc', hill: '#bac3b4' };
   const materials = {};
   for (const [key, value] of Object.entries(colors)) materials[key] = new THREE.MeshLambertMaterial({ color: new THREE.Color(value).convertSRGBToLinear() });
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1), coneGeometry = NachtjagdImportedModels.pineGeometry();
@@ -49,17 +49,19 @@
   const labels = new THREE.Group();
   scene.add(labels);
   const layout = NachtjagdLayout;
-  let landmarks = null;
+  let landmarks = null, buildings = null;
   const { houses, village, castle, naturalHeight } = layout;
   function smooth(a, b, value) {
     const t = THREE.MathUtils.clamp((value - a) / (b - a), 0, 1);
     return t * t * (3 - 2 * t);
   }
-  // Bauplätze sind eben; weiche Übergänge verbinden sie mit dem Hang.
-  const pads = houses.map(h => ({ x: h[0], z: h[1], w: Math.max(h[2], h[3]) / 2 + 1, d: Math.max(h[2], h[3]) / 2 + 1, y: naturalHeight(h[0], h[1]), blend: 3 }));
+  const buildingSpecs=NachtjagdBuildings.describe(houses);
+  const churchOrigin={x:91,z:24.5,y:0};
+  // Jeder mehrteilige Bau bekommt ein gemeinsames waagerechtes Fundament.
+  const pads=buildingSpecs.map(h=>({x:(h.bounds.x0+h.bounds.x1)/2,z:(h.bounds.z0+h.bounds.z1)/2,w:(h.bounds.x1-h.bounds.x0)/2+1,d:(h.bounds.z1-h.bounds.z0)/2+1,y:naturalHeight(h.x,h.z),blend:3}));
   pads.push(
     { x: village.x, z: village.z, w: 13, d: 10, y: naturalHeight(village.x, village.z), blend: 4 },
-    { x: village.x + 1, z: village.z - 39, w: 10, d: 16, y: naturalHeight(village.x + 1, village.z - 39), blend: 4 },
+    { x: 91, z: 9, w: 12, d: 17, y: naturalHeight(91,27.5)+.25, blend: 4 },
     { x: castle.x + .7, z: castle.z + 2.3, w: 24.5, d: 26.5, y: castle.height, blend: 10 }
   );
   pads.push(...pads.splice(0, houses.length));
@@ -78,8 +80,30 @@
   }
   const { bridgeSpec,castleRoute,shoreRoute,routes,anchors:roadAnchors }=NachtjagdRoadLayout({ height:unpavedHeight,castle });
   const roadNetwork=NachtjagdRoads.create({ routes,height:unpavedHeight,maxGrade:.18,anchors:roadAnchors });
+  for(const h of buildingSpecs) {
+    const p=h.approaches[0];
+    const road=roadNetwork.segments.filter(s=>!s.bridge).map(s=>roadNetwork.project(s,p.x,p.z)).sort((a,b)=>a.distance-b.distance)[0];
+    h.y=road.y+.4;
+    pads[3+h.id].y=h.y;
+  }
+  churchOrigin.y=streetHeight(91,27.5)+.25;
+  // Zwischen den Straßen eine zusammenhängende Hangfläche statt einzelner tiefer Baugruben.
+  const villageRoadNodes=roadNetwork.nodes.filter(n=>layout.villageDistance(n.x,n.z)<25);
+  function villageGround(x,z,h) {
+    const edge=layout.villageDistance(x,z);
+    if(edge>=22)return h;
+    let total=0,y=0;
+    for(const n of villageRoadNodes) {
+      const distance=Math.hypot(n.x-x,n.z-z),weight=1/Math.pow(8+distance,3);
+      total+=weight;y+=weight*n.y;
+    }
+    return THREE.MathUtils.lerp(y/total+.2,h,smooth(-8,22,edge));
+  }
   const baseHeights = new Float32Array(321 * 281);
-  for (let row = 0; row <= 280; row++) for (let col = 0; col <= 320; col++) baseHeights[row * 321 + col] = unpavedHeight(col * 5 - 800, row * 5 - 705);
+  for (let row = 0; row <= 280; row++) for (let col = 0; col <= 320; col++) {
+    const x=col*5-800,z=row*5-705;
+    baseHeights[row*321+col]=villageGround(x,z,unpavedHeight(x,z));
+  }
   const terrainModel = NachtjagdTerrain.create({ width: 321, depth: 281, step: 5, originX: -800, originZ: -705, base: baseHeights, basis: layout.basis, maxHeight: 650 });
   const storageKey = 'nachtjagd-bergdorf-seeinsel-v8';
   let restored = false, storageWarning = '';
@@ -117,6 +141,17 @@
     NachtjagdRelief.limitSlope(renderedHeights,321,281,5,1.65,0.3);
     NachtjagdRelief.smoothGrid(renderedHeights,321,281);
     settleRoads();
+    // Das sichtbare Dreiecksraster darf keine Innenräume auffüllen, auch bei altem Browsergelände.
+    for(let i=0;i<renderedHeights.length;i++) {
+      const x=i%321*5-800,z=Math.floor(i/321)*5-705;
+      const churchDistance=Math.max(77-x,x-105,-9-z,z-28,0);
+      renderedHeights[i]=Math.min(renderedHeights[i],THREE.MathUtils.lerp(churchOrigin.y-.35,renderedHeights[i],smooth(5,14,churchDistance)));
+      for(const h of buildingSpecs) {
+        const b=h.bounds;
+        const distance=Math.max(b.x0-x,x-b.x1,b.z0-z,z-b.z1,0);
+        if(distance<14)renderedHeights[i]=Math.min(renderedHeights[i],THREE.MathUtils.lerp(h.y-.08,renderedHeights[i],smooth(5,14,distance)));
+      }
+    }
   }
   updateHeightGrid();
   function vertexHeight(col, row) {
@@ -186,8 +221,8 @@
   for (let i = 0; i < positions.count; i++) {
     const height = vertexHeight(i%321,Math.floor(i/321));
     positions.setY(i, height);
-    const color = new THREE.Color('#9eaf92').convertSRGBToLinear();
-    color.lerp(new THREE.Color('#627c55').convertSRGBToLinear(), layout.treeWeight(positions.getX(i),positions.getZ(i))*.34);
+    const color = new THREE.Color('#f3f5f7').convertSRGBToLinear();
+    color.lerp(new THREE.Color('#e0e7ed').convertSRGBToLinear(), layout.treeWeight(positions.getX(i),positions.getZ(i))*.34);
     color.lerp(new THREE.Color('#8c9da4').convertSRGBToLinear(), smooth(60, 115, height));
     color.lerp(new THREE.Color('#e7ebe7').convertSRGBToLinear(), smooth(165, 240, height));
     terrainColors.push(color.r, color.g, color.b);
@@ -244,18 +279,8 @@
     labels.add(sprite);
     labelAnchors.push({ sprite, x, z, height });
   }
-  // Quader, L-Formen und einfache gestaffelte Volumen statt fertiger Hausmodelle.
-  const houseMeshes = houses.map(([x,z,w,d,rotation,height,type]) => {
-    const mesh = box(x, z, w, d, height, type === 3 ? 'landmark' : 'house', rotation);
-    const top = mesh.position.y + mesh.scale.y / 2;
-    if (type === 1) box(x, z, w * .65, d * .72, 3.5, 'house', rotation, top, false);
-    if (type === 2) {
-      const dx = Math.cos(rotation) * w * .53, dz = -Math.sin(rotation) * w * .53;
-      box(x + dx, z + dz, w * .55, d * .52, height * .7, 'house', rotation);
-    }
-    if (type === 3) box(x, z, w * .72, d * .85, 1.8, 'landmark', rotation, top, false);
-    return mesh;
-  });
+  buildings=NachtjagdBuildings.create({THREE,scene,specs:buildingSpecs,height:groundHeight,churchOrigin});
+  const houseMeshes=buildings.houses.map(h=>h.model);
   const viaductGroup = new THREE.Group();
   viaductGroup.position.set(viaduct.a[0],0,viaduct.a[1]);
   viaductGroup.rotation.y = -Math.atan2(viaduct.sine,viaduct.cosine); scene.add(viaductGroup);
@@ -344,7 +369,7 @@
   }
   refreshStairs();
   box(82, 41, 2.5, 2.5, 1.2, 'castle');
-  box(91, 6, 13, 23, 13, 'landmark'); box(91, 21, 7, 7, 25, 'landmark');
+  // Die beiden Kirchenquader sind durch das begehbare Kirchenmodell ersetzt.
   // Kurze Mauerstücke passen sich dem Hang an; drei Öffnungen bleiben als Tore frei.
   function wall(a, b) {
     const length = Math.hypot(b[0] - a[0], b[1] - a[1]), count = Math.ceil(length / 5);
@@ -373,7 +398,11 @@
   label('Viadukt · sieben Bögen', ...viaductMiddle, viaduct.top(viaduct.length/2)-groundHeight(...viaductMiddle)+14, 64);
   label('Hochgebirge · Norden', -20, -300, 28, 100);
   landmarks=NachtjagdLandmarks.create({THREE,scene,materials,box,label,groundHeight,streetHeight,layout});
-  const outdoor=NachtjagdOutdoor.create({THREE,scene,layout,routes,height:groundHeight,clearance:(x,z)=>roadNetwork.clearance(x,z),box,label,houses:houseMeshes});
+  const outdoor=NachtjagdOutdoor.create({THREE,scene,layout,routes,height:groundHeight,clearance:(x,z)=>roadNetwork.clearance(x,z),box,label,houses:[],
+    occupied:(x,z)=>(x>77&&x<105&&z>-9&&z<28)||buildingSpecs.some(h=>{
+      const p=h.toLocal(x,z);
+      return h.plan.volumes.some(v=>p.x>v.x0-1&&p.x<v.x1+1&&p.z>v.z0-1&&p.z<v.z1+1)||h.approaches.some(a=>Math.hypot(a.x-x,a.z-z)<2);
+    })});
   // Reproduzierbarer Wald; Wege, See und Gebäuderänder bleiben frei.
   let seed = 71;
   function random() { seed = (1664525 * seed + 1013904223) >>> 0; return seed / 4294967296; }
@@ -492,15 +521,20 @@
     mines: {target:[-345,groundHeight(-345,-22)+3,-22],distance:110,yaw:.6,polar:1.05,name:'Westmine · kurzer überdachter Stollen · zweite Mine im Norden'},
     viaduct: { target: [-165,65,-130], distance: 220, yaw: 1.2, polar: 1.15, name: 'Viadukt · sieben Bögen · begehbarer Burgweg' }
   };
+  views.church={target:[91,churchOrigin.y+11,9],distance:58,yaw:.6,polar:1.17,name:'Kirche · begehbares Schiff und Glockenvorraum'};
+  const sampleHouse=buildings.houses[7];
+  views.house={target:[sampleHouse.spec.x,sampleHouse.spec.y+5,sampleHouse.spec.z],distance:36,yaw:.65,polar:1.05,name:'Dorfhäuser · offene Türen, Treppen und Mobiliar'};
+  for(const [value,text] of [['church','Kirche'],['churchwalk','Kirche betreten'],['house','Dorfhaus'],['housewalk','Dorfhaus betreten']]) {const option=document.createElement('option');option.value=value;option.textContent=text;document.querySelector('#place-view').append(option);}
   function setView(view) {
-    const walking = view === 'walk' || view === 'forest' || view === 'bridgewalk' || view === 'stairswalk';
+    const walking = ['walk','forest','bridgewalk','stairswalk','churchwalk','housewalk'].includes(view);
     if (walking && editing) toggleEditor(false);
-    mode = walking ? 'walk' : view; keys.clear(); labels.visible = !walking && !editing && !['wind','stones','ruin','lakeside','mines','northmine','gondola','talstation','jeep','boats','carts','peaks','valley','watchtower'].includes(view); grid.visible = editing || view === 'map';
+    mode = walking ? 'walk' : view; keys.clear(); labels.visible = !walking && !editing && !['church','house','wind','stones','ruin','lakeside','mines','northmine','gondola','talstation','jeep','boats','carts','peaks','valley','watchtower'].includes(view); grid.visible = editing || view === 'map';
     document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
     if (walking) {
-      const start = view === 'bridgewalk' ? viaduct.point(viaduct.length-4) : view === 'forest' ? [221,60] : view === 'stairswalk' ? [120,58] : [90,45];
+      const entry=sampleHouse.data.entries[0].inside,houseStart=sampleHouse.spec.toWorld(entry.x,entry.z);
+      const start = view === 'churchwalk' ? [91,21.5] : view === 'housewalk' ? [houseStart.x,houseStart.z] : view === 'bridgewalk' ? viaduct.point(viaduct.length-4) : view === 'forest' ? [221,60] : view === 'stairswalk' ? [120,58] : [90,45];
       const [x,z] = start;
-      camera.position.set(x, surfaceHeight(x,z) + 1.75, z); walkingYaw = view === 'bridgewalk' ? Math.atan2(-viaduct.cosine,-viaduct.sine) : view === 'forest' ? .55 : view === 'stairswalk' ? 0 : Math.PI; pitch = view === 'stairswalk' ? -.24 : 0;
+      camera.position.set(x, gameFloor(x,z) + 1.75, z); walkingYaw = view === 'housewalk' ? Math.PI+sampleHouse.spec.rotation : view === 'bridgewalk' ? Math.atan2(-viaduct.cosine,-viaduct.sine) : view === 'forest' ? .55 : view === 'stairswalk' ? 0 : Math.PI; pitch = view === 'stairswalk' ? -.24 : 0;
       status.textContent = view === 'stairswalk' ? 'Auf der Dorftreppe · begehbare Stufen · Augenhöhe 1,75 m' : view === 'bridgewalk' ? 'Auf dem Viadukt · zur Burg · Augenhöhe 1,75 m' : view === 'forest' ? 'Im Wald · unter den Baumkronen · Augenhöhe 1,75 m' : 'Im Dorf · Augenhöhe 1,75 m';
       help.textContent = 'WASD / Pfeiltasten: gehen · Ziehen: umsehen · Shift: schneller · Esc: Übersicht';
     } else {
@@ -559,6 +593,7 @@
     if (groundHeight(x, z) < .35 && landmarks.floor(x,z)===null) return true;
     if (viaduct.collides(x,z,feet)) return true;
     if (castleSite.walk && castleSite.walk.blocked(x,z,feet)) return true;
+    if (buildings && buildings.blocked(x,z,feet)) return true;
     return (collisionBuckets.get(Math.floor(x/16)+','+Math.floor(z/16))||[]).some(c => {
       const dx = x - c.x, dz = z - c.z, cosine = Math.cos(c.rotation), sine = Math.sin(c.rotation);
       return Math.abs(cosine * dx - sine * dz) < c.w + .45 && Math.abs(sine * dx + cosine * dz) < c.d + .45;
@@ -577,11 +612,11 @@
     refreshViaduct();
     refreshStairs();
     landmarks.refresh();
-    const low = new THREE.Color('#9eaf92').convertSRGBToLinear(), rock = new THREE.Color('#8c9da4').convertSRGBToLinear(), snow = new THREE.Color('#e7ebe7').convertSRGBToLinear(), color = new THREE.Color();
+    const low = new THREE.Color('#f3f5f7').convertSRGBToLinear(), rock = new THREE.Color('#8c9da4').convertSRGBToLinear(), snow = new THREE.Color('#e7ebe7').convertSRGBToLinear(), color = new THREE.Color();
     const colors = groundGeometry.attributes.color;
     for (let i = 0; i < positions.count; i++) {
       const height = vertexHeight(i%321,Math.floor(i/321)); positions.setY(i, height);
-      color.copy(low).lerp(new THREE.Color('#627c55').convertSRGBToLinear(),layout.treeWeight(positions.getX(i),positions.getZ(i))*.34).lerp(rock, smooth(60, 115, height)).lerp(snow, smooth(165, 240, height)); colors.setXYZ(i, color.r, color.g, color.b);
+      color.copy(low).lerp(new THREE.Color('#e0e7ed').convertSRGBToLinear(),layout.treeWeight(positions.getX(i),positions.getZ(i))*.34).lerp(rock, smooth(60, 115, height)).lerp(snow, smooth(165, 240, height)); colors.setXYZ(i, color.r, color.g, color.b);
     }
     positions.needsUpdate = true; colors.needsUpdate = true;
     groundGeometry.computeVertexNormals(); groundGeometry.computeBoundingSphere();
@@ -620,6 +655,7 @@
     });
     dummy.rotation.y=0; undergrowth.instanceMatrix.needsUpdate=true;
     for (const anchor of labelAnchors) anchor.sprite.position.y = Math.max(0, groundHeight(anchor.x, anchor.z)) + anchor.height;
+    buildings.refresh();
     updateCursor();
   }
   function updateEditorStatus(message) {
@@ -745,15 +781,16 @@
       const dx = (Math.sin(walkingYaw) * forward - Math.cos(walkingYaw) * side) * speed;
       const dz = (Math.cos(walkingYaw) * forward + Math.sin(walkingYaw) * side) * speed;
       const feet = camera.position.y - 1.75;
-      if (!blocked(camera.position.x + dx, camera.position.z, surfaceHeight(camera.position.x + dx,camera.position.z,feet))) camera.position.x += dx;
-      if (!blocked(camera.position.x, camera.position.z + dz, surfaceHeight(camera.position.x,camera.position.z + dz,feet))) camera.position.z += dz;
-      camera.position.y = surfaceHeight(camera.position.x,camera.position.z,feet) + 1.75;
+      if (!blocked(camera.position.x + dx, camera.position.z, gameFloor(camera.position.x + dx,camera.position.z,feet))) camera.position.x += dx;
+      if (!blocked(camera.position.x, camera.position.z + dz, gameFloor(camera.position.x,camera.position.z + dz,feet))) camera.position.z += dz;
+      camera.position.y = gameFloor(camera.position.x,camera.position.z,feet) + 1.75;
       if (castleSite.walk && castleSite.walk.near(camera.position.x, camera.position.z)) camera.position.y = gameFloor(camera.position.x, camera.position.z, feet) + 1.75;
       camera.lookAt(camera.position.x + Math.sin(walkingYaw) * Math.cos(pitch), camera.position.y + Math.sin(pitch), camera.position.z + Math.cos(walkingYaw) * Math.cos(pitch));
     } else {
       camera.position.set(target.x + distance * Math.sin(polar) * Math.sin(yaw), target.y + distance * Math.cos(polar), target.z + distance * Math.sin(polar) * Math.cos(yaw));
       camera.lookAt(target);
     }
+    if(!gameplay?.active) buildings.update(camera.position.x,camera.position.y-1.75,camera.position.z);
     outdoor.update(camera,gameplay?.active?sky.state.night:layoutSky.night,gameplay?.active?world.indoor(camera.position.x,camera.position.y-1.75,camera.position.z):0);
     // Wie im Altay-Spiel: Schatten zwischenspeichern. Bewegte Gegner höchstens
     // zehnmal pro Sekunde, ruhige Layoutansichten nur bei Kamera-/Geländeänderungen.
@@ -821,15 +858,20 @@
     check('Viadukt überspannt die Senke mit sieben Bögen', viaduct.arches === 7 && bridgeFloor-groundHeight(...bridgeMiddle) > 30, bridgeFloor-groundHeight(...bridgeMiddle));
     const edge = viaduct.point(viaduct.length/2,3.6), below = groundHeight(...bridgeMiddle);
     check('Fahrbahn, Brüstung und Durchgang unter dem Bogen', !blocked(...bridgeMiddle,bridgeFloor) && blocked(...edge,bridgeFloor) && !viaduct.collides(...bridgeMiddle,below), null);
-    let houseError = 0;
-    for (const [index, [x, z, w, d, rotation]] of houses.entries()) {
-      const mesh = houseMeshes[index], base = mesh.position.y - mesh.scale.y / 2;
-      const cosine = Math.cos(rotation), sine = Math.sin(rotation);
-      for (const a of [-w / 2, w / 2]) for (const b of [-d / 2, d / 2]) {
-        houseError = Math.max(houseError, base - groundHeight(x + cosine * a + sine * b, z - sine * a + cosine * b));
+    let houseError=-Infinity;
+    for(const h of buildings.houses) for(const mesh of h.model.children.filter(o=>o.userData.foundation)) {
+      const b=mesh.geometry.parameters,base=h.spec.y+mesh.position.y-b.height/2;
+      for(const x of [-b.width/2,b.width/2]) for(const z of [-b.depth/2,b.depth/2]) {const p=h.spec.toWorld(mesh.position.x+x,mesh.position.z+z);houseError=Math.max(houseError,base-groundHeight(p.x,p.z));}
+    }
+    check('Gebäudesockel schließen an das Gelände an',houseError<.01,houseError);
+    let indoorTerrain=-Infinity;
+    for(const h of buildings.houses)for(const v of h.data.plan.volumes) {
+      for(let x=v.x0+.3;x<v.x1;x+=.5)for(let z=v.z0+.3;z<v.z1;z+=.5) {
+        const p=h.spec.toWorld(x,z);indoorTerrain=Math.max(indoorTerrain,groundHeight(p.x,p.z)-h.spec.y-.3);
       }
     }
-    check('Gebäudesockel schließen an das Gelände an', houseError < .01, houseError);
+    for(let x=85;x<=97;x++)for(let z=-5;z<=24;z++)indoorTerrain=Math.max(indoorTerrain,groundHeight(x,z)-churchOrigin.y);
+    check('Schneegelände bleibt unter allen Innenräumen',indoorTerrain<-.04,indoorTerrain);
     let buriedRoad = 0,buriedPoint=null;
     for (const mesh of scene.children.filter(child => child.isMesh && child.material === materials.path && child.geometry.index)) {
       const p = mesh.geometry.attributes.position, indices = mesh.geometry.index;
@@ -849,7 +891,7 @@
   }
   // Der Weltadapter hält Spielregeln unabhängig von späteren Burg-/Kirchenmodellen.
   const shotMeshes=[];
-  scene.traverse(child=>{ if(child.isMesh && child!==lake && child!==forest && child!==undergrowth) shotMeshes.push(child); });
+  scene.traverse(child=>{ if(child.isMesh && !child.userData.building && child!==lake && child!==forest && child!==undergrowth) shotMeshes.push(child); });
   // Baukörper behalten ihre Originalnetze für Schussabfragen und Geländeanker.
   // Sichtbar sind wenige Instanznetze je Material statt hunderter Einzelwürfel und Kanten.
   const boxBatches=[];
@@ -887,6 +929,8 @@
     return best.y+(y-best.y)*(best.over/SHOULDER);
   }
   function gameFloor(x,z,previousFeet) {
+    const bf=buildings && buildings.floor(x,z,previousFeet);
+    if(bf!==null && bf!==false) return bf;
     const y=shoulderHeight(x,z,surfaceHeight(x,z,previousFeet));
     const cf=castleSite.walk && castleSite.walk.floor(x,z,previousFeet===undefined?y:previousFeet);
     if(!cf) return y;
@@ -923,15 +967,16 @@
   }
   const world={
     spawn:[90,45],floor:gameFloor,blocked,chaseTarget,resetNavigation:()=>paths.clear(),
-    objectives:[{id:'church',name:'Kirche',x:90,z:30},{id:'mine',name:'Westmine',x:-349,z:-27,guard:'deep'},{id:'castle',name:'Burg',x:castleSeal.x,z:castleSeal.z,guard:'alpha'}],
+    objectives:[{id:'church',name:'Kirche',x:91,z:-1.1},{id:'mine',name:'Westmine',x:-349,z:-27,guard:'deep'},{id:'castle',name:'Burg',x:castleSeal.x,z:castleSeal.z,guard:'alpha'}],
     waterDepth:(x,z)=>layout.lakeDistance(x,z)<0?1:0,waterLevel:.09,boatOk,onRoad:(x,z)=>streetHeight(x,z)!==null,
-    bell:{x:90,z:27},
-    tick:(x,y,z)=>castleSite.update(x,y,z),indoor:(x,y,z)=>castleSite.indoor(x,y,z),
+    bell:{x:91,z:22.5},
+    tick:(x,y,z)=>{castleSite.update(x,y,z);buildings.update(x,y,z);},
+    indoor:(x,y,z)=>Math.max(castleSite.indoor(x,y,z),buildings.indoor(x,y,z)),
     rayDistance(origin,direction,maxRange) {
       shotRay.set(new THREE.Vector3(origin.x,origin.y,origin.z),new THREE.Vector3(direction.x,direction.y,direction.z).normalize());
       shotRay.near=.05; shotRay.far=maxRange;
       const castleHits=castleSite.walk && castleSite.walk.near(origin.x,origin.z)?castleSite.targets():[];
-      return shotRay.intersectObjects(castleHits.length?shotMeshes.concat(castleHits):shotMeshes,false)[0]?.distance ?? maxRange;
+      return shotRay.intersectObjects(castleHits.length?shotMeshes.concat(castleHits,buildings.targets()):shotMeshes.concat(buildings.targets()),false)[0]?.distance ?? maxRange;
     },
     spawnEnemy(p,random) {
       const candidates=roadNetwork.nodes.filter(n=>{
@@ -955,22 +1000,58 @@
     {name:'Boote liegen im Wasser',passed:world.boats.length>=2 && world.boats.every(b=>boatOk(b.x,b.z))}
   );
   const startButton=document.querySelector('#play-start'),startLabel=startButton.textContent;
-  startButton.disabled=true; startButton.textContent='Burg wird aufgebaut …';
+  const menuPlay=document.querySelector('#menu-play');menuPlay.disabled=true;
+  startButton.disabled=true; startButton.textContent='Gebäude werden aufgebaut …';
   gameplay=NachtjagdPlay.create({THREE,scene,camera,canvas,world,sky,layoutSky,backdrop,onStart:()=>{ toggleEditor(false); labels.visible=false; grid.visible=false; keys.clear(); drag=null; },onExit:()=>setView('village')});
-  castleSite.ready.then(()=>{
-  startButton.disabled=false; startButton.textContent=startLabel;
+  Promise.all([castleSite.ready,buildings.ready]).then(()=>{
+  if(buildings.failed) {startButton.textContent='Kirche konnte nicht geladen werden';return;}
+  startButton.disabled=false; menuPlay.disabled=false; startButton.textContent=startLabel;
   // Das Burg-Siegel liegt im Rittersaal: erst mit geladenem Modell prüfbar.
   world.checks=world.checks.filter(c=>c.name!=='Burg-Siegel erreichbar');
   world.checks.unshift({name:'Burg-Siegel erreichbar',passed:!!castleSite.walk && !blocked(castleSeal.x,castleSeal.z,gameFloor(castleSeal.x,castleSeal.z))});
   if(new URLSearchParams(location.search).has('test')) {
+    const buildingChecks=[];
+    function probeWalk(start,points) {
+      const probe=NachtjagdGame.create({world:{...world,spawn:[start.x,start.z],spawnEnemy:()=>null,objectives:[],loots:[],shrines:[]}});probe.start();
+      let p=probe.snapshot().player;
+      for(const goal of points) {
+        for(let i=0;i<1600&&Math.hypot(p.x-goal.x,p.z-goal.z)>.08;i++) {
+          const distance=Math.hypot(p.x-goal.x,p.z-goal.z);
+          probe.setLook(Math.atan2(goal.x-p.x,goal.z-p.z),0);
+          const before=p;p=probe.step(Math.min(.025,distance/6.3),{forward:1}).player;
+          if(Math.hypot(p.x-before.x,p.z-before.z)<.00001)break;
+        }
+        if(Math.hypot(p.x-goal.x,p.z-goal.z)>.1)return {passed:false,at:{x:p.x,y:p.y,z:p.z},goal,phase:probe.snapshot().phase,floor:world.floor(goal.x,goal.z,p.y),blocked:world.blocked(goal.x,goal.z,world.floor(goal.x,goal.z,p.y))};
+      }
+      return {passed:true,y:p.y};
+    }
+    buildingChecks.push({name:'Kirche vom Vorplatz bis zum Siegel und zurück begehbar',...probeWalk({x:91,z:30},[{x:91,z:-1.1},{x:91,z:30}])});
+    for(const h of buildings.houses) {
+      for(const [i,e] of h.data.entries.entries()) {
+        const outside=h.spec.toWorld(e.outside.x,e.outside.z),inside=h.spec.toWorld(e.inside.x,e.inside.z);
+        buildingChecks.push({name:`Haus ${h.spec.id+1}: Eingang ${i+1} hinein und hinaus`,...probeWalk(outside,[inside,outside])});
+        const [nx,nz]={front:[0,1],back:[0,-1],right:[1,0],left:[-1,0]}[e.side];
+        const approach=h.spec.toWorld(e.x+nx*3.6,e.z+nz*3.6);
+        buildingChecks.push({name:`Haus ${h.spec.id+1}: Außentreppe ${i+1} angeschlossen`,...probeWalk(approach,[outside,inside,outside,approach])});
+      }
+      const st=h.data.plan.stairs,mid=(st.x0+st.x1)/2;
+      const start=h.spec.toWorld(st.returnFlight?(st.x0+mid)/2:mid,st.z1+.45),route=[];
+      for(let level=0;level<st.flights;level++) {
+        if(st.returnFlight)route.push(h.spec.toWorld((st.x0+mid)/2,st.z1+.45),h.spec.toWorld((st.x0+mid)/2,st.z0+.4),h.spec.toWorld((st.x1+mid)/2,st.z0+.4),h.spec.toWorld((st.x1+mid)/2,st.z1+.45));
+        else route.push(h.spec.toWorld(mid,st.z0-.4));
+      }
+      const result=probeWalk(start,route);
+      buildingChecks.push({name:`Haus ${h.spec.id+1}: obere Etagen über Treppe erreichbar`,...result,passed:result.passed&&Math.abs(result.y-(h.spec.y+.3+st.flights*3.15))<.1});
+    }
+    world.checks.push(...buildingChecks);
     for(const [name,start,end] of [['Spielfigur steigt die Dorftreppe hinauf',[120,57],[120,87]],['Spielfigur überquert das Viadukt',viaduct.b,viaduct.a]]) {
       const probe=NachtjagdGame.create({world:{...world,spawn:start,spawnEnemy:()=>null}}); probe.start();
       let p=probe.snapshot().player;
       for(let i=0;i<2500 && Math.hypot(p.x-end[0],p.z-end[1])>.5;i++) { probe.setLook(Math.atan2(end[0]-p.x,end[1]-p.z),0); p=probe.step(.1,{forward:1}).player; }
       world.checks.push({name,passed:Math.hypot(p.x-end[0],p.z-end[1])<.5});
     }
-    world.checks.push({name:'Kirchenmauer hält Schüsse auf',passed:world.rayDistance({x:91,y:gameFloor(91,30)+2,z:30},{x:0,y:0,z:-1},30)<10});
-    globalThis.NachtjagdDebug={castleSite,renderer,sky,world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
+    world.checks.push({name:'Kirchenmauer hält Schüsse auf',passed:world.rayDistance({x:91,y:churchOrigin.y+2,z:10},{x:1,y:0,z:0},30)<8});
+    globalThis.NachtjagdDebug={buildings,buildingSpecs,churchOrigin,castleSite,renderer,sky,world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
     const report=document.createElement('pre'); report.id='game-tests'; report.hidden=true; report.textContent=JSON.stringify({checks:world.checks}); document.body.append(report);
   }
   if(new URLSearchParams(location.search).get('play')==='1') gameplay.start();

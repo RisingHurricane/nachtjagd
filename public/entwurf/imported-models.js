@@ -416,5 +416,10 @@ globalThis.NachtjagdImportedModels = (() => {
       return group;
     };
   }
-  return { ready, errors, pineGeometry, buildForest, buildBackdrop, decorateEnemy, updateEnemy, disposeEnemy, installJeep };
+  async function loadChurch(options) {
+    const churchBase=new URL('../church/',base);
+    const {loadChurch:load}=await import(new URL('church-adapter.js',churchBase).href);
+    return load({THREE:T,GLTFLoader:T.GLTFLoader,baseURL:churchBase.href,...options});
+  }
+  return { ready, errors, pineGeometry, buildForest, buildBackdrop, decorateEnemy, updateEnemy, disposeEnemy, installJeep, loadChurch };
 })();
