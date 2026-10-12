@@ -3,7 +3,7 @@
 // Ausschließlich Darstellung: Spielregeln, Sitzplätze und Kollisionen bleiben beim Spielkern.
 globalThis.NachtjagdImportedModels = (() => {
   const T = THREE, templates = {}, errors = [];
-  const LOD_RADIUS = 95;
+  const SHADOW_RADIUS = 95;
   const MOUNTAIN_CUT = 10;
   // Auf GitHub Pages liegen die Modelle eine Ebene über dem Ordner entwurf/, in der Artifact-Vorschau neben der Seite.
   const scriptUrl = document.currentScript.src;
@@ -202,17 +202,21 @@ globalThis.NachtjagdImportedModels = (() => {
     // Der Download enthält eine Präsentationsfläche. Der Jeep blickt ursprünglich nach +X.
     if (key === 'jeep') return splitWheels(staticModel(parts.filter(p => !/ground/i.test(p.name)), 1, -Math.PI/2, 4.2));
   }
-  const ready = Promise.all(Object.entries(files).map(async ([key, file]) => {
+  const loading={};
+  const ready = Promise.all(Object.entries(files).map(([key, file]) => loading[key]=(async()=>{
     try {
       const gltf = await loadGltf(new URL(file + suffix, base).href);
       templates[key] = prepare(key, gltf);
     } catch (error) {
       errors.push(file); console.warn('Modell bleibt vorläufig als Platzhalter:', file, error);
     }
-  }));
+  })()));
+  const treesReady=Promise.all(['pine','pack','dead'].map(key=>loading[key]));
 
   function buildForest({ scene, placements, heightAt, forest, trunks }) {
     const root = new T.Group(), batches = [], dummy = new T.Object3D();
+    const frustum=new T.Frustum(),projection=new T.Matrix4(),sphere=new T.Sphere();
+    const radii=new Float32Array(placements.length);
     root.name = 'ImportedForest'; scene.add(root);
     function update() {
       for (const batch of batches) {
@@ -227,36 +231,45 @@ globalThis.NachtjagdImportedModels = (() => {
         mesh.instanceMatrix.needsUpdate = true;
         // Three r128 besitzt keine automatisch aktualisierten Instanz-Grenzen.
         mesh.frustumCulled = false;
-        // Vollständige Matrizen für die Abstandsstufe merken.
+        // Vollständige Matrizen für die Schattenaufteilung merken.
         batch.full = mesh.instanceMatrix.array.slice();
+        batch.far.instanceMatrix.array.set(batch.full);batch.far.instanceMatrix.needsUpdate=true;
       }
-      if (far) { far.forestFull = forest.instanceMatrix.array.slice(0, placements.length * 16); far.trunkFull = trunks.instanceMatrix.array.slice(0, placements.length * 16); dirty = true; }
+      dirty=true;
     }
-    // Abstandsstufe: Nur Bäume im Umkreis von LOD_RADIUS zeigen das detaillierte Modell (einige hundert Dreiecke),
-    // alle anderen gezackte Astetagen. Die einfachen Fernbäume benötigen keine Schattenkarte.
-    // Die Aufteilung wird nur neu berechnet, wenn sich die Kamera um mehr als 8 m bewegt hat.
-    const last = { x: Infinity, z: Infinity };
-    let far = null, dirty = false;
+    // Überall dieselben importierten Modelle. Nur Schatten und unsichtbare Ferninstanzen
+    // werden ausgespart; die Baumform bleibt unabhängig vom Abstand erhalten.
+    const last = { x: Infinity, y:Infinity, z: Infinity, quaternion:new T.Quaternion(), projection:0 };
+    let dirty = true;
     function lod(camera) {
-      if (!far || !batches.length) return;
-      const p = camera.position;
-      if (!dirty && Math.abs(p.x - last.x) + Math.abs(p.z - last.z) < 8) return;
-      dirty = false; last.x = p.x; last.z = p.z;
-      const r2 = LOD_RADIUS * LOD_RADIUS, near = new Uint8Array(placements.length);
-      placements.forEach((tree, i) => { const dx = tree.x - p.x, dz = tree.z - p.z; near[i] = dx * dx + dz * dz < r2 ? 1 : 0; });
+      if (!batches.length) return;
+      const p=camera.position,canCull=!!camera.projectionMatrix;
+      const projectionKey=canCull?camera.projectionMatrix.elements[0]+camera.projectionMatrix.elements[5]:0;
+      const turned=canCull&&last.quaternion.angleTo(camera.quaternion)>.015;
+      if(!dirty&&!turned&&projectionKey===last.projection&&Math.abs(p.x-last.x)+Math.abs((p.y??0)-last.y)+Math.abs(p.z-last.z)<8)return;
+      dirty=false;last.x=p.x;last.y=p.y??0;last.z=p.z;last.projection=projectionKey;
+      if(canCull) {
+        camera.updateMatrixWorld(true);last.quaternion.copy(camera.quaternion);
+        frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
+      }
+      const near=new Uint8Array(placements.length),visible=new Uint8Array(placements.length);
+      placements.forEach((tree,i)=>{
+        near[i]=(tree.x-p.x)**2+(tree.z-p.z)**2<SHADOW_RADIUS**2?1:0;
+        sphere.center.set(tree.x,heightAt(tree.x,tree.z)+(tree.height+tree.clearance)/2,tree.z);
+        sphere.radius=radii[i];visible[i]=near[i]||!canCull||frustum.intersectsSphere(sphere)?1:0;
+      });
       for (const batch of batches) {
-        const array = batch.mesh.instanceMatrix.array; let k = 0;
-        batch.trees.forEach(({ index }, j) => { if (near[index]) { array.set(batch.full.subarray(j * 16, j * 16 + 16), k * 16); k++; } });
-        batch.mesh.count = k; batch.mesh.instanceMatrix.needsUpdate = true;
+        const close=batch.mesh.instanceMatrix.array,distant=batch.far.instanceMatrix.array;let n=0,f=0;
+        batch.trees.forEach(({index},j)=>{
+          if(!visible[index])return;
+          const matrix=batch.full.subarray(j*16,j*16+16);
+          if(near[index])close.set(matrix,n++*16);else distant.set(matrix,f++*16);
+        });
+        batch.mesh.count=n;batch.far.count=f;
+        batch.mesh.instanceMatrix.needsUpdate=batch.far.instanceMatrix.needsUpdate=true;
       }
-      let f = 0; const fa = far.forest.instanceMatrix.array, ta = far.trunks.instanceMatrix.array;
-      for (let i = 0; i < placements.length; i++) if (!near[i]) {
-        fa.set(far.forestFull.subarray(i * 16, i * 16 + 16), f * 16); ta.set(far.trunkFull.subarray(i * 16, i * 16 + 16), f * 16); f++;
-      }
-      far.forest.count = far.trunks.count = f;
-      far.forest.instanceMatrix.needsUpdate = far.trunks.instanceMatrix.needsUpdate = true;
     }
-    ready.then(() => {
+    const forestReady=treesReady.then(() => {
       const variants = [...(templates.pine || []), ...(templates.pack || []), ...(templates.dead || [])];
       if (!variants.length) return;
       const buckets = variants.map(() => []);
@@ -268,25 +281,21 @@ globalThis.NachtjagdImportedModels = (() => {
       });
       variants.forEach((variant, i) => {
         if (!buckets[i].length) return;
+        const bounds=new T.Sphere();new T.Box3().setFromObject(variant).getBoundingSphere(bounds);
+        for(const {tree,index} of buckets[i])radii[index]=bounds.radius*(tree.height+tree.clearance);
         for (const part of variant.children) {
           const mesh = new T.InstancedMesh(part.geometry, part.material, buckets[i].length);
-          mesh.castShadow = mesh.receiveShadow = true; root.add(mesh);
-          batches.push({ mesh, trees: buckets[i] });
+          const far=new T.InstancedMesh(part.geometry,part.material,buckets[i].length);
+          mesh.castShadow=true;far.castShadow=false;
+          for(const m of [mesh,far]) {m.receiveShadow=true;m.frustumCulled=false;root.add(m);}
+          batches.push({ mesh,far, trees: buckets[i] });
         }
       });
-      // Eigene Instanzpuffer für die einfachen Fernbäume; die ursprünglichen Netze bleiben ausgeblendet.
-      far = !(forest.isInstancedMesh && trunks.isInstancedMesh) ? null : {
-        forest: new T.InstancedMesh(forest.geometry, forest.material, placements.length),
-        trunks: new T.InstancedMesh(trunks.geometry, trunks.material, placements.length)
-      };
-      // Fernbäume dunkler, damit sie am Rand der Abstandsstufe zu den Nadelmodellen passen.
-      if (far && forest.material.color) { far.forest.material = forest.material.clone(); }
-      if (far) for (const m of [far.forest, far.trunks]) { m.castShadow = false; m.receiveShadow = true; m.frustumCulled = false; m.count = 0; scene.add(m); }
       update(); forest.visible = trunks.visible = false;
       root.userData.treeCount = placements.length;
       root.userData.variantCount = variants.length;
     });
-    return { root, update, lod };
+    return { root, update, lod, ready:forestReady };
   }
 
   // Ferne Gebirgskulisse: Der Berg aus dem Download wird als Ring geklont (ein Netz mit 5000 Dreiecken, sechs Zeichenaufrufe, ohne Nebel,
