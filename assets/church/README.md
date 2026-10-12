@@ -4,7 +4,11 @@ Erste ausgearbeitete Modellfassung nach den Kirchenreferenzen: gotische Steinwä
 
 Fassung 1.1: Turm um 6 m erhöht (Spitze jetzt etwa 35 m über Fußboden). An der Ostseite liegt ein längerer niedriger Kapellenbau, westlich hinten eine kleinere Sakristei. Die beiden Anbauten sind zunächst geschlossene grobe Baukörper mit eigenen Dächern und einfachen Fensterandeutungen; sie besitzen noch keine zugänglichen Innenräume. Ihr verbreiterter Grundriss ist bei Terrain und Außenkollision zu berücksichtigen. Eingang, Mittelgang und ebener Fußboden bleiben an derselben Stelle. Glocke und ihr oberer Anker wurden mit dem Turm angehoben.
 
-## Dateien
+## Eingebundene Dateien und Quellen
+
+Seit Entwurf 24 lädt `public/entwurf/imported-models.js` die Kirche in die gemeinsame Welt; `building-site.js` verbindet Gehflächen, Kollision, Terrainanschluss, Siegel und Glockeninteraktion. Die bisherigen Kirchenquader sind entfernt.
+
+Dieses Spielpaket enthält nur GLB, Manifest, Kollisionsdaten und Adapter. Die Blender-Quelle, der Generator und die eigenständige Vorschau bleiben im [Modellbranch codex/church-asset](https://github.com/RisingHurricane/nachtjagd/tree/codex/church-asset). Die folgende Liste beschreibt das vollständige Quellpaket dort:
 
 - `church.glb`: Spielmodell mit eingebetteten Texturen, getrennten Türscharnieren und Glocke. Keine Vorschaukameras oder Beleuchtung enthalten.
 - `church.blend`: bearbeitbare Blender-Quelle, zusätzlich mit Vorschaukameras, Bühne und Beleuchtung.
@@ -16,7 +20,7 @@ Fassung 1.1: Turm um 6 m erhöht (Spitze jetzt etwa 35 m über Fußboden). An de
 
 ## Einbau für Claude
 
-Branch: `codex/church-asset`, aus `codex/village-layout` abgezweigt. Nur die neuen Kirchen-Dateien übernehmen; Spielmechanik und bestehende Weltdateien wurden dafür nicht geändert. Die Kirche wird noch nicht automatisch in den Entwurf gesetzt.
+Quellbranch: `codex/church-asset`, aus `codex/village-layout` abgezweigt. Einbau seit Entwurf 24 auf `codex/village-church-snow`.
 
 Einheit: Meter. GLB: Y oben, Vorderseite +Z. Ursprung: Fußboden am Eingang. Keine weitere Achsendrehung oder Skalierung nötig. Vorgeschlagener Ursprung in der bisherigen Welt: **x=91, z=24.5**, Y einmal vom Vorplatz bei (91,25) abnehmen. Die beiden bisherigen Kirchenquader bei (91,6) und (91,21) erst beim tatsächlichen Einbau entfernen. Die neuen Grundrisse folgen diesen Platzhaltern; der Turmhelm ist höher.
 
@@ -33,7 +37,7 @@ scene.add(church.root);
 // church.collides({x,y,z}, 0.4, 1.75): y ist die Fußhöhe, nicht die Augenhöhe.
 ```
 
-Loader, Szene und Materialdarstellung verwenden dieselbe Three.js-Version wie das Spiel. Der beigelegte Lader unter `vendor/` gehört ausschließlich zur separaten Vorschau (Three.js r128, MIT).
+Loader, Szene und Materialdarstellung verwenden dieselbe Three.js-Version wie das Spiel. Der Lader unter `vendor/` im Quellbranch gehört ausschließlich zur separaten Vorschau (Three.js r128, MIT).
 
 **Geländeanschluss:** Ein gemeinsames waagerechtes Fundament für Turm und Schiff herstellen. Gelände unter dem Innenraum absenken/aussparen; sonst ragt die bisherige Hanglandschaft in den Innenraum. Die kurze Eingangsrampe fällt nach +Z um 25 cm auf 3 m. Außen den Sockel in das Terrain einbetten; nicht jede Wand einzeln auf die Landschaft setzen. Das Modell enthält keine Umgebung und keine zusätzliche Geländeplatte.
 
@@ -41,7 +45,7 @@ Loader, Szene und Materialdarstellung verwenden dieselbe Three.js-Version wie da
 
 **Türen:** Beide Flügel stehen standardmäßig offen und sind keine statischen Kollisionsquader. Beim Schließen die benannten Scharniere über absolute lokale Y-Winkel aus dem Manifest setzen und dynamische Türblattkollision ergänzen. Scharnierknoten über die Namen im Manifest suchen, nicht über veränderliche Mesh-Indizes. Die Glocke ist ein separates Mesh `Bell`.
 
-**Interaktion:** `SanctuarySeal` liegt im hinteren Mittelgang; `BellInteract` im Turmvorraum. Eine begehbare Treppe in den Glockenturm ist noch nicht enthalten. Der Glockenanker oben ist für spätere Animationen gedacht. Die eigentlichen Spielinteraktionen, Serverkollisionen und Quests ergänzt Claude beim Einbau.
+**Interaktion:** `SanctuarySeal` liegt im hinteren Mittelgang; `BellInteract` im Turmvorraum. Eine begehbare Treppe in den Glockenturm ist noch nicht enthalten. Der Glockenanker oben ist für spätere Animationen gedacht. Die Solo-Spielinteraktionen sind seit Entwurf 24 integriert; der ältere separate Mehrspielerserver verwendet dieses Modell noch nicht.
 
 ## Neu erzeugen
 

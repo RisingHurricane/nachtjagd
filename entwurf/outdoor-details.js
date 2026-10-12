@@ -3,7 +3,7 @@
 // Kleine Lichtinseln wie im Altay-Original. Viele sichtbare Laternen, aber nur drei
 // echte Lichter ohne Schatten; die nächsten Lampen teilen sich diesen festen Pool.
 globalThis.NachtjagdOutdoor = {
-  create({ THREE: T, scene, layout, routes, height, clearance, box, label, houses=[] }) {
+  create({ THREE: T, scene, layout, routes, height, clearance, box, label, houses=[], occupied:buildingOccupied=()=>false }) {
     const lamps = [], batches = new Map(), dummy = new T.Object3D();
     const iron = new T.MeshLambertMaterial({ color: 0x29332e });
     const wood = new T.MeshLambertMaterial({ color: 0x46392b });
@@ -36,7 +36,7 @@ globalThis.NachtjagdOutdoor = {
     for(const [x,z] of sites) {
       // Rechts neben der Fahrbahn; bei nahe gelegenen Häusern auf die andere Seite ausweichen.
       let lx=x,lz=z+(lamps.length%2?6:-6);
-      const occupied=(a,b)=>layout.houses.some(h=>Math.hypot(h[0]-a,h[1]-b)<Math.max(h[2],h[3])*.65+1);
+      const occupied=(a,b)=>buildingOccupied(a,b)||layout.houses.some(h=>Math.hypot(h[0]-a,h[1]-b)<Math.max(h[2],h[3])*.65+1);
       if(occupied(lx,lz)) lz=z-(lz-z);
       if(occupied(lx,lz)||clearance(lx,lz)<.6) continue;
       const y=height(lx,lz);
