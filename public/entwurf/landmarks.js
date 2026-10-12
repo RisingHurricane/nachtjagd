@@ -56,11 +56,11 @@ globalThis.NachtjagdLandmarks = {
     label('Seehäuser',-222,105,16,60);
     const islandTrees=layout.island.trees.map(([dx,dz],i)=>{
       const x=layout.island.x+dx,z=layout.island.z+dz,height=10+i*1.7;
-      box(x,z,.7,.7,4.2,'landmark');
+      const trunk=box(x,z,.7,.7,4.2,'landmark');trunk.userData.treePlaceholder=true;
       const crown=new THREE.Mesh(NachtjagdImportedModels.pineGeometry(),materials.forest);
       crown.scale.set(3+i*.25,height,3+i*.25);
       crown.position.set(x,groundHeight(x,z)+4+height/2,z); crown.castShadow=true; scene.add(crown);
-      return {x,z,height,crown};
+      return {x,z,height,clearance:4,crown,trunk};
     });
     // Der schmale Steg ist bereits als einfache Gehfläche über dem Wasser nutzbar.
     const dock={a:[-224,126],b:[-210,151],width:3.6,top:2.3};
@@ -91,7 +91,7 @@ globalThis.NachtjagdLandmarks = {
       label(mine.id==='mine-west'?'Westmine':'Nordmine',...mine.a,13,52);
     }
     return {
-      stoneCount:positions.length,lakeHouseCount:layout.lakeHomes.length,islandTreeCount:islandTrees.length,
+      stoneCount:positions.length,lakeHouseCount:layout.lakeHomes.length,islandTreeCount:islandTrees.length,islandTrees,
       refresh() {
         windWheel.position.y=groundHeight(...wind)+17;
         for(const tree of islandTrees) tree.crown.position.y=groundHeight(tree.x,tree.z)+4+tree.height/2;

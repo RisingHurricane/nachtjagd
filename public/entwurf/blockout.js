@@ -460,7 +460,11 @@
   }
   forest.count = trunks.count = treeCount; forest.castShadow = trunks.castShadow = true; scene.add(forest, trunks);
   const backdrop = NachtjagdImportedModels.buildBackdrop({scene});
-  const importedForest = NachtjagdImportedModels.buildForest({scene, placements:treePlacements, heightAt:groundHeight, forest, trunks});
+  const importedForest = NachtjagdImportedModels.buildForest({scene, placements:[...treePlacements,...landmarks.islandTrees], heightAt:groundHeight, forest, trunks});
+  importedForest.ready.then(()=>{
+    if(importedForest.root.userData.treeCount)for(const tree of landmarks.islandTrees)tree.crown.visible=tree.trunk.visible=false;
+    renderer.shadowMap.needsUpdate=true;
+  });
   // Niedriger Waldboden bleibt durchquerbar; nur Baumstämme kollidieren.
   const undergrowth = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0), new THREE.MeshLambertMaterial({color:'#718455'}),3296);
   let coverCount=0;
@@ -897,6 +901,7 @@
   const boxBatches=[];
   const boxGroups=new Map();
   for(const a of anchors) {
+    if(a.mesh.userData.treePlaceholder)continue;
     const key=a.mesh.material.uuid+'|'+a.mesh.castShadow;
     if(!boxGroups.has(key)) boxGroups.set(key,[]);
     boxGroups.get(key).push(a.mesh); a.mesh.visible=false;
@@ -1001,10 +1006,12 @@
   );
   const startButton=document.querySelector('#play-start'),startLabel=startButton.textContent;
   const menuPlay=document.querySelector('#menu-play');menuPlay.disabled=true;
-  startButton.disabled=true; startButton.textContent='Gebäude werden aufgebaut …';
+  startButton.disabled=true; startButton.textContent='Modelle werden geladen …';
   gameplay=NachtjagdPlay.create({THREE,scene,camera,canvas,world,sky,layoutSky,backdrop,onStart:()=>{ toggleEditor(false); labels.visible=false; grid.visible=false; keys.clear(); drag=null; },onExit:()=>setView('village')});
-  Promise.all([castleSite.ready,buildings.ready]).then(()=>{
+  Promise.all([castleSite.ready,buildings.ready,importedForest.ready]).then(()=>{
   if(buildings.failed) {startButton.textContent='Kirche konnte nicht geladen werden';return;}
+  if(!importedForest.root.userData.treeCount) {startButton.textContent='Baummodelle konnten nicht geladen werden · bitte neu laden';return;}
+  world.checks.push({name:'Alle 3383 Bäume verwenden importierte Modelle einschließlich Seeinsel',passed:importedForest.root.userData.treeCount===3383&&importedForest.root.userData.variantCount===8,value:importedForest.root.userData});
   startButton.disabled=false; menuPlay.disabled=false; startButton.textContent=startLabel;
   // Das Burg-Siegel liegt im Rittersaal: erst mit geladenem Modell prüfbar.
   world.checks=world.checks.filter(c=>c.name!=='Burg-Siegel erreichbar');

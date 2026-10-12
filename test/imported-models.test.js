@@ -86,7 +86,7 @@ test('Wendigos haben unabhängige Skelette und Animationen; fehlende Dateien beh
   assert.equal(forest.visible, true); assert.equal(trunks.visible, true);
 });
 
-test('Abstandsstufe: nahe Bäume als Modell, ferne als Astetagen ohne Schatten, Summe bleibt gleich', async () => {
+test('Alle Entfernungen behalten die importierten Baumformen; nur nahe Modelle werfen Schatten', async () => {
   const models = api(); await models.ready;
   const placements = Array.from({ length: 60 }, (_, i) => ({ x: i * 10, z: 0, height: 15, clearance: 4, rx: 3, rz: 3 }));
   const geometry = new T.ConeGeometry(1, 1, 5), material = new T.MeshBasicMaterial();
@@ -98,17 +98,34 @@ test('Abstandsstufe: nahe Bäume als Modell, ferne als Astetagen ohne Schatten, 
   const camera = { position: { x: 0, z: 0 } };
   result.lod(camera);
   const scene = result.root.parent;
-  const fars = scene.children.filter(o => o.isInstancedMesh);
-  assert.equal(fars.length, 2);
-  // Kamera bei x=0: Bäume mit x < 95 (Indizes 0 bis 9) sind nah
-  assert.equal(fars[0].count, 60 - 10);
-  assert.ok(fars.every(m=>!m.castShadow));
-  const detail = result.root.children.filter(m => m.count > 0).reduce((n, m) => Math.max(n, m.count), 0);
-  assert.ok(detail > 0);
-  // Kamera weit weg: alles Fernbäume
+  assert.equal(scene.children.filter(o=>o.isInstancedMesh).length,0,'Keine vereinfachten Ersatzkronen');
+  const pairs=[];
+  for(let i=0;i<result.root.children.length;i+=2) {
+    const near=result.root.children[i],far=result.root.children[i+1];pairs.push([near,far]);
+    assert.equal(near.geometry,far.geometry);assert.equal(near.material,far.material);
+    assert.notEqual(far.geometry,geometry,'Fernbäume verwenden echte GLB-Geometrie');
+    assert.equal(near.castShadow,true);assert.equal(far.castShadow,false);
+    assert.equal(near.count+far.count,near.instanceMatrix.count);
+  }
+  assert.ok(pairs.some(([near])=>near.count>0));assert.ok(pairs.some(([,far])=>far.count>0));
   camera.position.x = 5000; result.lod(camera);
-  assert.equal(fars[0].count, 60);
-  assert.ok(result.root.children.every(m => m.count === 0));
+  for(const [near,far] of pairs) {assert.equal(near.count,0);assert.equal(far.count,far.instanceMatrix.count);}
+  result.update();result.lod(camera);
+  for(const [near,far] of pairs)assert.equal(near.count+far.count,far.instanceMatrix.count,'Auch nach Geländeänderung kein Baum verloren');
+});
+
+test('Nur unsichtbare Fernbäume werden ausgespart; Drehen und Geländeänderung aktualisieren den Sichtbereich',async()=>{
+  const models=api();await models.ready;
+  let y=0;
+  const result=models.buildForest({scene:new T.Scene(),placements:[-200,200].map(z=>({x:0,z,height:15,clearance:4})),heightAt:()=>y,forest:new T.Group(),trunks:new T.Group()});
+  await result.ready;
+  const camera=new T.PerspectiveCamera(70,1,.1,2000);camera.position.set(0,10,0);camera.lookAt(0,10,-200);
+  result.lod(camera);
+  const matrix=new T.Matrix4(),distant=result.root.children.filter(m=>!m.castShadow);
+  for(const m of distant) {assert.equal(m.count,1);m.getMatrixAt(0,matrix);assert.equal(matrix.elements[14],-200);}
+  camera.lookAt(0,10,200);result.lod(camera);
+  for(const m of distant) {assert.equal(m.count,1);m.getMatrixAt(0,matrix);assert.equal(matrix.elements[14],200);}
+  y=500;result.update();result.lod(camera);assert.ok(distant.every(m=>m.count===0));
 });
 
 test('Fernkrone hat mehrere Astetagen, Vertexfarben und ein kleines Dreiecksbudget', async () => {

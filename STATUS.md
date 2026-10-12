@@ -1,6 +1,12 @@
 # STATUS
 
-Letzte Aktualisierung: 2026-10-12 (Codex, Entwurf 24 veröffentlicht: Kirche, Dorfhäuser, Schnee)
+Letzte Aktualisierung: 2026-10-12 (Codex, Entwurf 25 vorbereitet: importierte Bäume überall)
+
+## Entwurf 25 · Importierte Bäume überall
+
+Branch `codex/detailed-forest`, Basis `codex/village-church-snow` (`816bdb6`). Alle 3383 Bäume einschließlich der drei Seeinselbäume verwenden die acht vorhandenen importierten Varianten in jeder Entfernung. Die gezackten Ersatzkronen aus Entwurf 23 sind im geladenen Wald entfernt. Es sind weiterhin die bereitgestellten texturierten Low-Poly-Modelle, keine neuen fotorealistischen Assets. Instanzen teilen Geometrie und Materialien. Der Radius von 95 m begrenzt nur noch Schatten; entfernte Bäume außerhalb des Kamerablicks werden ausgelassen, ihre Form wird nicht vereinfacht. Kamerawechsel und Geländeänderungen führen die Instanzen nach. Inselplatzhalter werden samt Stamm ausgeblendet. Spielstart wartet zusätzlich auf die Baummodelle; bei vollständigem Ladefehler bleibt er mit Hinweis gesperrt.
+
+Validierung: 190/190 Node-Tests, 155/155 Spielprüfungen und 23/23 Geländeprüfungen grün. Nah- und Fernansicht visuell geprüft. Kein Konsolenfehler; bestehende GLTFLoader-Warnung über UV-Set 1 einer Normalmap. Beobachtete Bildzeit im Testbrowser ca. 45–49 ms, blickabhängig 94–272 Zeichenaufrufe; die höhere Dreieckslast ist eine verbleibende Leistungsgrenze, keine Zusage einer verbesserten Bildrate. Versionskennung und Skriptzusätze gemeinsam auf 25. Keine neuen Abhängigkeiten. Öffentlicher Stand bleibt 24; Veröffentlichung von 25 wartet auf Lights Freigabe. Kein main-/gh-pages-Push und keine neue Codekopie.
 
 ## Entwurf 24 · Kirche, Dorfhäuser und Schnee
 
@@ -211,3 +217,5 @@ Automatischer Durchlauf mit einem Browser-Bot (Weg über das Straßennetz, Siege
 - 2026-10-11, Codex: Entwurf 24 auf codex/village-church-snow: Kirche 1.1 und alle 28 begehbaren Häuser eingebaut, Hanganschlüsse und Innenraumkollision, weißer Schneeboden und runde Flocken. 189 Node-Tests, 23 Gelände- und 154 Spielprüfungen grün. Veröffentlichung offen, öffentlicher Stand weiterhin 23. Kein main-/gh-pages-Push. Nächste Schritte nach Freigabe: Entwurf 24 veröffentlichen; später Kirchenanbauten/Turmaufstieg und Türeninteraktion.
 
 - 2026-10-12, Codex: Nach Lights ausdrücklicher Freigabe Entwurf 24 unter /nachtjagd/entwurf/?v=24 veröffentlicht. gh-pages ohne Force auf 937272f; nur freigegebene Spieldateien, modelltest und main unverändert. 189 Tests erneut grün, öffentlicher Spielstart mit HUD/Minikarte geprüft. Erster langsamer Modellabruf nach Neuladen erfolgreich.
+
+- 2026-10-12, Codex: Entwurf 25 auf codex/detailed-forest: alle 3383 Bäume nutzen acht importierte Varianten auch in der Ferne und auf der Seeinsel. Nur Schattenradius und Sichtausschnitt begrenzen Rechenarbeit. 190 Node-Tests, 155 Spiel- und 23 Geländeprüfungen grün. Höhere Dreieckslast bleibt eine Leistungsgrenze. Veröffentlichung wartet auf Freigabe; öffentlicher Stand 24, main und gh-pages unverändert.
