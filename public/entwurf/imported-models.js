@@ -432,7 +432,9 @@ globalThis.NachtjagdImportedModels = (() => {
   async function loadChurch(options) {
     const churchBase=new URL('../church/',base);
     const {loadChurch:load}=await import(new URL('church-adapter.js',churchBase).href);
-    return load({THREE:T,GLTFLoader:T.GLTFLoader,baseURL:churchBase.href,...options});
+    // Artifact-Vorschau: die Kirche liegt wie die übrigen Modelle als Base64-Text neben der .glb-Endung.
+    const Loader=suffix?class extends T.GLTFLoader{loadAsync(url){return loadGltf(url+suffix);}}:T.GLTFLoader;
+    return load({THREE:T,GLTFLoader:Loader,baseURL:churchBase.href,...options});
   }
   return { ready, errors, pineGeometry, buildForest, buildBackdrop, decorateEnemy, updateEnemy, disposeEnemy, installJeep, loadChurch };
 })();
