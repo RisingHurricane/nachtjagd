@@ -2,7 +2,7 @@
 
 // Verbindet den ausgelagerten Spielkern mit der bestätigten Weltstudie: Eingabe, Anzeige, Platzhalterfiguren, Umgebung.
 globalThis.NachtjagdPlay = {
-  create({THREE,scene,camera,canvas,world,sky,layoutSky,backdrop,onStart,onExit}) {
+  create({THREE,scene,camera,canvas,world,sky,layoutSky,backdrop,lamps=null,onStart,onExit}) {
     const hud=document.querySelector('#game-hud'),panel=document.querySelector('#game-panel');
     const title=document.querySelector('#game-title'),message=document.querySelector('#game-message');
     const action=document.querySelector('#game-action'),exit=document.querySelector('#game-exit');
@@ -45,7 +45,7 @@ globalThis.NachtjagdPlay = {
     const axe=new THREE.Group(),axeHandle=new THREE.Mesh(new THREE.BoxGeometry(.04,.04,.5),lam(0x6b4a2c)),axeHead=new THREE.Mesh(new THREE.BoxGeometry(.03,.16,.2),lam(0x9aa4aa));
     axeHead.position.z=-.25; axe.add(axeHandle,axeHead); axe.position.set(.18,-.1,-.45); axe.visible=false; camera.add(axe);
     const flash=new THREE.PointLight(0xffc16b,0,12); camera.add(flash);
-    const torch=new THREE.SpotLight(0xfff0cf,0,70,.5,.45,1); torch.position.set(.1,-.1,0); torch.target.position.set(0,0,-10); camera.add(torch,torch.target);
+    const torch=new THREE.SpotLight(0xffe6bd,0,70,.5,.62,1.2); torch.position.set(.1,-.1,0); torch.target.position.set(0,0,-10); camera.add(torch,torch.target);
     const geometry=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]);
     const tracer=new THREE.Line(geometry,new THREE.LineBasicMaterial({color:0xffdf9a})); scene.add(tracer);
     // --- Platzhalterfiguren je Gegnerart
@@ -115,18 +115,11 @@ globalThis.NachtjagdPlay = {
     const mix=(a,b,k)=>a+(b-a)*k;
     const lights=[];
     scene.traverse(o=>{ if(o.isLight&&!o.userData.outdoor&&!o.userData.building&&!o.userData.mineLight&&o!==torch&&o!==flash&&o!==boomFlash&&!sky.owns(o)) lights.push({o,base:o.intensity}); });
-    const snowCount=2400,snowGeo=new THREE.BufferGeometry(),snowPos=new Float32Array(snowCount*3);
-    for(let i=0;i<snowCount;i++) { snowPos[i*3]=(Math.random()-.5)*60; snowPos[i*3+1]=Math.random()*30; snowPos[i*3+2]=(Math.random()-.5)*60; }
-    snowGeo.setAttribute('position',new THREE.BufferAttribute(snowPos,3));
-    // Weiche runde Flocken; eine kleine gemeinsame Alpha-Textur für alle Partikel.
-    const flakeSize=32,flakeData=new Uint8Array(flakeSize*flakeSize*4);
-    for(let y=0;y<flakeSize;y++) for(let x=0;x<flakeSize;x++) {
-      const r=Math.hypot((x+.5-flakeSize/2)/(flakeSize/2),(y+.5-flakeSize/2)/(flakeSize/2)),i=(y*flakeSize+x)*4;
-      flakeData[i]=flakeData[i+1]=flakeData[i+2]=255;flakeData[i+3]=Math.round(255*Math.max(0,Math.min(1,(1-r)*5)));
-    }
-    const flakeMap=new THREE.DataTexture(flakeData,flakeSize,flakeSize,THREE.RGBAFormat);
-    flakeMap.magFilter=flakeMap.minFilter=THREE.LinearFilter;flakeMap.needsUpdate=true;
-    const snowMat=new THREE.PointsMaterial({color:0xffffff,map:flakeMap,alphaTest:.03,size:.21,transparent:true,opacity:.8,depthWrite:false}),snow=new THREE.Points(snowGeo,snowMat); snow.frustumCulled=false; effects.add(snow);
+    // Schneefall und Lampenkegel wie im Altay-Original (night-fx.js): kleine Flocken, die im Licht aufleuchten.
+    const snowFx=NachtjagdNightFx.createSnow({THREE,scene,lamps});
+    const beam=NachtjagdNightFx.createBeam({THREE,parent:camera});
+    const flashInfo={position:new THREE.Vector3(),direction:new THREE.Vector3(),cosOuter:.88,cosInner:.95,on:true,k:1};
+    snowFx.points.visible=false;
     let torchOn=true,indoorK=0;
     function applyEnv(s,dt) {
       const e=s.env,w=s.weather;
@@ -137,29 +130,25 @@ globalThis.NachtjagdPlay = {
       const inside=world.indoor?world.indoor(s.player.x,s.player.y,s.player.z):0;
       indoorK+=(inside-indoorK)*Math.min(1,dt*4);
       if(world.tick) world.tick(s.player.x,s.player.y,s.player.z);
-      const color=sky.apply({night,sunrise:e.sunrise,cover:e.cover,grey:w.fog>1.2?.25:0,blood:e.mod==='blood'&&e.sunrise<.4?.55:0,lightK:Math.max(.55,k)*(1-.7*indoorK)});
+      const color=sky.apply({night,sunrise:e.sunrise,cover:e.cover,grey:w.fog>1.2?.25:0,blood:e.mod==='blood'&&e.sunrise<.4?.55:0,lightK:Math.max(.55,k)*(1-.7*indoorK)*(.55+.45*Math.max(night,e.sunrise))});
       scene.background=color; backdrop?.setMood(color);
       scene.fog=scene.fog||new THREE.FogExp2(color,.002);
       scene.fog.color.copy(color); scene.fog.density=.0022*(1+.9*night)*w.fog*(e.mod==='fog'?2.1:1)*(e.sunrise>0?.8:1);
       for(const l of lights) l.o.intensity=l.base*k;
       const lampBonus=(s.up.lamp+(s.relics.lamp?1:0));
-      torch.intensity=torchOn?1.35+.25*lampBonus:0; torch.distance=70+14*lampBonus; torch.angle=.5+.07*lampBonus;
-      snowMat.opacity=Math.min(.98,.62+w.snow*.5)*(e.sunrise>.7?0:1)*(1-indoorK);
-      // Stärke des Schneefalls bestimmt, wie viele der Flocken gezeichnet werden.
-      const activeSnow=Math.round(snowCount*(.45+.55*w.snow));
-      snowGeo.setDrawRange(0,activeSnow);
-      const pos=snowGeo.attributes.position,px=s.player.x,py=s.player.y,pz=s.player.z;
-      for(let i=0;i<activeSnow;i++) {
-        let x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i);
-        y-=dt*(1.4+w.wind*.8); x+=dt*w.wind*1.2+Math.sin(clock*.7+i)*dt*.3; z+=Math.cos(clock*.5+i*.3)*dt*.3;
-        if(y<py-2) y=py+20+Math.random()*6; if(x-px>30) x-=60; if(x-px<-30) x+=60; if(z-pz>30) z-=60; if(z-pz<-30) z+=60; if(Math.abs(y-py)>40) y=py+Math.random()*24;
-        pos.setXYZ(i,x,y,z);
-      }
-      pos.needsUpdate=true;
+      torch.intensity=torchOn?(1.05+.25*lampBonus)*(.62+.38*night):0; torch.distance=70+14*lampBonus; torch.angle=.5+.07*lampBonus;
+      // Taschenlampe für Schnee und Kegel: Position und Blickrichtung der Kamera.
+      camera.getWorldPosition(flashInfo.position); camera.getWorldDirection(flashInfo.direction);
+      flashInfo.on=torchOn&&torch.intensity>0; flashInfo.cosOuter=Math.cos(torch.angle); flashInfo.cosInner=Math.cos(torch.angle*(1-torch.penumbra));
+      flashInfo.k=.75+.12*lampBonus;
+      const snowLight=(.56+.36*(1-night)+.2*e.sunrise)*(1-.5*indoorK);
+      snowFx.update(camera,dt,{k:.38+.6*w.snow,light:snowLight,wind:.6+w.wind*.8,dx:.5+w.wind*.9,dz:.25*w.wind,
+        opacity:(e.sunrise>.7?0:1)*(1-indoorK),scale:canvas.height*.66,flash:flashInfo});
+      beam.update({on:flashInfo.on&&indoorK<.5,length:22+4*lampBonus,angle:torch.angle,strength:(.025+.03*night)*(.6+.5*Math.min(1.6,w.fog))});
     }
     function restoreEnv() {
       scene.background=sky.apply(layoutSky); backdrop?.setMood(null);
-      scene.fog=null; for(const l of lights) l.o.intensity=l.base; torch.intensity=0; snowMat.opacity=0;
+      scene.fog=null; for(const l of lights) l.o.intensity=l.base; torch.intensity=0; snowFx.points.visible=false; beam.update({on:false});
     }
     // --- Zustand
     let game=null,current=null,active=false,firing=false,aiming=false,drag=null,shotClick=false,flashT=0,hitT=0,boomT=0,clock=0,viewY=null;

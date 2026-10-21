@@ -107,6 +107,14 @@
     const builder=root.NachtjagdVillageHouses.create(T),sources=[],houses=[];
     const group=new T.Group();group.name='VillageBuildings';scene.add(group);
     const stone=new T.MeshLambertMaterial({color:0x9b9e9d});
+    // Nachtlicht wie im Altay-Original: ein Teil der Fenster leuchtet warm (reproduzierbar nach Lage gestreut),
+    // neben jeder Haustür hängt eine kleine Laterne. Die Lichtwirkung selbst kommt aus dem Lampenfeld (lamp-field.js).
+    const litGlass=new T.MeshLambertMaterial({color:0x2a1d12,emissive:0xffb35c,emissiveIntensity:.2,transparent:true,opacity:.94,side:T.DoubleSide});
+    litGlass.name='litGlass';
+    const lanternGlass=new T.MeshLambertMaterial({color:0x3a2a14,emissive:0xffc477,emissiveIntensity:.3});lanternGlass.name='doorLantern';
+    const lanternIron=new T.MeshLambertMaterial({color:0x2b2f2d});
+    const windows=[],nightLamps=[],point=new T.Vector3();
+    const lit=(x,z)=>{const h=Math.abs(Math.sin(x*12.9898+z*78.233)*43758.5453)%1;return h<.62;};
     for(const spec of specs) {
       const model=builder.build(spec.w,spec.d,spec.height,spec.type),data=model.userData.house;
       // Keine eigenen Lichter pro Haus: ein kleiner gemeinsamer Innenlicht-Pool.
@@ -138,6 +146,24 @@
         }
       }
       model.position.set(spec.x,spec.y,spec.z);model.rotation.y=spec.rotation;
+      model.updateMatrixWorld(true);
+      model.traverse(o=>{
+        if(!o.isMesh||o.material?.name!=='glass')return;
+        o.getWorldPosition(point);
+        if(!lit(point.x+point.y*.37,point.z))return;
+        o.material=litGlass;windows.push({x:point.x,y:point.y,z:point.z});
+      });
+      const door=data.entries[0];
+      if(door) {
+        const [nx,nz]={front:[0,1],back:[0,-1],right:[1,0],left:[-1,0]}[door.side],tx=-nz,tz=nx,off=door.width/2+.42;
+        const lx=door.x+tx*off+nx*.24,lz=door.z+tz*off+nz*.24,ly=2.55;
+        const bracket=new T.Mesh(new T.BoxGeometry(nx?.34:.05,.05,nz?.34:.05),lanternIron);bracket.position.set(door.x+tx*off+nx*.1,ly+.2,door.z+tz*off+nz*.1);
+        const body=new T.Mesh(new T.BoxGeometry(.2,.28,.2),lanternGlass);body.position.set(lx,ly,lz);
+        const cap=new T.Mesh(new T.BoxGeometry(.27,.06,.27),lanternIron);cap.position.set(lx,ly+.17,lz);
+        model.add(bracket,body,cap);
+        const p=spec.toWorld(lx,lz);
+        nightLamps.push({x:p.x,y:spec.y+ly,z:p.z,r:10,c:[1,.62,.3],k:.75,halo:2.8,a:.38,flick:Math.abs(Math.sin(spec.x*3.1+spec.z))>.85,kind:'haustuer'});
+      }
       const walk=spatial(spec,data); houses.push({spec,model,data,...walk});sources.push(model);
     }
     merge(T,sources,group);
@@ -182,7 +208,11 @@
         } else l.intensity=0;
       });
     }
-    return {houses,ready,floor,blocked,indoor,update,group,churchGroup,get church(){return church;},get failed(){return churchFailure;},
+    // Nachtstärke 0..1: Fensterscheiben und Türlaternen glühen mit der Dunkelheit stärker.
+    function setNight(k) {
+      litGlass.emissiveIntensity=.12+1.05*k;lanternGlass.emissiveIntensity=.25+1.2*k;
+    }
+    return {houses,ready,floor,blocked,indoor,update,setNight,windows,nightLamps,group,churchGroup,get church(){return church;},get failed(){return churchFailure;},
       targets:()=>[...group.children,...churchGroup.children],
       refresh:()=>{merge(T,sources,group);if(church)merge(T,[church.root],churchGroup);}};
   }
