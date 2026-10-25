@@ -1,6 +1,20 @@
 # STATUS
 
-Letzte Aktualisierung: 2026-10-21 (Claude, Entwurf 27 auf `claude/atmosphaere`, noch nicht veröffentlicht)
+Letzte Aktualisierung: 2026-10-25 (Claude, Entwurf 28 auf `claude/teamspiel`, noch nicht veröffentlicht)
+
+## Entwurf 28 · Teamspiel und Musikregler
+
+Branch `claude/teamspiel`, Basis Entwurf 27 (`claude/atmosphaere`, `22fb14f`). Auftrag von Light: Regler für die Musik oder Stummschaltung, Spiel im Team.
+
+- Musik: Lautstärkeregler und Schalter „Ton aus/Ton an“ im Hauptmenü und im Pausenfenster (`musicControls` in `gameplay.js`, Stil `.music-row` in `play-ui.css`). Werte bleiben im Browser gespeichert (`nachtjagd-music`), Taste N schaltet weiterhin und führt die Regler nach.
+- Teamspiel bis vier Spieler (`coop.js`, neu): „Mit Freunden spielen“ im Hauptmenü. Raum eröffnen ergibt einen sechsstelligen Code und einen Einladungslink `?raum=CODE`; Gäste treten mit Code oder Link bei, auch mitten in der Nacht. Verbindung per WebRTC, Vermittlung über den öffentlichen PeerJS-Dienst (`peerjs@1.5.4` von unpkg, wird erst beim Teamspiel geladen; keine neue npm-Abhängigkeit). Tests mit eigenem Vermittler: `?peerhost=127.0.0.1&peerport=9000`.
+- Spielkern (`gameplay-core.js`, Option `coop:{role:'host'|'guest'}`): Der Host rechnet Gegner, Wellen, Siegel, Glocke und Tageszeit für alle. Gegner greifen den nächsten stehenden Spieler an (`targetOf`), Schaden an Mitspielern geht als `mateHurt` an deren Rechner. Gäste zeigen die Gegner des Hosts als Puppen (`applyHost`, 12 Abgleiche pro Sekunde, weiches Nachführen), melden eigene Treffer (`netHit`), Siegel/Glocke (`netInteract`) und aufgehobene Vorräte (`netTake`); der Host prüft Abstand und Schadenshöhe (`remoteHit`, `remoteInteract`, `remoteTake`). Punkte und Abschüsse zählen fürs Team, Lei bekommt, wer den letzten Treffer setzt (`mateReward`). Wer fällt, geht zu Boden und steigt nach 12 s am Start wieder ein; überrannt ist das Team erst, wenn alle am Boden sind. Im Teamspiel hält Esc, die Karte oder der Händler die Welt nicht an. Gäste beginnen leicht versetzt (`spawnShift`).
+- Darstellung: Mitspieler als Jäger mit Mantel in eigener Farbe, Hut, Laterne (leuchtet über das Lampenfeld) und Namensschild; am Boden liegend. HUD zeigt Raumcode und Team mit Leben. Neue Runde des Hosts startet auch bei den Gästen neu (`epoch`).
+- Versionskennung und Skriptzusätze auf 28.
+
+Validierung: 220/220 Node-Tests (neu `test/coop.test.js`, 10 Tests: Zielwahl und Schaden am Mitspieler, Treffer und Lei, Siegel aus der Nähe, Bodenzustand und Niederlage nur bei allen, Gegnerpuppen und gemeldete Schüsse, Siegel über den Host, Schaden/Lei/Spielende beim Gast, Prüfung unsinniger Welt- und Protokolldaten). Browser: 23/23 Gelände- und 166/166 Spielprüfungen grün. Zwei getrennte Browser mit lokalem PeerJS-Vermittler: Raum eröffnen, Beitritt per Einladungslink, Mitgliederliste, Spielstart, Host sieht den Gast, Gast sieht den Gegner des Hosts, Schuss des Gastes senkt dessen Leben beim Host (380 → 357), Angriff beim Host verletzt den Gast (100 → 89), Team-HUD auf beiden Seiten, Figur und Namensschild des Hosts beim Gast sichtbar. Der öffentliche PeerJS-Dienst selbst wurde nicht getestet (in dieser Umgebung nicht erreichbar).
+
+Grenzen: Der Host muss sein Fenster offen und sichtbar lassen, sonst bremst der Browser seine Spielberechnung und die Nacht steht für alle still. Fahrzeuge, Truhen, Händler und Bildstöcke gelten je Spieler (keine gemeinsamen Fahrzeuge). Geländeänderungen aus dem Editor werden nicht abgeglichen. In der Artifact-Vorschau ist WebRTC gesperrt; Teamspiel nur über GitHub Pages oder einen eigenen Server. Gegner der Gäste wandern 12-mal pro Sekunde nach, bei schlechter Verbindung sichtbar ruckelnd.
 
 ## Entwurf 27 · Lichter, Schnee und Nachtstimmung
 
@@ -261,3 +275,5 @@ Automatischer Durchlauf mit einem Browser-Bot (Weg über das Straßennetz, Siege
 - 2026-10-12, Codex: Entwurf 26 nach Lights ausdrücklicher Freigabe unter /nachtjagd/entwurf/?v=26 veröffentlicht (gh-pages 85eff13, Fast-Forward ohne Force). Genau 15 Spieldateien übernommen, separate Hausvorschau, modelltest und main unverändert. 203 Tests erneut grün. Live-Version, Menü, Modelle, Spielstart, HUD/Minikarte, Rückkehr ins Menü und fehlerfreie Konsole geprüft. Weitere Bildratenmessung auf Lights Hardware offen.
 
 - 2026-10-21, Claude: Entwurf 27 auf `claude/atmosphaere` (Basis `d495008`): Lampenfeld mit Fenstern, Türlaternen, Laternen, Kirchenlaternen und Burgfackeln, GPU-Schneefall nach Altay-Vorbild, Lampenkegel, Nachbearbeitung, kühlere Dämmerung und Abendmenü. 210 Tests, 23 Gelände- und 166 Spielprüfungen grün. Nicht nach main oder gh-pages gepusht.
+
+- 2026-10-25, Claude: Entwurf 28 auf `claude/teamspiel`: Musikregler und Stummschalter, Teamspiel für bis zu vier Spieler über Raumcode (Host rechnet, Gäste melden Treffer und Aktionen, K.o. mit Wiedereinstieg). 220 Tests, 23 Gelände- und 166 Spielprüfungen grün, Zwei-Browser-Test mit lokalem Vermittler bestanden. Nicht nach main oder gh-pages gepusht.
