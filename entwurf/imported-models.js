@@ -8,7 +8,8 @@ globalThis.NachtjagdImportedModels = (() => {
   // Auf GitHub Pages liegen die Modelle eine Ebene über dem Ordner entwurf/, in der Artifact-Vorschau neben der Seite.
   const scriptUrl = document.currentScript.src;
   const onPages = /\/entwurf\/[^/]*$/.test(new URL(scriptUrl).pathname);
-  const base = new URL(onPages ? '../assets/imported/' : './assets/imported/', scriptUrl);
+  // Verkleinerte Fassungen (tools/optimize-models.mjs) aus assets/opt/; die Originale bleiben unter assets/imported/.
+  const base = new URL(onPages ? '../assets/opt/' : './assets/imported/', scriptUrl);
   // Die Artifact-Vorschau liefert keine .glb-Dateien aus, dort liegen dieselben Bytes als Base64-Text unter der Endung .txt.
   const suffix = onPages ? '' : '.txt';
   // Vier gezackte Astetagen statt glatter Kegel. Eine Geometrie für alle Fernbäume,
@@ -48,7 +49,7 @@ globalThis.NachtjagdImportedModels = (() => {
   const files = {
     monster: 'monster.glb', wendigo: 'stylized_low-poly_wendigo.glb',
     pine: 'low_poly_forest_tree.glb', pack: 'low_poly_forest_tree_pack.glb',
-    dead: 'low-poly_trees.glb', jeep: 'willys_jeep_low_poly.glb', mountain: 'mountain_low_poly.glb'
+    dead: 'low-poly_trees.glb', mountain: 'mountain_low_poly.glb'
   };
   const meshes = object => {
     const result = [];
@@ -56,7 +57,8 @@ globalThis.NachtjagdImportedModels = (() => {
     object.traverse(node => { if (node.isMesh) result.push(node); });
     return result;
   };
-  function staticModel(parts, height = 1, yaw = 0, length = null) {
+  // far: gleich lange Liste vereinfachter Netze (Fernfassung aus tools/optimize-models.mjs) oder leer.
+  function staticModel(parts, height = 1, yaw = 0, length = null, far = []) {
     const group = new T.Group();
     for (const part of parts) {
       const geometry = part.geometry.clone().applyMatrix4(part.matrixWorld);
@@ -73,6 +75,14 @@ globalThis.NachtjagdImportedModels = (() => {
       mesh.geometry.translate(-center.x, -bounds.min.y, -center.z);
       mesh.geometry.scale(scale, scale, scale);
     }
+    // Fernfassung mit derselben Verschiebung und Skalierung wie das nahe Modell.
+    group.userData.far = parts.map((part, i) => {
+      const twin = far[i];
+      if (!twin) return null;
+      const geometry = twin.geometry.clone().applyMatrix4(twin.matrixWorld);
+      geometry.rotateY(yaw); geometry.translate(-center.x, -bounds.min.y, -center.z); geometry.scale(scale, scale, scale);
+      return geometry;
+    });
     return group;
   }
   // Jeder Gegner bekommt eigene Knochen; Geometrien und Texturen werden geteilt.
@@ -113,65 +123,9 @@ globalThis.NachtjagdImportedModels = (() => {
     mixer.stopAllAction();
     return { source, clips: gltf.animations, bounds };
   }
-  // Der Jeep ist im Download ein einziges Netz. Räder erkennt man als eigene, nicht verbundene Flächenstücke (Achse x, rund, über 50 cm);
-  // sie werden abgetrennt, um ihren Mittelpunkt verschoben und in Lenk- und Rollgruppen gehängt (Vertrag von vehicle-models.js).
-  function splitWheels(group) {
-    const mesh = group.children[0];
-    if (!mesh || !mesh.geometry.index) return group;
-    const geometry = mesh.geometry, position = geometry.attributes.position, index = geometry.index.array, triangles = index.length / 3;
-    const ids = new Map(), parent = [], vertex = new Int32Array(position.count);
-    const find = a => { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; };
-    for (let i = 0; i < position.count; i++) {
-      const key = Math.round(position.getX(i) * 1000) + ',' + Math.round(position.getY(i) * 1000) + ',' + Math.round(position.getZ(i) * 1000);
-      if (!ids.has(key)) { ids.set(key, parent.length); parent.push(parent.length); }
-      vertex[i] = ids.get(key);
-    }
-    for (let t = 0; t < triangles; t++) {
-      const a = find(vertex[index[t * 3]]);
-      for (const k of [1, 2]) { const b = find(vertex[index[t * 3 + k]]); if (a !== b) parent[b] = a; }
-    }
-    const parts = new Map(), point = new T.Vector3();
-    for (let t = 0; t < triangles; t++) {
-      const root = find(vertex[index[t * 3]]);
-      if (!parts.has(root)) parts.set(root, { list: [], box: new T.Box3() });
-      const part = parts.get(root); part.list.push(t);
-      for (let k = 0; k < 3; k++) part.box.expandByPoint(point.fromBufferAttribute(position, index[t * 3 + k]));
-    }
-    const wheels = [...parts.values()].filter(part => {
-      const size = part.box.getSize(new T.Vector3());
-      return part.list.length > 200 && size.y > .5 && size.x < .35 * size.y && Math.abs(size.y - size.z) < .15 * size.y;
-    });
-    if (wheels.length !== 4) return group;
-    const normal = geometry.attributes.normal, uv = geometry.attributes.uv;
-    function build(list, shift) {
-      const out = { position: [], normal: [], uv: [] };
-      for (const t of list) for (let k = 0; k < 3; k++) {
-        const i = index[t * 3 + k];
-        out.position.push(position.getX(i) - shift.x, position.getY(i) - shift.y, position.getZ(i) - shift.z);
-        if (normal) out.normal.push(normal.getX(i), normal.getY(i), normal.getZ(i));
-        if (uv) out.uv.push(uv.getX(i), uv.getY(i));
-      }
-      const g = new T.BufferGeometry();
-      g.setAttribute('position', new T.Float32BufferAttribute(out.position, 3));
-      if (normal) g.setAttribute('normal', new T.Float32BufferAttribute(out.normal, 3)); else g.computeVertexNormals();
-      if (uv) g.setAttribute('uv', new T.Float32BufferAttribute(out.uv, 2));
-      return g;
-    }
-    const wheelSet = new Set(wheels.flatMap(part => part.list));
-    const bodyList = []; for (let t = 0; t < triangles; t++) if (!wheelSet.has(t)) bodyList.push(t);
-    const result = new T.Group(), body = new T.Mesh(build(bodyList, new T.Vector3()), mesh.material);
-    body.castShadow = body.receiveShadow = true; result.add(body);
-    for (const part of wheels) {
-      const center = part.box.getCenter(new T.Vector3()), size = part.box.getSize(new T.Vector3());
-      const steer = new T.Group(), spin = new T.Group(), tire = new T.Mesh(build(part.list, center), mesh.material);
-      tire.castShadow = true; steer.name = 'wheelSteer'; steer.position.copy(center);
-      steer.userData = { front: center.z > 0, radius: size.y / 2 };
-      spin.add(tire); steer.add(spin); result.add(steer);
-    }
-    return result;
-  }
   function prepare(key, gltf) {
-    const parts = meshes(gltf.scene);
+    const all = meshes(gltf.scene), parts = all.filter(p => !/__far$/.test(p.name));
+    const farOf = list => list.map(p => all.find(q => q.name === p.name + '__far') || null);
     if (key === 'monster') return staticModel(parts, 1.5);
     if (key === 'wendigo') return character(gltf);
     if (key === 'mountain') {
@@ -184,8 +138,8 @@ globalThis.NachtjagdImportedModels = (() => {
       geometry.translate(-center.x, 0, -center.z); geometry.computeBoundingSphere();
       return { geometry, map: mesh.material.map };
     }
-    if (key === 'pine') return [staticModel(parts)];
-    if (key === 'dead') return parts.filter(p => /^DeadTree_/.test(p.name)).map(p => staticModel([p]));
+    if (key === 'pine') return [staticModel(parts, 1, 0, null, farOf(parts))];
+    if (key === 'dead') return parts.filter(p => /^DeadTree_/.test(p.name)).map(p => staticModel([p], 1, 0, null, farOf([p])));
     if (key === 'pack') {
       const trunks = parts.filter(p => /^Tree_Trunk_/.test(p.name));
       const branches = parts.filter(p => /^Tree_Branches_/.test(p.name));
@@ -196,11 +150,9 @@ globalThis.NachtjagdImportedModels = (() => {
           const x = center(a), y = center(b);
           return Math.hypot(x.x-c.x, x.z-c.z) - Math.hypot(y.x-c.x, y.z-c.z);
         })[0];
-        return staticModel([trunk, nearest]);
+        return staticModel([trunk, nearest], 1, 0, null, farOf([trunk, nearest]));
       });
     }
-    // Der Download enthält eine Präsentationsfläche. Der Jeep blickt ursprünglich nach +X.
-    if (key === 'jeep') return splitWheels(staticModel(parts.filter(p => !/ground/i.test(p.name)), 1, -Math.PI/2, 4.2));
   }
   const loading={};
   const ready = Promise.all(Object.entries(files).map(([key, file]) => loading[key]=(async()=>{
@@ -212,6 +164,10 @@ globalThis.NachtjagdImportedModels = (() => {
     }
   })()));
   const treesReady=Promise.all(['pine','pack','dead'].map(key=>loading[key]));
+  // Die Kirche wird sofort mitgeladen, parallel zu den übrigen Modellen und zum Aufbau der Welt.
+  const churchModel = onPages ? new URL('church.glb', base).href : null;
+  const churchBytes = churchModel && typeof fetch === 'function' ? fetch(churchModel).then(r => { if (!r.ok) throw new Error('Kirche ' + r.status); return r.arrayBuffer(); }) : null;
+  churchBytes?.catch(() => {});
 
   function buildForest({ scene, placements, heightAt, forest, trunks }) {
     const root = new T.Group(), batches = [], dummy = new T.Object3D();
@@ -287,13 +243,14 @@ globalThis.NachtjagdImportedModels = (() => {
         if (!buckets[i].length) return;
         const bounds=new T.Sphere();new T.Box3().setFromObject(variant).getBoundingSphere(bounds);
         for(const {tree,index} of buckets[i])radii[index]=bounds.radius*(tree.height+tree.clearance);
-        for (const part of variant.children) {
+        variant.children.forEach((part, j) => {
+          // Jenseits des Schattenradius die vereinfachte Fassung desselben Modells (etwa ein Drittel der Dreiecke).
           const mesh = new T.InstancedMesh(part.geometry, part.material, buckets[i].length);
-          const far=new T.InstancedMesh(part.geometry,part.material,buckets[i].length);
+          const far=new T.InstancedMesh(variant.userData.far?.[j] || part.geometry,part.material,buckets[i].length);
           mesh.castShadow=true;far.castShadow=false;
           for(const m of [mesh,far]) {m.receiveShadow=true;m.frustumCulled=false;root.add(m);}
           batches.push({ mesh,far, trees: buckets[i] });
-        }
+        });
       });
       update(); forest.visible = trunks.visible = false;
       root.userData.treeCount = placements.length;
@@ -412,29 +369,17 @@ globalThis.NachtjagdImportedModels = (() => {
     if (group.userData.mixer) group.userData.mixer.uncacheRoot(group.userData.mixer.getRoot());
     group.userData.imported?.traverse(node => { if (node.isMesh) node.material.dispose(); });
   }
-  function installJeep(builders) {
-    const fallback = builders.jeep;
-    builders.jeep = function (THREE) {
-      const group = fallback(THREE);
-      const replace = () => {
-        if (!templates.jeep) return;
-        const light = group.userData.light, model = templates.jeep.clone(true), wheels = [];
-        // Räder (falls abtrennbar) zurück in den Vertrag von vehicle-models.js: spin rollt um x, steer lenkt die Vorderräder.
-        model.traverse(node => { if (node.name === 'wheelSteer') wheels.push({ spin: node.children[0], steer: node.userData.front ? node : null, radius: node.userData.radius }); });
-        group.clear(); group.add(model);
-        if (light) group.add(light, light.target);
-        group.userData = { wheels, light, imported: true };
-      };
-      if (templates.jeep) replace(); else ready.then(replace);
-      return group;
-    };
-  }
   async function loadChurch(options) {
     const churchBase=new URL('../church/',base);
     const {loadChurch:load}=await import(new URL('church-adapter.js',churchBase).href);
     // Artifact-Vorschau: die Kirche liegt wie die übrigen Modelle als Base64-Text neben der .glb-Endung.
-    const Loader=suffix?class extends T.GLTFLoader{loadAsync(url){return loadGltf(url+suffix);}}:T.GLTFLoader;
-    return load({THREE:T,GLTFLoader:Loader,baseURL:churchBase.href,...options});
+    let Loader=suffix?class extends T.GLTFLoader{loadAsync(url){return loadGltf(url+suffix);}}:T.GLTFLoader;
+    if(churchBytes) Loader=class extends T.GLTFLoader{async loadAsync(url){
+      if(url!==churchModel) return super.loadAsync(url);
+      const bytes=await churchBytes;
+      return new Promise((resolve,reject)=>this.parse(bytes,new URL('.',url).href,resolve,reject));
+    }};
+    return load({THREE:T,GLTFLoader:Loader,baseURL:churchBase.href,modelURL:churchModel,...options});
   }
-  return { ready, errors, pineGeometry, buildForest, buildBackdrop, decorateEnemy, updateEnemy, disposeEnemy, installJeep, loadChurch };
+  return { ready, errors, pineGeometry, buildForest, buildBackdrop, decorateEnemy, updateEnemy, disposeEnemy, loadChurch };
 })();

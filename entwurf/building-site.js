@@ -106,7 +106,7 @@
   function create({THREE:T,scene,specs,height,churchOrigin}) {
     const builder=root.NachtjagdVillageHouses.create(T),sources=[],houses=[];
     const group=new T.Group();group.name='VillageBuildings';scene.add(group);
-    const stone=new T.MeshLambertMaterial({color:0x9b9e9d});
+    const stone=new T.MeshLambertMaterial({name:'foundation',color:0x9b9e9d});
     // Nachtlicht wie im Altay-Original: ein Teil der Fenster leuchtet warm (reproduzierbar nach Lage gestreut),
     // neben jeder Haustür hängt eine kleine Laterne. Die Lichtwirkung selbst kommt aus dem Lampenfeld (lamp-field.js).
     const litGlass=new T.MeshLambertMaterial({color:0x2a1d12,emissive:0xffb35c,emissiveIntensity:.2,transparent:true,opacity:.94,side:T.DoubleSide});

@@ -50,6 +50,10 @@ gameplay-core.js enthält Spielzustand und Regeln ohne Three.js/DOM; gameplay.js
 Veröffentlichte Ansicht geprüft: alle 22 Gelände- und acht Spieladapterprüfungen bestanden; Spielstart, Schussverbrauch (6/30 auf 5/30), Nachladen (6/29), Pause/Fortsetzen und Layout-Rückkehr sichtbar bestätigt. Ein vollständiger manueller Durchlauf aller drei Siegel bleibt für die nächste Sitzung.
 
 
+### Verkleinerte Modelle und gemeinsame Oberflächen (Entwurf 29)
+
+Das Spiel lädt die Modelle aus `assets/opt/`, erzeugt mit `node tools/optimize-models.mjs` aus den unveränderten Originalen (ungenutzte Objekte und Texturen entfernt, Texturen verkleinert, Bäume mit vereinfachter Fernfassung `__far`). Der Willys-Jeep wird nicht mehr geladen; der Geländewagen ist ein eigenes Modell in `vehicle-models.js`. `surface-style.js` gibt allen selbst gebauten Baukörpern, Wegen und dem See Shader-Oberflächen (Mauerwerk, Putz, Holz, Schindeln, Pflaster, Schnee, Eis) nach Materialnamen.
+
 ### Modelltest: heruntergeladene Modelle
 
 Sechs vom Besitzer bereitgestellte GLBs unter `public/assets/imported/`. `imported-models.js` ersetzt Baum-, Gegner- und Jeepdarstellung auf dem Stand von `claude/spiellogik` (6cd178d). Die drei Baumdateien ergeben acht einzeln verteilte Varianten; die zusammengesetzte Datei `low-poly_trees.glb` wurde dafür in Einzelobjekte getrennt. Waldpositionen, Terrainpinsel, Kollisionen, Sitzplätze und Fahrphysik stammen weiterhin aus der Welt bzw. dem Spielkern. Der Jeep fährt, hat aber im heruntergeladenen Modell keine separaten beweglichen Räder. Der Wendigo hat ein eigenes Skelett und eine Schleifenanimation je Gegner; das zweite Monster ist statisch. Ladefehler behalten die bisherigen Platzhalter. Die originalen Downloads bleiben unverändert erhalten.
