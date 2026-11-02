@@ -1,6 +1,6 @@
 # STATUS
 
-Letzte Aktualisierung: 2026-11-02 (Claude, Entwurf 30 auf `claude/grafik-laden`)
+Letzte Aktualisierung: 2026-11-02 (Claude, Entwurf 30 auf gh-pages veröffentlicht, Bildrate auf echter Hardware offen)
 
 ## Entwurf 30 · Wege bündig, weniger Last
 
@@ -209,6 +209,7 @@ Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` un
 
 ## Übergabe-Log
 
+- 2026-11-02, Claude Code: Entwurf 30 nach gh-pages veröffentlicht (`05e8377`, Fast-Forward von `6b178a8`, kein Force), `entwurf/` inhaltsgleich mit `public/entwurf/`. 220 Node-Tests, 23 Gelände- und 166 Spielprüfungen grün. Live-Seite aus der Agentenumgebung nicht erreichbar.
 - 2026-11-02, Claude Code: Entwurf 29 auf Wunsch des Besitzers nach gh-pages veröffentlicht (`6b178a8`, Fast-Forward von `45a9794`, kein Force): `entwurf/` inhaltsgleich mit `public/entwurf/`, neu `assets/opt/`, dazu `assets/church/church-adapter.js` und `models/kit.js`. Live-Seite aus der Agentenumgebung nicht erreichbar, daher nicht geprüft.
 - 2026-11-02, Claude Code: Entwurf 29 auf `claude/grafik-laden` (Basis `b4cdd01`): verkleinerte Modelle unter `assets/opt/` (`tools/optimize-models.mjs`), Kirche parallel geladen, vereinfachte Fernbäume, gemeinsame Shader-Oberflächen (`surface-style.js`), Wege mit Pflaster/Fahrspur und Schneewällen, Seehäuser mit Dach, Wintersee, eigener Geländewagen. 220 Node-Tests, 23 Gelände- und 166 Spielprüfungen grün. Nicht veröffentlicht; gh-pages wartet auf Lights Freigabe.
 - 2026-11-02, Claude Code: Entwurf 28 (`3d66c91`) nach Lights ausdrücklicher Freigabe unter `/nachtjagd/entwurf/` veröffentlicht (Release `45a9794` auf gh-pages, Fast-Forward von `85eff13`, kein Force). `public/entwurf/` nach `entwurf/` übernommen: 15 Dateien, davon neu `coop.js`, `lamp-field.js`, `night-fx.js`, `post-fx.js`; danach inhaltsgleich mit `public/entwurf/`. `public/assets/church/` übernommen, ohne Änderung; die zusätzlichen Dateien unter `assets/church/` auf gh-pages bleiben erhalten. 220/220 Node-Tests auf `3d66c91` grün. Nicht geprüft: Die Live-Seite https://risinghurricane.github.io/nachtjagd/entwurf/?v=28 sowie unpkg.com und der öffentliche PeerJS-Dienst waren aus der Agentenumgebung nicht erreichbar (Netzwerksperre). Der Zwei-Browser-Test über den öffentlichen Vermittler (Raum eröffnen, Einladungslink in zweitem Fenster, beide sehen sich) steht daher weiter aus. Kein Push auf `main`, `modelltest/` unverändert.
