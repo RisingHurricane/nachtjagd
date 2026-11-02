@@ -5,7 +5,7 @@
 // (Ursprung am Boden unter der Mitte, Blick nach +z, +x zeigt nach links) und trägt in `userData`:
 //   wheels  [{ spin, steer|null, radius }]  drehende Räder (spin: Gruppe, die um x rollt; steer: Lenkgruppe um y)
 //   oars    [Gruppe, Gruppe]               Ruder (nur Boot)
-//   light   THREE.SpotLight                 Scheinwerfer (nur Geländewagen)
+//   headlight true                          Geländewagen: bekommt das gemeinsame Scheinwerferlicht, solange jemand fährt
 // `create` verwaltet die Meshes je Fahrzeug-Id, `buildStatic` baut Schienen, Stationen, Seile und Stützen.
 globalThis.NachtjagdVehicleModels = (() => {
   const lambert = (THREE, color, emissive = 0, extra = {}) => new THREE.MeshLambertMaterial({ color, emissive, ...extra });
@@ -161,9 +161,8 @@ globalThis.NachtjagdVehicleModels = (() => {
       // Feste Teile je Material zu einem Netz zusammenfassen (wenige Zeichenaufrufe); die Räder bleiben beweglich.
       mergeByMaterial(THREE, g, g.children.filter(o => o.isMesh), 'jeepBody');
       for (const w of wheels) mergeByMaterial(THREE, w.spin, w.spin.children.filter(o => o.isMesh), 'jeepWheel' + Math.sign(w.spin.parent.position.x));
-      const light = new THREE.SpotLight(0xfff0cf, 0, 45, 0.55, 0.5, 1);
-      light.position.set(0, 1.1, 1.9); light.target.position.set(0, 0.6, 12); g.add(light, light.target);
-      g.userData = { wheels, light };
+      // Scheinwerfer: ein gemeinsames Licht für alle Wagen (siehe create), hier nur die Ankerstelle.
+      g.userData = { wheels, headlight: true };
       return g;
     },
     cart(THREE) {
@@ -293,6 +292,10 @@ globalThis.NachtjagdVehicleModels = (() => {
   // ------------------------------------------------------------------ Verwaltung der Meshes
   function create({ THREE, scene }) {
     const root = new THREE.Group(); root.visible = false; scene.add(root);
+    // Ein einziges Scheinwerferlicht für alle Geländewagen: Jedes Licht kostet in jedem Material Rechenzeit,
+    // auch mit Stärke 0. Es hängt am ersten Wagen mit Fahrer, sonst aus.
+    const headlight = new THREE.SpotLight(0xfff0cf, 0, 45, 0.55, 0.5, 1);
+    headlight.position.set(0, 1.1, 1.9); headlight.target.position.set(0, 0.6, 12); root.add(headlight, headlight.target);
     const meshes = new Map(); let statics = null;
     function setStatic(object) {
       if (statics) { root.remove(statics); }
@@ -305,6 +308,7 @@ globalThis.NachtjagdVehicleModels = (() => {
       return g;
     }
     function update(vehicles, dt, clock) {
+      let lit = null;
       for (const v of vehicles) {
         const g = mesh(v), d = g.userData;
         let y = v.y;
@@ -316,9 +320,12 @@ globalThis.NachtjagdVehicleModels = (() => {
           w.spin.rotation.x += v.sp * dt / w.radius;
           if (w.steer) w.steer.rotation.y = v.steer || 0;
         }
-        if (d.light) { d.light.intensity = v.seats[0] !== null ? 3.2 : 0; }
+        if (d.headlight && !lit && v.seats[0] !== null) lit = g;
         if (d.oars && d.oars.length) d.oars.forEach((o, i) => { const s = i ? 1 : -1; o.rotation.set(0, s * (0.55 + Math.sin((v.ph || 0) + i * 0.4) * 0.35), s * (0.1 + Math.max(0, Math.cos((v.ph || 0) + i * 0.4)) * 0.25)); });
       }
+      if (lit && headlight.parent !== lit) lit.add(headlight, headlight.target);
+      if (!lit && headlight.parent !== root) root.add(headlight, headlight.target);
+      headlight.intensity = lit ? 3.2 : 0;
     }
     return { root, update, clear, setStatic, setVisible(v) { root.visible = v; } };
   }

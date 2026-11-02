@@ -1,6 +1,17 @@
 # STATUS
 
-Letzte Aktualisierung: 2026-11-02 (Claude, Entwurf 29 auf gh-pages veröffentlicht, Live-Prüfung offen)
+Letzte Aktualisierung: 2026-11-02 (Claude, Entwurf 30 auf `claude/grafik-laden`)
+
+## Entwurf 30 · Wege bündig, weniger Last
+
+Branch `claude/grafik-laden`, Basis Entwurf 29. Rückmeldung von Light: ruckelt weiterhin, die erhöhten Wege stören.
+
+- Wege: Die Fahrbahn lag 0,4 m über der Profillinie; neben Häusern und Kirche senkt `updateHeightGrid` den Boden zusätzlich bis unter die Hausböden, dort stand sie bis 0,9 m als Damm. Neu: `roadTop(profileY,x,z)` in `blockout.js` legt die Fahrbahn 5 cm über den höchsten Boden im Umkreis von 0,5 m, solange der Abstand unter 0,8 m liegt; ab 1,6 m bleibt das Profil (echte Dämme, Burgrampe), dazwischen gleitend. Sichtbare Fläche, Schneewälle, `streetHeight` und `shoulderHeight` nutzen dieselbe Formel, die Laufhöhe passt also zur Fläche. `NachtjagdRoads.create` hebt den Boden neben den Wegen zusätzlich um `lift` (0,35 m). Kirchweg jetzt 7–14 cm über dem Boden. Die Geländeprüfung „quer waagerecht“ misst das Profil statt der sichtbaren Fläche, weil diese dem Gelände folgt. Fahrbahnmaterial mit Tiefenversatz gegen Flimmern.
+- Ruckeln, gemessen in Headless-Chrome: JavaScript braucht pro Bild etwa 10 ms, der Rest ist Zeichenarbeit auf der Grafikkarte. Zeichenzeit nach Abschalten einzelner Teile (Software-Grafik, nur relativ): Wald etwa 40 %, Dorfhäuser etwa 20 % (auch Schattenwurf der Innenräume), Schatten etwa 15 %, Gelände etwa 15 %, Punktlichter etwa 12 %, halbe Auflösung spart etwa ein Drittel. In der Szene stehen 14 Lichtquellen, die meisten mit Stärke 0; Three.js rechnet jede in jedem Material mit.
+- Maßnahmen: ein gemeinsamer Scheinwerfer für alle Geländewagen statt einem Spotlicht je Wagen (`vehicle-models.js`, `headlight`); Bäume mit voller Form und Schatten nur noch bis 60 m statt 95 m (`SHADOW_RADIUS`), dahinter die vereinfachte Fassung; die Auflösung regelt schon ab 22 ms Bildzeit (unter etwa 45 Bildern pro Sekunde) nach und unter 11 ms wieder hoch (`perf.start`).
+- Versionskennung und Skriptzusätze auf 30.
+
+Validierung: 220/220 Node-Tests, 23/23 Gelände- und 166/166 Spielprüfungen im Browser. Nicht geprüft: Bildrate auf echter Hardware. Für eine echte Ursachenanalyse auf Lights Rechner: `?perf=1` zeigt Bildzeit und Renderzahlen.
 
 ## Entwurf 29 · Grafik und Ladezeit
 

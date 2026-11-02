@@ -3,7 +3,8 @@
 // Ausschließlich Darstellung: Spielregeln, Sitzplätze und Kollisionen bleiben beim Spielkern.
 globalThis.NachtjagdImportedModels = (() => {
   const T = THREE, templates = {}, errors = [];
-  const SHADOW_RADIUS = 95;
+  // Bis hierher volle Baumform mit Schatten, dahinter die vereinfachte Fernfassung ohne Schatten.
+  const SHADOW_RADIUS = 60;
   const MOUNTAIN_CUT = 10;
   // Auf GitHub Pages liegen die Modelle eine Ebene über dem Ordner entwurf/, in der Artifact-Vorschau neben der Seite.
   const scriptUrl = document.currentScript.src;

@@ -136,8 +136,10 @@ test('Fernkrone hat mehrere Astetagen, Vertexfarben und ein kleines Dreiecksbudg
 test('Geländewagen (eigenes Modell): vier Räder, Vorderräder lenkbar, Rollachse x, Räder berühren den Boden', () => {
   const c = { THREE: T, console };
   vm.runInNewContext(read('public/entwurf/vehicle-models.js').toString(), c);
-  const jeep = c.NachtjagdVehicleModels.builders.jeep(T), { wheels, light } = jeep.userData;
-  assert.ok(light && light.isSpotLight);
+  const jeep = c.NachtjagdVehicleModels.builders.jeep(T), { wheels, headlight } = jeep.userData;
+  assert.equal(headlight, true);
+  let ownLights = 0; jeep.traverse(o => { if (o.isLight) ownLights++; });
+  assert.equal(ownLights, 0, 'Wagen tragen kein eigenes Licht');
   assert.equal(wheels.length, 4);
   assert.equal(wheels.filter(w => w.steer).length, 2);
   for (const w of wheels) assert.ok(w.radius > .3 && w.radius < .7, `Radius ${w.radius}`);

@@ -2,7 +2,9 @@
 
 // Gemeinsames Straßennetz: begrenzte Längsneigung und waagerechte Querschnitte.
 globalThis.NachtjagdRoads = {
-  create({ routes, height, anchors = [], maxGrade = .18 }) {
+  // lift: Der Boden neben und unter der Fahrbahn wird um diesen Betrag über das Profil gehoben, damit die (in blockout.js
+  // um 0,4 m über dem Profil gezeichnete) Fahrbahn bündig im Gelände liegt statt als Damm darüber.
+  create({ routes, height, anchors = [], maxGrade = .18, lift = 0 }) {
     const nodes = [], edges = [], segments = [], nodeMap = new Map(), buckets = new Map();
     const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
     const key = (x,z) => Math.round(x*1000)+','+Math.round(z*1000);
@@ -92,8 +94,8 @@ globalThis.NachtjagdRoads = {
           // Unter der Fahrbahn und auf dem Randstreifen zählt der nächstgelegene Abschnitt. Der tiefste Abschnitt der ganzen
           // Reichweite (8 m und mehr) ließ die Straße am Hang bis zu 1,5 m über dem Boden schweben. Wo sich Wege auf
           // verschiedenen Höhen nahe kommen, senkt blockout.js (settleRoads) den Boden unter der Fahrbahn ab.
-          if(edge<=0 && p.distance<bodyDistance-.0001) { bodyDistance=p.distance; body=p.y; }
-          if(edge<best) { best=edge; target=p.y; const t=clamp(edge/7,0,1); weight=1-t*t*(3-2*t); }
+          if(edge<=0 && p.distance<bodyDistance-.0001) { bodyDistance=p.distance; body=p.y+lift; }
+          if(edge<best) { best=edge; target=p.y+lift; const t=clamp(edge/7,0,1); weight=1-t*t*(3-2*t); }
         }
         return Math.min(bridgeCeiling,Number.isFinite(body)?body:ground+(target-ground)*weight);
       }
