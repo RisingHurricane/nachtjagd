@@ -30,26 +30,137 @@ globalThis.NachtjagdVehicleModels = (() => {
     wheels.push({ spin, steer: front ? steer : null, radius });
   }
 
-  const builders = {
-    jeep(THREE) {
-      const g = new THREE.Group(), wheels = [];
-      const body = lambert(THREE, 0x536252), iron = lambert(THREE, 0x29323a), seat = lambert(THREE, 0x5b4430), tire = lambert(THREE, 0x101212), hub = lambert(THREE, 0x8a9096);
-      const lamp = new THREE.MeshBasicMaterial({ color: 0xffe5a0 });
-      box(THREE, g, iron, 1.6, 0.18, 3.9, 0, 0.5, 0);                       // Rahmen
-      box(THREE, g, body, 1.78, 0.42, 3.3, 0, 0.8, -0.1);                  // Karosserie
-      box(THREE, g, body, 1.7, 0.4, 1.25, 0, 1.0, 1.3);                    // Motorhaube
-      box(THREE, g, iron, 1.9, 0.14, 0.2, 0, 0.62, 2.0);                   // Stoßstange vorn
-      box(THREE, g, iron, 1.9, 0.14, 0.2, 0, 0.62, -2.0);                  // Stoßstange hinten
-      for (const s of [-1, 1]) box(THREE, g, iron, 0.07, 0.62, 0.07, s * 0.82, 1.38, 0.7); // Scheibenrahmen
-      box(THREE, g, iron, 1.7, 0.07, 0.07, 0, 1.7, 0.7);
-      for (const s of [-1, 1]) box(THREE, g, iron, 0.07, 0.9, 0.07, s * 0.82, 1.55, -1.5); // Überrollbügel
-      box(THREE, g, iron, 1.7, 0.07, 0.07, 0, 2.0, -1.5);
-      for (const [x, z] of [[-0.43, -0.1], [0.43, -0.1], [-0.43, -1.15], [0.43, -1.15]]) {
-        box(THREE, g, seat, 0.5, 0.14, 0.5, x, 0.98, z);
-        box(THREE, g, seat, 0.5, 0.5, 0.1, x, 1.25, z - 0.25);
+  // Geteilte Materialien und Formen des Geländewagens (einmal je Seite erzeugt).
+  let jeepMat = null, jeepGeo = null;
+  function jeepMaterials(THREE) {
+    if (jeepMat) return jeepMat;
+    const c = (hex, extra = {}) => new THREE.MeshLambertMaterial({ color: new THREE.Color(hex).convertSRGBToLinear(), ...extra });
+    jeepMat = {
+      body: c('#56613f'), trim: c('#3d452e'), iron: c('#24292b'), floor: c('#30352a'), grille: c('#1c201d'),
+      seat: c('#53402b'), tire: c('#191a1a'), rim: c('#4d5739'), chrome: c('#a3a8a8'), snow: c('#e9eef1'), can: c('#5f5432'),
+      lamp: new THREE.MeshBasicMaterial({ color: 0xffe3a6 }), tail: c('#7a1b14', { emissive: new THREE.Color('#3a0904') }),
+      glass: c('#a9c3cc', { transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide })
+    };
+    return jeepMat;
+  }
+  function jeepGeometries(THREE) {
+    if (jeepGeo) return jeepGeo;
+    // Kotflügel: halber Ring (außen 0,56 m, innen 0,47 m), 0,38 m breit, in der Mitte zentriert.
+    const arch = new THREE.Shape();
+    arch.absarc(0, 0, 0.56, 0, Math.PI, false); arch.lineTo(-0.47, 0); arch.absarc(0, 0, 0.47, Math.PI, 0, true); arch.closePath();
+    const fender = new THREE.ExtrudeGeometry(arch, { depth: 0.38, bevelEnabled: false, curveSegments: 14 }); fender.translate(0, 0, -0.19);
+    // Motorhaube: flacher Zylinderausschnitt längs der Fahrtrichtung.
+    const hood = new THREE.CylinderGeometry(0.75, 0.75, 1.45, 18, 1, true, Math.PI - 0.9, 1.8);
+    hood.rotateX(Math.PI / 2); hood.scale(1, 0.3, 1); hood.translate(0, -0.141, 0);
+    const hoodSnow = hood.clone(); hoodSnow.scale(0.82, 1, 0.78); hoodSnow.translate(0, 0.012, 0);
+    jeepGeo = {
+      box: new THREE.BoxGeometry(1, 1, 1), fender, hood, hoodSnow,
+      lamp: new THREE.CylinderGeometry(0.11, 0.11, 0.06, 16), lampRing: new THREE.CylinderGeometry(0.135, 0.135, 0.04, 16),
+      tailLamp: new THREE.CylinderGeometry(0.05, 0.05, 0.04, 10), wheelRim: new THREE.TorusGeometry(0.17, 0.02, 6, 18),
+      tire: new THREE.CylinderGeometry(0.42, 0.42, 0.3, 22), rim: new THREE.CylinderGeometry(0.25, 0.25, 0.31, 14),
+      hub: new THREE.CylinderGeometry(0.08, 0.08, 0.33, 10), lug: new THREE.BoxGeometry(0.05, 0.05, 0.05),
+      spare: new THREE.CylinderGeometry(0.4, 0.4, 0.26, 22), spareHub: new THREE.CylinderGeometry(0.22, 0.22, 0.12, 14)
+    };
+    return jeepGeo;
+  }
+
+  // Ersetzt die Netze in `parent` durch ein Netz je Material. Das Ergebnis wird unter `key` zwischengespeichert,
+  // damit weitere Fahrzeuge derselben Art die Formen teilen.
+  const merged = {};
+  function mergeByMaterial(THREE, parent, list, key) {
+    if (!merged[key]) {
+      const buckets = new Map();
+      for (const mesh of list) {
+        mesh.updateMatrix();
+        const g = (mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone()).applyMatrix4(mesh.matrix);
+        if (!buckets.has(mesh.material)) buckets.set(mesh.material, { parts: [], shadow: false });
+        const b = buckets.get(mesh.material); b.parts.push(g); b.shadow = b.shadow || mesh.castShadow;
       }
-      for (const s of [-1, 1]) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), lamp); l.position.set(s * 0.55, 1.05, 1.95); g.add(l); }
-      for (const [x, z, front] of [[-0.96, 1.25, true], [0.96, 1.25, true], [-0.96, -1.25, false], [0.96, -1.25, false]]) wheel(THREE, g, wheels, x, 0.42, z, 0.42, 0.3, front, tire, hub);
+      merged[key] = [...buckets].map(([material, { parts, shadow }]) => {
+        const count = parts.reduce((n, p) => n + p.attributes.position.count, 0), out = new THREE.BufferGeometry();
+        for (const name of ['position', 'normal']) {
+          const values = new Float32Array(count * 3); let at = 0;
+          for (const p of parts) { values.set(p.attributes[name].array, at); at += p.attributes[name].array.length; }
+          out.setAttribute(name, new THREE.BufferAttribute(values, 3));
+        }
+        parts.forEach(p => p.dispose()); out.computeBoundingSphere();
+        return { geometry: out, material, shadow };
+      });
+    }
+    for (const mesh of list) parent.remove(mesh);
+    for (const { geometry, material, shadow } of merged[key]) {
+      const mesh = new THREE.Mesh(geometry, material); mesh.castShadow = shadow; mesh.receiveShadow = true; parent.add(mesh);
+    }
+  }
+
+  const builders = {
+    // Offener Geländewagen in einfachen, geschlossenen Formen: Wanne mit Sitzen, Motorhaube mit Grill,
+    // runde Kotflügel, Klappscheibe, Reserverad. Sitze und Räder liegen dort, wo vehicles.js sie erwartet.
+    jeep(THREE) {
+      const g = new THREE.Group(), wheels = [], m = jeepMaterials(THREE), G = jeepGeometries(THREE);
+      const add = (geometry, material, x, y, z, rx = 0, ry = 0, rz = 0, shadow = true) => {
+        const mesh = new THREE.Mesh(geometry, material); mesh.position.set(x, y, z); mesh.rotation.set(rx, ry, rz);
+        mesh.castShadow = shadow; mesh.receiveShadow = true; g.add(mesh); return mesh;
+      };
+      const part = (w, h, d, material, x, y, z, rx = 0) => { const mesh = add(G.box, material, x, y, z, rx); mesh.scale.set(w, h, d); return mesh; };
+      // Fahrgestell und Wanne
+      part(1.3, 0.16, 3.7, m.iron, 0, 0.48, 0);
+      part(1.62, 0.5, 2.25, m.body, 0, 0.83, -0.62);                            // Wanne
+      part(1.5, 0.06, 2.1, m.floor, 0, 0.6, -0.62);                             // Boden innen (sichtbar von oben)
+      for (const s of [-1, 1]) part(0.06, 0.08, 2.2, m.trim, s * 0.8, 1.1, -0.62); // Wannenkante
+      part(1.62, 0.08, 0.06, m.trim, 0, 1.1, -1.73);
+      // Motorhaube mit gewölbter Oberseite, Grill und Scheinwerfern
+      part(1.18, 0.5, 1.45, m.body, 0, 0.92, 1.18);
+      add(G.hood, m.body, 0, 1.17, 1.18, 0, 0, 0);
+      add(G.hoodSnow, m.snow, 0, 1.2, 1.12, 0, 0, 0, false);
+      part(1.2, 0.62, 0.08, m.grille, 0, 0.92, 1.92);
+      for (let i = -4; i <= 4; i++) part(0.04, 0.5, 0.04, m.iron, i * 0.11, 0.93, 1.965);
+      for (const s of [-1, 1]) {
+        add(G.lamp, m.lamp, s * 0.48, 1.08, 1.97, Math.PI / 2, 0, 0, false);
+        add(G.lampRing, m.chrome, s * 0.48, 1.08, 1.955, Math.PI / 2, 0, 0, false);
+      }
+      // Kotflügel: Bogen über jedem Rad, vorne mit Trittbrett verbunden
+      for (const s of [-1, 1]) {
+        for (const z of [1.25, -1.25]) add(G.fender, m.body, s * 0.96, 0.42, z, 0, Math.PI / 2, 0);
+        part(0.36, 0.06, 1.1, m.iron, s * 0.98, 0.56, 0);                       // Trittbrett
+        part(0.08, 0.32, 0.32, m.iron, s * 0.84, 0.85, -1.85);                  // Rücklichthalter
+        add(G.tailLamp, m.tail, s * 0.84, 0.92, -1.82, Math.PI / 2, 0, 0, false);
+      }
+      // Stoßstangen
+      part(1.9, 0.14, 0.16, m.iron, 0, 0.58, 2.02);
+      part(1.7, 0.14, 0.16, m.iron, 0, 0.58, -1.86);
+      for (const s of [-1, 1]) part(0.08, 0.16, 0.16, m.iron, s * 0.7, 0.66, 2.04);  // Zughaken
+      // Windschutzscheibe (Rahmen + Glas) und Lenkrad
+      for (const s of [-1, 1]) part(0.06, 0.62, 0.06, m.trim, s * 0.78, 1.42, 0.42, -0.2);
+      part(1.62, 0.06, 0.06, m.trim, 0, 1.72, 0.36, -0.2);
+      part(1.62, 0.06, 0.06, m.trim, 0, 1.12, 0.48, -0.2);
+      part(1.5, 0.54, 0.02, m.glass, 0, 1.42, 0.42, -0.2).castShadow = false;
+      add(G.wheelRim, m.iron, -0.43, 1.18, 0.22, -1.0, 0, 0, false);
+      part(0.04, 0.04, 0.4, m.iron, -0.43, 1.06, 0.32, -1.0);
+      // Sitze: Polster und Lehne
+      for (const [x, z] of [[-0.43, -0.1], [0.43, -0.1], [-0.43, -1.15], [0.43, -1.15]]) {
+        part(0.5, 0.14, 0.5, m.seat, x, 0.98, z);
+        part(0.5, 0.48, 0.1, m.seat, x, 1.25, z - 0.25, 0.12);
+      }
+      // Überrollbügel, Reserverad und Kanister am Heck
+      for (const s of [-1, 1]) part(0.06, 0.82, 0.06, m.trim, s * 0.76, 1.5, -1.6);
+      part(1.58, 0.06, 0.06, m.trim, 0, 1.9, -1.6);
+      add(G.spare, m.tire, 0, 1.05, -1.98, Math.PI / 2, 0, 0);
+      add(G.spareHub, m.rim, 0, 1.05, -2.06, Math.PI / 2, 0, 0, false);
+      part(0.18, 0.42, 0.28, m.can, 0.62, 1.05, -1.92);
+      // Räder: Reifen mit Profilringen, Felge in Wagenfarbe
+      for (const [x, z, front] of [[-0.96, 1.25, true], [0.96, 1.25, true], [-0.96, -1.25, false], [0.96, -1.25, false]]) {
+        const steer = new THREE.Group(), spin = new THREE.Group();
+        steer.position.set(x, 0.42, z); steer.add(spin); g.add(steer);
+        for (const [geometry, material, dx] of [[G.tire, m.tire, 0], [G.rim, m.rim, Math.sign(x) * 0.02], [G.hub, m.chrome, Math.sign(x) * 0.04]]) {
+          const mesh = new THREE.Mesh(geometry, material); mesh.rotation.z = Math.PI / 2; mesh.position.x = dx; mesh.castShadow = true; spin.add(mesh);
+        }
+        for (let k = 0; k < 4; k++) { const lug = new THREE.Mesh(G.lug, m.iron); lug.position.set(Math.sign(x) * 0.15, Math.cos(k * Math.PI / 2) * 0.12, Math.sin(k * Math.PI / 2) * 0.12); spin.add(lug); }
+        wheels.push({ spin, steer: front ? steer : null, radius: 0.42 });
+      }
+      // Feste Teile je Material zu einem Netz zusammenfassen (wenige Zeichenaufrufe); die Räder bleiben beweglich.
+      mergeByMaterial(THREE, g, g.children.filter(o => o.isMesh), 'jeepBody');
+      for (const w of wheels) mergeByMaterial(THREE, w.spin, w.spin.children.filter(o => o.isMesh), 'jeepWheel' + Math.sign(w.spin.parent.position.x));
       const light = new THREE.SpotLight(0xfff0cf, 0, 45, 0.55, 0.5, 1);
       light.position.set(0, 1.1, 1.9); light.target.position.set(0, 0.6, 12); g.add(light, light.target);
       g.userData = { wheels, light };
@@ -113,7 +224,6 @@ globalThis.NachtjagdVehicleModels = (() => {
     }
   };
 
-  NachtjagdImportedModels.installJeep(builders);
 
   // ------------------------------------------------------------------ Schienen, Seilbahn
   function buildStatic(THREE, { world, layout }) {

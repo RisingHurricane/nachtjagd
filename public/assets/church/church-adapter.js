@@ -2,7 +2,7 @@
 
 // Ohne Eingriff in die Spielwelt; GLTFLoader und THREE kommen vom aufrufenden Spiel.
 export async function loadChurch({ THREE, GLTFLoader, origin, rotationY = 0,
-  baseURL = new URL('./', import.meta.url).href }) {
+  baseURL = new URL('./', import.meta.url).href, modelURL = null }) {
   const base = new URL(baseURL, import.meta.url);
   const getJSON = async (name) => {
     const response = await fetch(new URL(name, base));
@@ -10,7 +10,7 @@ export async function loadChurch({ THREE, GLTFLoader, origin, rotationY = 0,
     return response.json();
   };
   const [gltf, manifest, collision] = await Promise.all([
-    new GLTFLoader().loadAsync(new URL('church.glb', base).href),
+    new GLTFLoader().loadAsync(modelURL || new URL('church.glb', base).href),
     getJSON('church-manifest.json'), getJSON('church-collision.json')
   ]);
   const root = new THREE.Group();

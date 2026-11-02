@@ -45,13 +45,13 @@
   scene.background = sky.apply(layoutSky);
   const colors = { ground: '#e4e7df', house: '#d6ba92', landmark: '#b59370', forest: '#658777', path: '#dfe6eb', castle: '#8a9aab', viaduct: '#b7ad97', water: '#8eb0bc', hill: '#bac3b4' };
   const materials = {};
-  for (const [key, value] of Object.entries(colors)) materials[key] = new THREE.MeshLambertMaterial({ color: new THREE.Color(value).convertSRGBToLinear() });
+  for (const [key, value] of Object.entries(colors)) materials[key] = new THREE.MeshLambertMaterial({ name: key, color: new THREE.Color(value).convertSRGBToLinear() });
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1), coneGeometry = NachtjagdImportedModels.pineGeometry();
   materials.forest.vertexColors = true; materials.forest.color.setRGB(1,1,1);
   const edgeGeometry = new THREE.EdgesGeometry(boxGeometry);
   const edgeMaterial = new THREE.LineBasicMaterial({ color: '#526266', transparent: true, opacity: .3 });
   const colliders = [], anchors = [], roadMeshes = [], labelAnchors = [], treePlacements = [], coverPlacements=[];
-  const roadVertices=[],roadIndices=[],roadRanges=[];
+  const roadVertices=[],roadIndices=[],roadRanges=[],roadInfo=[];
   const labels = new THREE.Group();
   scene.add(labels);
   const layout = NachtjagdLayout;
@@ -261,6 +261,8 @@
           const px = x + dz / length * offset, pz = z - dx / length * offset;
           const height=segment.bridge?viaduct.top(viaduct.coordinates(x,z).s)-.4:an.y+(bn.y-an.y)*j/count;
           vertices.push(px,height+.4,pz);
+          // Oberflächenwerte für surface-style.js: Randnähe (0 Mitte, 1 Rand) und Lage außerhalb des Dorfs (0 Pflaster, 1 Feldweg).
+          roadInfo.push(Math.abs(k/across-.5)*2,smooth(-4,6,layout.villageDistance(px,pz)));
           if (j < count && k < across) {
             const index = j * (across + 1) + k, next = index + across + 1;
             indices.push(index, next, index + 1, index + 1, next, next + 1);
@@ -342,7 +344,7 @@
     const count=Math.ceil(length*2),first=skirtVertices.length/3;
     for(let j=0;j<=count;j++) for(const side of [-.5,.5]) {
       const x=an.x+dx*j/count+dz/length*segment.width*side,z=an.z+dz*j/count-dx/length*segment.width*side;
-      skirtVertices.push(x,0,z,x,0,z); skirtData.push({segment,x,z});
+      skirtVertices.push(x,0,z,x,0,z); skirtData.push({segment,x,z,ox:dz/length*side*2,oz:-dx/length*side*2});
     }
     for(let j=0;j<count;j++) for(let si=0;si<2;si++) {
       const a=first+(j*2+si)*2,c=first+((j+1)*2+si)*2;
@@ -351,17 +353,21 @@
   }
   const roadGeometry=new THREE.BufferGeometry();
   roadGeometry.setAttribute('position',new THREE.Float32BufferAttribute(roadVertices,3)); roadGeometry.setIndex(roadIndices); roadGeometry.computeVertexNormals();
+  roadGeometry.setAttribute('sfInfo',new THREE.Float32BufferAttribute(roadInfo,2));
   const roadMesh=new THREE.Mesh(roadGeometry,materials.path); roadMesh.receiveShadow=true; scene.add(roadMesh); roadMeshes.push(roadMesh);
   roadNetwork.segments.filter(s=>!s.stairs).forEach(skirt);
   const skirtGeometry=new THREE.BufferGeometry();
   skirtGeometry.setAttribute('position',new THREE.Float32BufferAttribute(skirtVertices,3)); skirtGeometry.setIndex(skirtIndices);
-  const skirtMaterial=materials.path.clone(); skirtMaterial.side=THREE.DoubleSide; skirtMaterial.color.multiplyScalar(.8);
+  // Schneewälle statt senkrechter Seitenwände: flach nach außen abfallend, Farbe wie der Schnee daneben.
+  const skirtMaterial=materials.path.clone(); skirtMaterial.side=THREE.DoubleSide; skirtMaterial.name='path-bank';
   const skirtMesh=new THREE.Mesh(skirtGeometry,skirtMaterial); skirtMesh.receiveShadow=true; scene.add(skirtMesh);
   function updateSkirts() {
     const p=skirtGeometry.attributes.position;
-    skirtData.forEach(({segment,x,z},i)=>{
-      const top=roadNetwork.project(segment,x,z).y+.4,bottom=Math.min(groundHeight(x,z),top)-.25;
-      p.setY(i*2,top); p.setY(i*2+1,bottom);
+    skirtData.forEach(({segment,x,z,ox,oz},i)=>{
+      const top=roadNetwork.project(segment,x,z).y+.4,drop=Math.max(.3,top-Math.min(groundHeight(x,z),top)+.25);
+      const reach=Math.min(4,Math.max(.8,drop*1.6)),bx=x+ox*reach,bz=z+oz*reach;
+      const bottom=Math.min(groundHeight(bx,bz),top)-.2;
+      p.setY(i*2,top); p.setXYZ(i*2+1,bx,bottom,bz);
     });
     p.needsUpdate=true; skirtGeometry.computeVertexNormals(); skirtGeometry.computeBoundingSphere();
   }
@@ -848,6 +854,7 @@
     navigationBudget=3;
     if (sculpting && now - lastSculpt >= 50) { applySculpt(Math.min((now - lastSculpt) / 1000, .1)); lastSculpt = now; }
     sky.update(camera, dt);
+    NachtjagdSurface.update(camera);
     // Im vollständig undurchsichtigen Nebel ist der Wald unsichtbar; seine Formen bleiben erhalten.
     importedForest.lod(camera,gameplay?.active&&scene.fog?.density>0?2.63/scene.fog.density:Infinity);
     importedForest.root.visible=!(mines.indoor(camera.position.x,camera.position.y-1.75,camera.position.z)&&groundHeight(camera.position.x,camera.position.z)>camera.position.y+2);
@@ -898,7 +905,7 @@
     if(inMenu) scene.background=sky.apply(menuSky); else if(menuSkyOn&&!gameplay?.active) scene.background=sky.apply(layoutSky);
     menuSkyOn=inMenu;
     const nightK=gameplay?.active?Math.max(0,Math.min(1,(.38+.62*sky.state.night)*(1-sky.state.sunrise))):inMenu?.62:0;
-    if(now-lampPatchTime>1500){lampField.patchScene();lampPatchTime=now;}
+    if(now-lampPatchTime>1500){NachtjagdSurface.styleScene(THREE,scene);lampField.patchScene();lampPatchTime=now;}
     lampField.update(camera,dt,{k:nightK,scale:renderer.domElement.height*.66,fogDensity:scene.fog?.density||0});
     lampField.setVisible(nightK>.01);
     buildings.setNight(nightK);
@@ -1210,7 +1217,7 @@
     }
     views.gondola={target:[(st[0].x+st[1].x)/2,(st[0].y+st[1].y)/2,(st[0].z+st[1].z)/2],distance:420,yaw:.9,polar:.95,name:'Gondelbahn · Talstation und Bergstation · zwei Kabinen'};
     views.talstation={target:[st[0].x,st[0].y+3,st[0].z],distance:30,yaw:-.4,polar:1.05,name:'Talstation der Gondelbahn'};
-    views.jeep={target:[jeep.x,gameFloor(jeep.x,jeep.z)+1,jeep.z],distance:28,yaw:.6,polar:.9,name:'Willys Jeep am Dorfrand'};
+    views.jeep={target:[jeep.x,gameFloor(jeep.x,jeep.z)+1,jeep.z],distance:28,yaw:.6,polar:.9,name:'Geländewagen am Dorfrand'};
     views.boats={target:[boat.x,world.waterLevel,boat.z],distance:45,yaw:.4,polar:.8,name:'Ruderboote am Seesteg · Platzhaltermodell'};
     views.carts={target:[world.rails.nodes[0].x,gameFloor(world.rails.nodes[0].x,world.rails.nodes[0].z)+1,world.rails.nodes[0].z],distance:40,yaw:.5,polar:.4,name:'Minenschienen mit Loren · Platzhaltermodell'};
   }

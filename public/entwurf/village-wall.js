@@ -176,7 +176,7 @@
     }
     function buildMeshes() {
       clearMeshes();
-      const materials={stone:new THREE.MeshLambertMaterial({color:0x777b79}),deck:new THREE.MeshLambertMaterial({color:0x8d908c}),stairs:new THREE.MeshLambertMaterial({color:0x777b79})};
+      const materials={stone:new THREE.MeshLambertMaterial({name:'wall-stone',color:0x777b79}),deck:new THREE.MeshLambertMaterial({name:'wall-deck',color:0x8d908c}),stairs:new THREE.MeshLambertMaterial({name:'wall-stairs',color:0x777b79})};
       const geometry=new THREE.BoxGeometry(1,1,1),dummy=new THREE.Object3D(),axis=new THREE.Vector3(1,0,0),direction=new THREE.Vector3();
       for(const key of Object.keys(parts)) {
         const list=parts[key];if(!list.length)continue;

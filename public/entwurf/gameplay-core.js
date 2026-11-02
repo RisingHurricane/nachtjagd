@@ -1313,6 +1313,11 @@
       melee, throwGrenade: () => throwNade(false), throwMolotov: () => throwNade(true),
       buy, closeShop, shopList, prompt, relicStatus, changeSeat,
       // Feste Fahrzeugdaten (Schienennetz, Gondelstrecke) für die Darstellung.
+      // Prüfhaken für Aufnahmen und Tests: Spieler an eine Stelle setzen (Höhe vom Boden), Blick optional.
+      teleport(x, z, yaw, pitch) {
+        if (!finite(x) || !finite(z) || P.ride) return false;
+        P.x = x; P.z = z; P.y = floorAt(x, z, 1e4); P.vx = P.vy = P.vz = 0; P.onGround = true; setLook(yaw, pitch); return true;
+      },
       layout: () => JSON.parse(JSON.stringify({ rails: fleet.info.rails || null, gondola: fleet.info.gondola || null })),
       // Gezieltes Auftauchen (Wächter an Siegeln, Tests, Prüfhaken); gibt die Gegner-Id zurück.
       spawn(kind, x, z, ready = true) {

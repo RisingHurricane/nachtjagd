@@ -49,10 +49,42 @@ globalThis.NachtjagdLandmarks = {
     for(const [dx,dz] of [[-15,13],[15,-10],[-20,-6]]) box(cx+dx,cz+dz,3,2,1.3,'castle',dx*.1);
     label('Klosterruine',cx,cz,20,72);
 
+    // Seehäuser: Baukörper und Kollision wie bisher, darauf Satteldach mit Schnee, Eckbalken, Tür und Fenster.
+    // Die Teile gehören nur zur Darstellung und folgen dem Haus bei Geländeänderungen (refresh).
+    const roofMaterial=new THREE.MeshLambertMaterial({name:'roof',color:new THREE.Color('#d9dfe4').convertSRGBToLinear()});
+    const beamMaterial=new THREE.MeshLambertMaterial({name:'darkWood',color:new THREE.Color('#4a3b2e').convertSRGBToLinear()});
+    const windowMaterial=new THREE.MeshLambertMaterial({color:0x2a1d12,emissive:0xffb35c,emissiveIntensity:.35});
+    const unit=new THREE.BoxGeometry(1,1,1),lakeHouses=[];
     for(const [x,z,w,d,rotation,height] of layout.lakeHomes) {
       const house=box(x,z,w,d,height,'house',rotation);
-      box(x,z,w+1,d+1,.6,'landmark',rotation,house.position.y+house.scale.y/2,false);
+      const g=new THREE.Group(),H=house.scale.y;g.rotation.y=rotation;scene.add(g);
+      const along=d>=w,span=along?w:d,length=(along?d:w)+.9,rise=span*.5;
+      const shape=new THREE.Shape();shape.moveTo(-span/2-.45,0);shape.lineTo(span/2+.45,0);shape.lineTo(0,rise);shape.closePath();
+      const roofGeometry=new THREE.ExtrudeGeometry(shape,{depth:length,bevelEnabled:false});roofGeometry.translate(0,0,-length/2);
+      if(!along) roofGeometry.rotateY(Math.PI/2);
+      const roof=new THREE.Mesh(roofGeometry,roofMaterial);roof.castShadow=roof.receiveShadow=true;g.add(roof);
+      const part=(px,py,pz,sx,sy,sz,material)=>{const m=new THREE.Mesh(unit,material);m.position.set(px,py,pz);m.scale.set(sx,sy,sz);m.castShadow=true;g.add(m);return m;};
+      // Eckbalken und Schwelle (relativ zur Oberkante des Hauses, y=0)
+      for(const sx of [-1,1]) for(const sz of [-1,1]) part(sx*(w/2+.02),-H/2,sz*(d/2+.02),.24,H,.24,beamMaterial);
+      for(const sz of [-1,1]) part(0,-.12,sz*(d/2+.03),w+.1,.22,.12,beamMaterial);
+      // Tür und zwei Fenster auf der Vorderseite (+z), ein Fenster hinten
+      part(0,-H+1.05,d/2+.05,1.05,2.1,.1,beamMaterial);
+      for(const sx of [-1,1]) part(sx*w*.28,-H+1.7,d/2+.05,.8,.7,.08,windowMaterial);
+      part(0,-H+1.7,-d/2-.05,.8,.7,.08,windowMaterial);
+      // Teile je Material zusammenfassen: drei Netze je Haus statt elf.
+      const buckets=new Map();
+      for(const m of g.children){m.updateMatrix();const geometry=(m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone()).applyMatrix4(m.matrix);if(!buckets.has(m.material))buckets.set(m.material,[]);buckets.get(m.material).push(geometry);}
+      g.clear();
+      for(const [material,list] of buckets){
+        const count=list.reduce((n,q)=>n+q.attributes.position.count,0),merged=new THREE.BufferGeometry();
+        for(const name of ['position','normal']){const values=new Float32Array(count*3);let at=0;for(const q of list){values.set(q.attributes[name].array,at);at+=q.attributes[name].array.length;}merged.setAttribute(name,new THREE.BufferAttribute(values,3));}
+        list.forEach(q=>q.dispose());merged.computeBoundingSphere();
+        const mesh=new THREE.Mesh(merged,material);mesh.castShadow=true;mesh.receiveShadow=true;g.add(mesh);
+      }
+      lakeHouses.push({house,g});
     }
+    function placeLakeHouses(){for(const {house,g} of lakeHouses) g.position.set(house.position.x,house.position.y+house.scale.y/2,house.position.z);}
+    placeLakeHouses();
     label('Seehäuser',-222,105,16,60);
     const islandTrees=layout.island.trees.map(([dx,dz],i)=>{
       const x=layout.island.x+dx,z=layout.island.z+dz,height=10+i*1.7;
@@ -78,6 +110,7 @@ globalThis.NachtjagdLandmarks = {
       stoneCount:positions.length,lakeHouseCount:layout.lakeHomes.length,islandTreeCount:islandTrees.length,islandTrees,
       refresh() {
         windWheel.position.y=groundHeight(...wind)+17;
+        placeLakeHouses();
         for(const tree of islandTrees) tree.crown.position.y=groundHeight(tree.x,tree.z)+4+tree.height/2;
       },
       floor(x,z) {

@@ -18,9 +18,10 @@ T.TextureLoader.prototype.load = function (url, onLoad) {
 vm.runInContext(read('public/entwurf/vendor/GLTFLoader.js').toString(), context);
 const Loader = T.GLTFLoader;
 const names = ['monster.glb', 'stylized_low-poly_wendigo.glb', 'low_poly_forest_tree.glb',
-  'low_poly_forest_tree_pack.glb', 'low-poly_trees.glb', 'willys_jeep_low_poly.glb', 'mountain_low_poly.glb'];
+  'low_poly_forest_tree_pack.glb', 'low-poly_trees.glb', 'mountain_low_poly.glb'];
 const loaded = new Map(await Promise.all(names.map(async name => {
-  const bytes = read('public/assets/imported/' + name);
+  // Das Spiel lädt die verkleinerten Fassungen (tools/optimize-models.mjs).
+  const bytes = read('public/assets/opt/' + name);
   const data = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
   const gltf = await new Promise((resolve, reject) => new Loader().parse(data, '', resolve, reject));
   return [name, gltf];
@@ -34,7 +35,7 @@ function api(fail = false) {
   return c.NachtjagdImportedModels;
 }
 
-test('Alle sieben echten GLBs laden; acht Baumvarianten bleiben nach Geländeänderungen am Boden', async () => {
+test('Alle sechs verkleinerten GLBs laden; acht Baumvarianten bleiben nach Geländeänderungen am Boden', async () => {
   const models = api(); await models.ready;
   assert.equal(models.errors.length, 0);
   const scene = new T.Scene(), forest = new T.Group(), trunks = new T.Group();
@@ -51,17 +52,6 @@ test('Alle sieben echten GLBs laden; acht Baumvarianten bleiben nach Geländeän
     mesh.getMatrixAt(0, matrix); assert.equal(matrix.elements[13], 21);
     mesh.geometry.computeBoundingBox(); assert.ok(mesh.geometry.boundingBox.min.y >= -1e-5);
   }
-});
-
-test('Jeep entfernt die Präsentationsfläche und passt zum Fahrzeugursprung', async () => {
-  const models = api(); await models.ready;
-  const builders = { jeep: () => { const g = new T.Group(); g.userData = { wheels: [] }; return g; } };
-  models.installJeep(builders);
-  const jeep = builders.jeep(T), bounds = new T.Box3().setFromObject(jeep), size = bounds.getSize(new T.Vector3());
-  assert.equal(jeep.userData.imported, true);
-  assert.ok(Math.abs(bounds.min.y) < 1e-5);
-  assert.ok(Math.abs(size.z - 4.2) < 1e-5);
-  assert.ok(size.x < 3 && size.y < 5);
 });
 
 test('Wendigos haben unabhängige Skelette und Animationen; fehlende Dateien behalten Platzhalter', async () => {
@@ -82,11 +72,11 @@ test('Wendigos haben unabhängige Skelette und Animationen; fehlende Dateien beh
   const forest = new T.Group(), trunks = new T.Group();
   const fallback = missing.buildForest({ scene: new T.Scene(), placements: [], heightAt: () => 0, forest, trunks });
   await missing.ready;
-  assert.equal(missing.errors.length, 7); assert.equal(fallback.root.children.length, 0);
+  assert.equal(missing.errors.length, 6); assert.equal(fallback.root.children.length, 0);
   assert.equal(forest.visible, true); assert.equal(trunks.visible, true);
 });
 
-test('Alle Entfernungen behalten die importierten Baumformen; nur nahe Modelle werfen Schatten', async () => {
+test('Alle Entfernungen behalten die importierten Baumformen (fern vereinfacht); nur nahe Modelle werfen Schatten', async () => {
   const models = api(); await models.ready;
   const placements = Array.from({ length: 60 }, (_, i) => ({ x: i * 10, z: 0, height: 15, clearance: 4, rx: 3, rz: 3 }));
   const geometry = new T.ConeGeometry(1, 1, 5), material = new T.MeshBasicMaterial();
@@ -102,8 +92,9 @@ test('Alle Entfernungen behalten die importierten Baumformen; nur nahe Modelle w
   const pairs=[];
   for(let i=0;i<result.root.children.length;i+=2) {
     const near=result.root.children[i],far=result.root.children[i+1];pairs.push([near,far]);
-    assert.equal(near.geometry,far.geometry);assert.equal(near.material,far.material);
+    assert.equal(near.material,far.material);
     assert.notEqual(far.geometry,geometry,'Fernbäume verwenden echte GLB-Geometrie');
+    assert.ok(far.geometry.index.count<=near.geometry.index.count,'Fernfassung hat höchstens so viele Dreiecke wie das nahe Modell');
     assert.equal(near.castShadow,true);assert.equal(far.castShadow,false);
     assert.equal(near.count+far.count,near.instanceMatrix.count);
   }
@@ -142,19 +133,19 @@ test('Fernkrone hat mehrere Astetagen, Vertexfarben und ein kleines Dreiecksbudg
   assert.ok(levels.size>8,'Krone besteht aus mehreren versetzten Astetagen');
 });
 
-test('Jeep: vier Räder getrennt, Vorderräder lenkbar, Rollachse x, Räder berühren den Boden', async () => {
-  const models = api(); await models.ready;
-  const builders = { jeep: () => { const g = new T.Group(); g.userData = { wheels: [] }; return g; } };
-  models.installJeep(builders);
-  const jeep = builders.jeep(T), { wheels } = jeep.userData;
+test('Geländewagen (eigenes Modell): vier Räder, Vorderräder lenkbar, Rollachse x, Räder berühren den Boden', () => {
+  const c = { THREE: T, console };
+  vm.runInNewContext(read('public/entwurf/vehicle-models.js').toString(), c);
+  const jeep = c.NachtjagdVehicleModels.builders.jeep(T), { wheels, light } = jeep.userData;
+  assert.ok(light && light.isSpotLight);
   assert.equal(wheels.length, 4);
   assert.equal(wheels.filter(w => w.steer).length, 2);
   for (const w of wheels) assert.ok(w.radius > .3 && w.radius < .7, `Radius ${w.radius}`);
-  // Räder liegen vorn und hinten, links und rechts
-  const centers = wheels.map(w => (w.steer || w.spin.parent).position);
-  assert.ok(centers.filter(c => c.z > 0).length === 2 && centers.filter(c => c.x > 0).length === 2);
-  // Rollen um x bewegt die Reifenoberfläche vorwärts-abwärts; die Reifenmitte bleibt am Ort
+  const centers = wheels.map(w => w.spin.parent.position);
+  assert.ok(centers.filter(p => p.z > 0).length === 2 && centers.filter(p => p.x > 0).length === 2);
   jeep.updateMatrixWorld(true);
+  const size = new T.Box3().setFromObject(jeep).getSize(new T.Vector3());
+  assert.ok(size.z > 3.6 && size.z < 4.4 && size.x < 2.4 && size.y < 2.2, `Maße ${size.x} ${size.y} ${size.z}`);
   const w = wheels[0], before = new T.Box3().setFromObject(w.spin).getCenter(new T.Vector3());
   w.spin.rotation.x = 1.2; jeep.updateMatrixWorld(true);
   const after = new T.Box3().setFromObject(w.spin).getCenter(new T.Vector3());
@@ -162,6 +153,13 @@ test('Jeep: vier Räder getrennt, Vorderräder lenkbar, Rollachse x, Räder ber�
   w.spin.rotation.x = 0; jeep.updateMatrixWorld(true);
   const lowest = Math.min(...wheels.map(x => new T.Box3().setFromObject(x.spin.parent).min.y));
   assert.ok(Math.abs(lowest) < .05, `unterste Radkante ${lowest}`);
+  // Feste Teile sind je Material zusammengefasst; zwei Wagen teilen Formen und Materialien
+  const bodies = g => g.children.filter(o => o.isMesh);
+  const other = c.NachtjagdVehicleModels.builders.jeep(T);
+  assert.ok(bodies(jeep).length <= 14, `Netze am Wagenkörper: ${bodies(jeep).length}`);
+  assert.equal(new Set(bodies(jeep).map(m => m.material)).size, bodies(jeep).length);
+  assert.equal(bodies(other)[0].geometry, bodies(jeep)[0].geometry);
+  for (const w of wheels) assert.ok(w.spin.children.length <= 4, 'Rad: höchstens vier Netze');
 });
 
 test('Gegnerdarstellung: Wendigo läuft über Knochen, Wolf schaukelt, fehlende Gegnerart bleibt Platzhalter', async () => {
@@ -202,4 +200,19 @@ test('Gebirgskulisse: Skirt abgeschnitten, sechs Klone teilen ein Netz, Dunstfar
   assert.ok(Math.abs(backdrop.root.children[3].material.color.r - 0.7) < 1e-6);
   // Der Ring liegt außerhalb der Spielwelt (mindestens 600 m von der Mitte)
   for (const m of backdrop.root.children) assert.ok(Math.hypot(m.position.x, m.position.z) > 550);
+});
+
+test('Fernbäume: vereinfachte Fassungen derselben Modelle mit deutlich weniger Dreiecken, gleicher Fußpunkt', async () => {
+  const models = api(); await models.ready;
+  const placements = Array.from({ length: 40 }, (_, i) => ({ x: i * 10, z: 0, height: 15, clearance: 4 }));
+  const result = models.buildForest({ scene: new T.Scene(), placements, heightAt: () => 0, forest: new T.Group(), trunks: new T.Group() });
+  await result.ready;
+  let near = 0, far = 0;
+  for (let i = 0; i < result.root.children.length; i += 2) {
+    const a = result.root.children[i].geometry, b = result.root.children[i + 1].geometry;
+    near += a.index ? a.index.count : a.attributes.position.count; far += b.index ? b.index.count : b.attributes.position.count;
+    b.computeBoundingBox(); a.computeBoundingBox();
+    assert.ok(Math.abs(b.boundingBox.min.y - a.boundingBox.min.y) < .05, 'Fernfassung steht auf demselben Boden');
+  }
+  assert.ok(far < near * 0.6, `Fern ${far} gegenüber nah ${near}`);
 });

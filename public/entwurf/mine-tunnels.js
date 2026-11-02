@@ -7,9 +7,9 @@ globalThis.NachtjagdMines = {
     const root=THREE&&scene?new THREE.Group():null;
     if(root)scene.add(root);
     const materials=THREE?{
-      rock:new THREE.MeshLambertMaterial({color:0x303936}),
+      rock:new THREE.MeshLambertMaterial({name:'mine-rock',color:0x303936}),
       floor:new THREE.MeshLambertMaterial({color:0x514b3f}),
-      timber:new THREE.MeshLambertMaterial({color:0x49392b}),
+      timber:new THREE.MeshLambertMaterial({name:'mine-timber',color:0x49392b}),
       rail:new THREE.MeshLambertMaterial({color:0x554633}),
       lamp:new THREE.MeshLambertMaterial({color:0x665a36,emissive:0xb99a42})
     }:null;

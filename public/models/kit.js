@@ -55,6 +55,8 @@ export function createKit(THREE, group, opt) {
     plaster: new THREE.MeshBasicMaterial({ name: 'interiorGlow', vertexColors: true }),
     backing: new THREE.MeshBasicMaterial({ name: 'windowBacking', color: 0x8a5a2c, side: THREE.DoubleSide }),
   };
+  // Namen für die gemeinsame Oberflächenzuordnung (entwurf/surface-style.js).
+  for (const [key, material] of Object.entries(M)) if (!material.name) material.name = 'kit-' + key;
 
   // Teilbereiche (Flügel) lassen sich gegen die Achsen drehen. frame(x, z, rot, fn) baut fn() in
   // lokalen Koordinaten um (x, z); Fenster und Collider werden in Weltkoordinaten umgerechnet.
