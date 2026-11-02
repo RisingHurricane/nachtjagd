@@ -1,6 +1,6 @@
 # STATUS
 
-Letzte Aktualisierung: 2026-10-25 (Claude, Entwurf 28 auf `claude/teamspiel`, noch nicht veröffentlicht)
+Letzte Aktualisierung: 2026-11-02 (Claude, Entwurf 28 auf gh-pages veröffentlicht, Live-Prüfung des Teamspiels offen)
 
 ## Entwurf 28 · Teamspiel und Musikregler
 
@@ -175,6 +175,8 @@ Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` un
 - Die Berge am Kartenrand ragen stellenweise ein Stück auf die Karte hinein (Kulisse). Das lässt sich verschieben, wenn es stört.
 
 ## Übergabe-Log
+
+- 2026-11-02, Claude Code: Entwurf 28 (`3d66c91`) nach Lights ausdrücklicher Freigabe unter `/nachtjagd/entwurf/` veröffentlicht (Release `45a9794` auf gh-pages, Fast-Forward von `85eff13`, kein Force). `public/entwurf/` nach `entwurf/` übernommen: 15 Dateien, davon neu `coop.js`, `lamp-field.js`, `night-fx.js`, `post-fx.js`; danach inhaltsgleich mit `public/entwurf/`. `public/assets/church/` übernommen, ohne Änderung; die zusätzlichen Dateien unter `assets/church/` auf gh-pages bleiben erhalten. 220/220 Node-Tests auf `3d66c91` grün. Nicht geprüft: Die Live-Seite https://risinghurricane.github.io/nachtjagd/entwurf/?v=28 sowie unpkg.com und der öffentliche PeerJS-Dienst waren aus der Agentenumgebung nicht erreichbar (Netzwerksperre). Der Zwei-Browser-Test über den öffentlichen Vermittler (Raum eröffnen, Einladungslink in zweitem Fenster, beide sehen sich) steht daher weiter aus. Kein Push auf `main`, `modelltest/` unverändert.
 
 - 2026-10-11, Codex: Entwurf 23 nach Lights Freigabe unter `/nachtjagd/entwurf/` veröffentlicht (Release `3e1196a`, Fast-Forward auf gh-pages, kein Force). https://risinghurricane.github.io/nachtjagd/entwurf/?v=23 zeigt die richtige Version; Spielstart, Welle 1, HUD/Minikarte und Pause im Live-Browser ohne Konsolenfehler geprüft. 184 Tests grün. main, modelltest und veröffentlichte Hausstudien unverändert; Hausmodelle 04 nicht mitveröffentlicht.
 
