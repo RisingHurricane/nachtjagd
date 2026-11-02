@@ -11,15 +11,15 @@ globalThis.NachtjagdSky = {
     // Farbsätze: Sonnenuntergang, Nacht, Morgengrauen (sRGB, werden einmal nach linear umgerechnet).
     const SET = {
       horizon:    [col('#f08a4b'), col('#2b3240'), col('#f4b48c')],
-      mid:        [col('#8a6578'), col('#1a202c'), col('#b98f98')],
-      zenith:     [col('#26345c'), col('#090d16'), col('#5d7090')],
+      mid:        [col('#6c5a7c'), col('#1a202c'), col('#b98f98')],
+      zenith:     [col('#1f2850'), col('#090d16'), col('#5d7090')],
       ground:     [col('#6a5258'), col('#10141b'), col('#8b7076')],
       sunCol:     [col('#ffb06a'), col('#8fa4d6'), col('#ffd2a8')],
       cloudLit:   [col('#ffb383'), col('#4b5565'), col('#ffd6b0')],
       cloudDark:  [col('#4a3f52'), col('#12161f'), col('#8a7a86')],
-      fog:        [col('#85686e'), col('#1d222c'), col('#cfa58f')],
+      fog:        [col('#5f5a74'), col('#1d222c'), col('#cfa58f')],
       lightCol:   [col('#ffbd8c'), col('#8196c9'), col('#ffc8a0')],
-      hemiSky:    [col('#98a0c4'), col('#4b5c7e'), col('#e0b6a4')],
+      hemiSky:    [col('#7d86b0'), col('#4b5c7e'), col('#e0b6a4')],
       hemiGround: [col('#5d4a48'), col('#1c2028'), col('#6e5b57')]
     };
     const blood = col('#4a1218'), greyTarget = new THREE.Color();

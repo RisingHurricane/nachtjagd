@@ -36,6 +36,12 @@
   scene.add(sun);
   const sky = NachtjagdSky.create({ THREE, scene, sun, hemi });
   const layoutSky = { night: 0, sunrise: 0, cover: .62, grey: 0, blood: 0, lightK: 1 };
+  // Lampenfeld und Nachbearbeitung nach dem Altay-Original (lamp-field.js, post-fx.js).
+  const lampField = NachtjagdLampField.create({ THREE, scene });
+  const postFx = NachtjagdPostFx.create({ THREE, renderer });
+  const noPost = new URLSearchParams(location.search).has('nopost');
+  let lampPatchTime = 0, menuSkyOn = false;
+  const menuSky = { night: .26, sunrise: 0, cover: .72, grey: 0, blood: 0, lightK: .72 };
   scene.background = sky.apply(layoutSky);
   const colors = { ground: '#e4e7df', house: '#d6ba92', landmark: '#b59370', forest: '#658777', path: '#dfe6eb', castle: '#8a9aab', viaduct: '#b7ad97', water: '#8eb0bc', hill: '#bac3b4' };
   const materials = {};
@@ -281,6 +287,9 @@
     labelAnchors.push({ sprite, x, z, height });
   }
   buildings=NachtjagdBuildings.create({THREE,scene,specs:buildingSpecs,height:groundHeight,churchOrigin});
+  // Türlaternen wirken als Lichtquelle, erleuchtete Fenster nur mit einem kleinen Lichthof.
+  lampField.add(buildings.nightLamps);
+  lampField.add(buildings.windows.map(w=>({...w,shade:false,halo:1.7,a:.17,c:[1,.66,.34],kind:'fenster'})));
   const houseMeshes=buildings.houses.map(h=>h.model);
   const viaductGroup = new THREE.Group();
   viaductGroup.position.set(viaduct.a[0],0,viaduct.a[1]);
@@ -432,11 +441,44 @@
   label('Viadukt · sieben Bögen', ...viaductMiddle, viaduct.top(viaduct.length/2)-groundHeight(...viaductMiddle)+14, 64);
   label('Hochgebirge · Norden', -20, -300, 28, 100);
   landmarks=NachtjagdLandmarks.create({THREE,scene,materials,box,label,groundHeight,streetHeight,layout});
-  const outdoor=NachtjagdOutdoor.create({THREE,scene,layout,routes,height:groundHeight,clearance:(x,z)=>roadNetwork.clearance(x,z),box,label,houses:[],
+  const outdoor=NachtjagdOutdoor.create({THREE,scene,layout,routes,height:groundHeight,clearance:(x,z)=>roadNetwork.clearance(x,z),box,label,houses:[],lightCount:0,
     occupied:(x,z)=>(x>77&&x<105&&z>-9&&z<28)||buildingSpecs.some(h=>{
       const p=h.toLocal(x,z);
       return h.plan.volumes.some(v=>p.x>v.x0-1&&p.x<v.x1+1&&p.z>v.z0-1&&p.z<v.z1+1)||h.approaches.some(a=>Math.hypot(a.x-x,a.z-z)<2);
     })});
+  // Laternen an Wegen und im Dorf als Lampen des Lampenfelds (ersetzen die drei echten Nahlichter).
+  const lanternLamps=()=>outdoor.lamps.map((l,i)=>({x:l.x,y:l.y,z:l.z,r:16,c:[1,.62,.3],k:.85,halo:4.6,a:.42,flick:i%7===3,kind:'laterne'}));
+  lampField.add(lanternLamps());
+  // Fackeln an der Burg: Torhaus außen und innen, neben den Palastüren und an der Turmtür (Modellkoordinaten).
+  const torchIron=new THREE.MeshLambertMaterial({color:0x2a2622}),torchWood=new THREE.MeshLambertMaterial({color:0x4a3624});
+  const torchStick=new THREE.CylinderGeometry(.035,.045,.62,6),torchBowl=new THREE.CylinderGeometry(.13,.07,.16,8);
+  function addTorch(x,y,z,lean) {
+    const g=new THREE.Group(),stick=new THREE.Mesh(torchStick,torchWood),bowl=new THREE.Mesh(torchBowl,torchIron);
+    stick.position.y=-.32;bowl.position.y=-.02;g.add(stick,bowl);g.position.set(x,y,z);g.rotation.x=lean.x;g.rotation.z=lean.z;scene.add(g);
+    lampField.add({x,y:y+.22,z,r:13,c:[1,.5,.2],k:.75,fire:true,halo:3.4,a:.46,kind:'fackel'});
+  }
+  castleSite.ready.then(site=>{
+    if(!site.walk)return;
+    const torches=[[.4,3.1,21.85,1],[7.6,3.1,21.85,1],[.4,3.1,16.15,-1],[7.6,3.1,16.15,-1],
+      [-14.3,2.7,1.85,1],[-9.7,2.7,1.85,1],[2.7,2.7,1.85,1],[7.3,2.7,1.85,1],[-5.1,2.6,6.95,1],[-1.9,2.6,6.95,1]];
+    for(const [lx,ly,lz,out] of torches) {
+      const p=site.walk.toWorld(lx,lz),q=site.walk.toWorld(lx,lz+out);
+      // Halter neigt sich leicht von der Wand weg
+      const dx=q.x-p.x,dz=q.z-p.z;
+      addTorch(p.x,castleOrigin.y+ly,p.z,{x:dz*.32,z:-dx*.32});
+    }
+  });
+  // Kirche: zwei Laternen neben dem Portal, gedämpftes Kerzenlicht im Schiff.
+  buildings.ready.then(church=>{
+    if(!church?.root)return;
+    const bounds=new THREE.Box3().setFromObject(church.root),front=bounds.max.z;
+    const lantern=new THREE.MeshLambertMaterial({color:0x3a2a14,emissive:0xffc477,emissiveIntensity:1.2});
+    for(const side of [-1,1]) {
+      const body=new THREE.Mesh(new THREE.BoxGeometry(.24,.34,.24),lantern);body.position.set(churchOrigin.x+side*2.4,churchOrigin.y+3,front+.16);scene.add(body);
+      lampField.add({x:body.position.x,y:body.position.y,z:front+.3,r:9,c:[1,.64,.32],k:.6,halo:3,a:.4,kind:'kirchenportal'});
+    }
+    for(const dz of [4,11,18]) lampField.add({x:churchOrigin.x,y:churchOrigin.y+2.6,z:front-dz,shade:false,halo:.9,a:.25,c:[1,.7,.4],flick:true,kind:'kerzen'});
+  });
   // Reproduzierbarer Wald; Wege, See und Gebäuderänder bleiben frei.
   let seed = 71;
   function random() { seed = (1664525 * seed + 1013904223) >>> 0; return seed / 4294967296; }
@@ -696,7 +738,7 @@
       dummy.position.y = groundHeight(tree.x,tree.z) + (tree.clearance + 2) / 2; dummy.scale.set(.4, tree.clearance + 2, .4); dummy.updateMatrix(); trunks.setMatrixAt(i, dummy.matrix);
     });
     importedForest.update();
-    outdoor.refresh(); updateBoxBatches();
+    outdoor.refresh(); updateBoxBatches(); lampField.remove('laterne'); lampField.add(lanternLamps());
     renderer.shadowMap.needsUpdate = true;
     forest.instanceMatrix.needsUpdate = true;
     trunks.instanceMatrix.needsUpdate = true;
@@ -850,7 +892,18 @@
     if(now-shadowTime>(gameplay?.active?100:400) || Math.hypot(camera.position.x-shadowX,camera.position.z-shadowZ)>6) {
       renderer.shadowMap.needsUpdate=true; shadowTime=now; shadowX=camera.position.x; shadowZ=camera.position.z;
     }
-    renderer.render(scene, camera);
+    // Lampenfeld: Stärke folgt der Dunkelheit im Spiel; in Layoutansichten (Tag) aus.
+    // Hauptmenü: Abendstimmung mit erleuchteten Fenstern wie im Altay-Original; beim Verlassen wieder Layoutlicht.
+    const inMenu=!gameplay?.active&&document.body.classList.contains('in-menu');
+    if(inMenu) scene.background=sky.apply(menuSky); else if(menuSkyOn&&!gameplay?.active) scene.background=sky.apply(layoutSky);
+    menuSkyOn=inMenu;
+    const nightK=gameplay?.active?Math.max(0,Math.min(1,(.38+.62*sky.state.night)*(1-sky.state.sunrise))):inMenu?.62:0;
+    if(now-lampPatchTime>1500){lampField.patchScene();lampPatchTime=now;}
+    lampField.update(camera,dt,{k:nightK,scale:renderer.domElement.height*.66,fogDensity:scene.fog?.density||0});
+    lampField.setVisible(nightK>.01);
+    buildings.setNight(nightK);
+    postFx.set({enabled:!noPost&&(!!gameplay?.active||document.body.classList.contains('in-menu')),bloom:perf.level<3});
+    postFx.render(scene, camera, dt);
     if (perfReport && !document.hidden) {
       if(elapsed<.25) timings.push(elapsed * 1000); if (timings.length > 120) timings.shift();
       if (timings.length % 20 === 0) perfReport.textContent = JSON.stringify({
@@ -1074,7 +1127,7 @@
   const startButton=document.querySelector('#play-start'),startLabel=startButton.textContent;
   const menuPlay=document.querySelector('#menu-play');menuPlay.disabled=true;
   startButton.disabled=true; startButton.textContent='Modelle werden geladen …';
-  gameplay=NachtjagdPlay.create({THREE,scene,camera,canvas,world,sky,layoutSky,backdrop,onStart:()=>{ toggleEditor(false); labels.visible=false; grid.visible=false; keys.clear(); drag=null; },onExit:()=>setView('village')});
+  gameplay=NachtjagdPlay.create({THREE,scene,camera,canvas,world,sky,layoutSky,backdrop,lamps:lampField,onStart:()=>{ toggleEditor(false); labels.visible=false; grid.visible=false; keys.clear(); drag=null; },onExit:()=>setView('village')});
   Promise.all([castleSite.ready,buildings.ready,importedForest.ready]).then(()=>{
   if(buildings.failed) {startButton.textContent='Kirche konnte nicht geladen werden';return;}
   if(!importedForest.root.userData.treeCount) {startButton.textContent='Baummodelle konnten nicht geladen werden · bitte neu laden';return;}

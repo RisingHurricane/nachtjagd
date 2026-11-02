@@ -133,6 +133,8 @@
       hay:mat('#baa474'), paper:mat('#cabb9d'), ember:mat('#d79044',{emissive:'#a44d19'}),
       lamp:mat('#edc98b',{emissive:'#a0793b'})
     };
+    // Namen erlauben spätere Zuordnung (z. B. warm leuchtende Fenster in building-site.js).
+    for (const [key, material] of Object.entries(palette)) if (!material.name) material.name = key;
     function build(w,d,height,type) {
       const layout=plan(w,d,height,type), group=new THREE.Group(); group.name=layout.name;
       const data={plan:layout,solids:[],surfaces:[],entries:[],rooms:[]};

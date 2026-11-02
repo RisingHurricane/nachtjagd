@@ -103,8 +103,13 @@
     if (!world || typeof world.floor !== 'function' || typeof world.blocked !== 'function') {
       throw new TypeError('world.floor und world.blocked sind erforderlich');
     }
-    const start = typeof world.spawn === 'function' ? world.spawn() : world.spawn;
+    let start = typeof world.spawn === 'function' ? world.spawn() : world.spawn;
     if (!Array.isArray(start) || start.length < 2 || !start.every(finite)) throw new TypeError('world.spawn muss [x,z] liefern');
+    // Teamspiel: Gäste beginnen leicht versetzt neben dem Host, sofern dort Platz ist.
+    if (Array.isArray(options.spawnShift) && options.spawnShift.length === 2 && options.spawnShift.every(finite)) {
+      const sx = start[0] + clamp(options.spawnShift[0], -6, 6), sz = start[1] + clamp(options.spawnShift[1], -6, 6), sy = world.floor(sx, sz, world.floor(start[0], start[1], 0));
+      if (finite(sy) && !world.blocked(sx, sz, sy)) start = [sx, sz];
+    }
     const initialY = world.floor(start[0], start[1], 0);
     const floorAt = (x, z, y) => { const f = world.floor(x, z, y); return finite(f) ? f : y; };
     const place = (o, i) => ({ ...o, id: o.id === undefined ? i : o.id, y: finite(o.y) ? o.y : floorAt(o.x, o.z, initialY) });
@@ -138,6 +143,14 @@
     const events = [];
     const emit = (type, data = {}) => events.push({ type, ...data });
     const P = state.player;
+    // Teamspiel: role 'host' rechnet Gegner, Wellen und Ziele für alle Spieler; 'guest' zeigt die Gegner des Hosts als
+    // Puppen und meldet eigene Treffer, Siegel und aufgehobene Vorräte. Ohne coop bleibt alles beim Solospiel.
+    const coop = options.coop && (options.coop.role === 'host' || options.coop.role === 'guest') ? options.coop.role : null;
+    const guest = coop === 'guest';
+    const RESPAWN_S = 12;
+    state.coop = coop; state.mates = [];
+    P.down = false; P.downT = 0;
+    let nextItemId = 1;
     const magOf = w => w.mag + state.up.mag * (w.mag >= 6 ? 2 : 1);
     const dmgK = () => 1 + 0.2 * state.up.dmg;
     const addReserve = (mult = 1) => { for (const w of state.weapons) if (w.owned) w.reserve = Math.min(w.max, w.reserve + Math.ceil(w.pick * mult)); };
@@ -261,7 +274,7 @@
       return true;
     }
     function dropItem(type, x, z, life = 45) {
-      if (state.items.length < 64) state.items.push({ type, x, z, y: floorAt(x, z, P.y), life, t: 0 });
+      if (state.items.length < 64) state.items.push({ id: nextItemId++, type, x, z, y: floorAt(x, z, P.y), life, t: 0 });
     }
     function kill(m, head) {
       if (m.state === 'dead') return;
@@ -271,15 +284,25 @@
       state.waves.alive = Math.max(0, state.waves.alive - 1);
       state.stats.kills++;
       state.stats.score += Math.round(spec.score * (head ? 1.5 : 1));
-      state.stats.lei += Math.round(spec.lei * (head ? 1.3 : 1));
-      emit('kill', { kind: m.kind, head: !!head, score: state.stats.score, lei: state.stats.lei, x: m.x, y: m.y, z: m.z });
+      const lei = Math.round(spec.lei * (head ? 1.3 : 1));
+      // Lei bekommt, wer den letzten Treffer gesetzt hat; Punkte zählen für das ganze Team.
+      if (m.by) emit('mateReward', { id: m.by, lei, kind: m.kind, head: !!head }); else state.stats.lei += lei;
+      emit('kill', { kind: m.kind, head: !!head, score: state.stats.score, lei: state.stats.lei, x: m.x, y: m.y, z: m.z, by: m.by || null });
       const roll = random();
       if (roll < 0.24) dropItem('ammo', m.x, m.z); else if (roll < 0.36 || m.kind === 'samca') dropItem('health', m.x, m.z);
     }
-    function hitMonster(m, damage, head, dir) {
+    function hitMonster(m, damage, head, dir, by = null) {
       if (m.state === 'dead') return;
       const spec = ENEMIES[m.kind];
       if (spec.unholy && state.up.silver) damage *= 1 + 0.35 * state.up.silver;
+      if (guest) {
+        // Gast: Der Host entscheidet über Leben und Abschuss; hier nur Rückmeldung und Meldung an den Host.
+        m.hit = 0.12; if (head) state.stats.head++;
+        emit('netHit', { id: m.id, damage: Math.round(damage * 10) / 10, head: !!head, dx: dir ? dir.x : 0, dz: dir ? dir.z : 0 });
+        emit('hit', { id: m.id, kind: m.kind, damage, head: !!head, hp: m.hp });
+        return;
+      }
+      if (by) m.by = by;
       m.hp -= damage; m.hit = 0.12;
       if (m.state === 'walk' && !spec.heavy && dir && !spec.air) shove(m, dir.x * 0.25, dir.z * 0.25);
       if (m.state === 'windup' && m.kind !== 'samca' && damage > 30) m.wind = Math.min(spec.wind, m.wind + 0.25);
@@ -316,16 +339,17 @@
       const x = m.x, y = m.y + 1, z = m.z;
       emit('explosion', { kind: 'bloater', x, y, z });
       const dp = Math.hypot(P.x - x, P.y + 1 - y, P.z - z);
-      if (dp < 5.5) { P.hurtT = 0; hurtPlayer(42 * (1 - dp / 5.5), false, 'bloater'); }
+      if (dp < 5.5 && !P.down) { P.hurtT = 0; hurtPlayer(42 * (1 - dp / 5.5), false, 'bloater'); }
+      for (const t of state.mates) { const dt3 = Math.hypot(t.x - x, t.y + 1 - y, t.z - z); if (dt3 < 5.5) { t.hurtT = 0; hurtTarget(t, 42 * (1 - dt3 / 5.5), false, 'bloater'); } }
       for (const o of state.monsters.slice()) {
         if (o === m || o.state === 'dead') continue;
         const d = Math.hypot(o.x - x, o.y + 1 - y, o.z - z);
         if (d < 6) hitMonster(o, 120 * (1 - d / 6), false, { x: (o.x - x) / (d || 1), z: (o.z - z) / (d || 1) });
       }
     }
-    function spit(m) {
+    function spit(m, aim = P) {
       const sx = m.x + Math.sin(m.yaw) * 0.5, sy = m.y + 1.55, sz = m.z + Math.cos(m.yaw) * 0.5;
-      const tx = P.x + P.vx * 0.3, ty = P.y + 1.2, tz = P.z + P.vz * 0.3, d = Math.hypot(tx - sx, tz - sz), T = Math.max(0.35, d / 15);
+      const tx = aim.x + (aim.vx || 0) * 0.3, ty = aim.y + 1.2, tz = aim.z + (aim.vz || 0) * 0.3, d = Math.hypot(tx - sx, tz - sz), T = Math.max(0.35, d / 15);
       state.acids.push({ x: sx, y: sy, z: sz, vx: (tx - sx) / T, vy: (ty - sy) / T + 0.5 * 13 * T, vz: (tz - sz) / T, t: 0, damage: ENEMIES[m.kind].damage });
       emit('spit', { x: sx, y: sy, z: sz });
     }
@@ -340,7 +364,9 @@
           if (finite(hit) && hit < sl - 1e-4) { wall = true; a.x = ox + (a.x - ox) / sl * hit; a.y = oy + (a.y - oy) / sl * hit; a.z = oz + (a.z - oz) / sl * hit; }
         }
         let end = false;
-        if (Math.hypot(P.x - a.x, P.z - a.z) < 0.85 && Math.abs(P.y + 1.1 - a.y) < 1.1) {
+        const mate = coop === 'host' ? state.mates.find(t => !t.down && Math.hypot(t.x - a.x, t.z - a.z) < 0.85 && Math.abs(t.y + 1.1 - a.y) < 1.1) : null;
+        if (mate) { hurtTarget(mate, a.damage, false, 'acid'); end = true; }
+        else if (!P.down && Math.hypot(P.x - a.x, P.z - a.z) < 0.85 && Math.abs(P.y + 1.1 - a.y) < 1.1) {
           const dead = hurtPlayer(a.damage, false, 'acid'); P.slowT = 1.8; emit('notice', { text: 'Säure: du wirst langsamer' }); end = true;
           if (dead) return;
         } else if (wall || a.y < floorAt(a.x, a.z, a.y + 0.5) + 0.05 || a.t > 4) end = true;
@@ -349,7 +375,7 @@
     }
     // Schaden am Spieler. Gibt true zurück, wenn der Spieler dabei stirbt.
     function hurtPlayer(damage, melee, source) {
-      if (state.phase !== 'playing' || P.hurtT > 0) return false;
+      if (state.phase !== 'playing' || P.hurtT > 0 || P.down) return false;
       if (P.bless > 0) damage *= 0.72;
       if (melee && state.relics.heart && state.time >= state.relics.heartReady) {
         state.relics.heartReady = state.time + 20; damage *= 0.5;
@@ -357,8 +383,38 @@
       }
       P.hp = Math.max(0, P.hp - damage); P.hurtT = 0.4;
       emit('hurt', { damage, hp: P.hp, kind: source });
-      if (!P.hp) { state.phase = 'dead'; emit('state', { phase: 'dead' }); return true; }
+      if (!P.hp) {
+        // Im Teamspiel geht nur dieser Spieler zu Boden und steigt nach kurzer Zeit wieder ein.
+        if (coop) { P.down = true; P.downT = RESPAWN_S; P.vx = P.vz = 0; if (P.ride) leaveVehicle(); emit('down', { t: RESPAWN_S }); checkWipe(); return true; }
+        state.phase = 'dead'; emit('state', { phase: 'dead' }); return true;
+      }
       return false;
+    }
+    // Nächster stehender Spieler (eigener oder Mitspieler) als Ziel eines Gegners.
+    function targetOf(m) {
+      let best = null, bd = Infinity;
+      const consider = (t) => { const d = Math.hypot(t.x - m.x, t.z - m.z) + Math.abs(t.y - m.y) * 0.5; if (d < bd) { bd = d; best = t; } };
+      if (!P.down) consider(P);
+      for (const t of state.mates) if (!t.down && t.hp > 0) consider(t);
+      return best;
+    }
+    function hurtTarget(t, damage, melee, source) {
+      if (t === P) return hurtPlayer(damage, melee, source);
+      if (state.phase !== 'playing' || t.down || t.hurtT > 0) return false;
+      t.hurtT = 0.4;
+      emit('mateHurt', { id: t.id, damage, melee: !!melee, kind: source });
+      return false;
+    }
+    // Alle am Boden: Das Team ist überrannt (entscheidet der Host).
+    function checkWipe() {
+      if (coop === 'host' && P.down && state.mates.every(t => t.down || t.hp <= 0) && state.phase === 'playing') {
+        state.phase = 'dead'; emit('state', { phase: 'dead' });
+      }
+    }
+    function respawn() {
+      P.down = false; P.downT = 0; P.hp = Math.round(P.maxHp * 0.6); P.hurtT = 1.5;
+      P.x = start[0]; P.z = start[1]; P.y = floorAt(start[0], start[1], P.y); P.vx = P.vy = P.vz = 0;
+      emit('respawn', { hp: P.hp });
     }
 
     // ------------------------------------------------------------------ Wellen
@@ -527,7 +583,7 @@
         }
       }
       const dp = Math.hypot(P.x - x, P.y + 1 - y, P.z - z);
-      if (dp < 5) { P.hurtT = 0; hurtPlayer(35 * (1 - dp / 5), false, 'grenade'); }
+      if (dp < 5 && !P.down) { P.hurtT = 0; hurtPlayer(35 * (1 - dp / 5), false, 'grenade'); }
     }
     function ignite(x, y, z) {
       if (typeof world.waterDepth === 'function' && world.waterDepth(x, z) > 0.25) { emit('splash', { x, y, z }); return; }
@@ -563,9 +619,9 @@
           for (const m of state.monsters.slice()) {
             const spec = ENEMIES[m.kind];
             if (m.state === 'dead' || spec.air) continue;
-            if (Math.hypot(m.x - f.x, m.z - f.z) < f.r + spec.rad * 0.5 && Math.abs(m.y - f.y) < 2.6) { m.hp -= 9 * dmgK(); m.hit = 0.1; if (m.hp <= 0) kill(m, false); }
+            if (Math.hypot(m.x - f.x, m.z - f.z) < f.r + spec.rad * 0.5 && Math.abs(m.y - f.y) < 2.6) hitMonster(m, 9 * dmgK(), false, null);
           }
-          if (Math.hypot(P.x - f.x, P.z - f.z) < f.r && Math.abs(P.y - f.y) < 2.4) { P.hurtT = 0; if (hurtPlayer(6, false, 'fire')) return; }
+          if (!P.down && Math.hypot(P.x - f.x, P.z - f.z) < f.r && Math.abs(P.y - f.y) < 2.4) { P.hurtT = 0; if (hurtPlayer(6, false, 'fire')) return; }
         }
         if (f.t <= 0) state.fires.splice(i, 1);
       }
@@ -577,6 +633,9 @@
       m.t += dt;
       if (m.hit > 0) m.hit = Math.max(0, m.hit - dt);
       if (spec.air) { updateAir(m, dt, spec); return; }
+      // P ist hier das Ziel dieses Gegners: der eigene Spieler oder ein Mitspieler.
+      const P = targetOf(m);
+      if (!P) { m.y = floorAt(m.x, m.z, m.y); return; }
       const dx = P.x - m.x, dz = P.z - m.z, dist = Math.hypot(dx, dz) || 0.001;
       m.lift = spec.fly ? 1.3 + Math.sin(m.t * 1.7 + m.seed) * 0.3 : 0;
       if (m.state === 'emerge') {
@@ -593,11 +652,11 @@
         if (m.wind > 0) return;
         m.wind = 0; m.state = 'walk'; m.attack = spec.cd;
         if (spec.explodes) { bloaterBoom(m); kill(m, false); return; }
-        if (spec.ranged && dist > spec.range * 1.5) { spit(m); return; }
+        if (spec.ranged && dist > spec.range * 1.5) { spit(m, P); return; }
         if (dist <= spec.range * 1.4 && Math.abs(P.y - m.y) < 2.5) {
           const ey = m.y + 1, ddx = P.x - m.x, ddy = P.y + 0.9 - ey, ddz = P.z - m.z, d = Math.hypot(ddx, ddy, ddz) || 1;
           const clear = typeof world.rayDistance !== 'function' || (() => { const ob = world.rayDistance({ x: m.x, y: ey, z: m.z }, { x: ddx / d, y: ddy / d, z: ddz / d }, d); return !finite(ob) || ob >= d - 0.45; })();
-          if (clear) hurtPlayer(spec.damage, true, m.kind);
+          if (clear) hurtTarget(P, spec.damage, true, m.kind);
         }
         return;
       }
@@ -608,7 +667,7 @@
         m.lift = Math.sin(k * Math.PI) * (m.kind === 'wolf' ? 0.8 : 1.05);
         m.yaw += angDiff(Math.atan2(pc.tx - pc.sx, pc.tz - pc.sz), m.yaw) * Math.min(1, dt * 12);
         if (!pc.done && Math.hypot(P.x - m.x, P.z - m.z) < 1.7 && Math.abs(P.y + 1 - (m.y + m.lift + 0.9)) < 1.6) {
-          pc.done = true; if (hurtPlayer(spec.damage + 4, true, m.kind)) return;
+          pc.done = true; if (hurtTarget(P, spec.damage + 4, true, m.kind)) return;
         }
         if (k >= 1) { m.state = 'walk'; m.pounceCd = 3.5 + random() * 2.5; m.attack = 0.4; m.lift = 0; }
         return;
@@ -672,6 +731,8 @@
     }
     // Flieger kreisen um den Spieler, stürzen herab und steigen wieder auf.
     function updateAir(m, dt, spec) {
+      const P = targetOf(m);
+      if (!P) return;
       const A = m.A, px = P.x, pz = P.z, py = P.y + 1.3;
       const dx = px - m.x, dz = pz - m.z, dy = py - m.y, dist = Math.hypot(dx, dz), d3 = Math.hypot(dist, dy);
       A.t += dt; A.cd -= dt;
@@ -685,10 +746,10 @@
           else { A.cd = 0.5 + random() * 0.8; A.ang += A.dir * (0.5 + random() * 0.7); }
         }
       } else if (A.ph === 'dive') {
-        tx = px + P.vx * 0.28; tz = pz + P.vz * 0.28; ty = py - 0.2; sp = spec.dive;
+        tx = px + (P.vx || 0) * 0.28; tz = pz + (P.vz || 0) * 0.28; ty = py - 0.2; sp = spec.dive;
         if (d3 < (m.kind === 'bat' ? 1.5 : 2.6) && !A.hit && los(m.x, m.y, m.z, px, py, pz)) {
           A.hit = true;
-          if (hurtPlayer(spec.damage, true, m.kind)) return;
+          if (hurtTarget(P, spec.damage, true, m.kind)) return;
           A.ph = 'rise'; A.t = 0; A.cd = spec.cd * (0.7 + random() * 0.7); A.dir *= -1;
         } else if (A.t > 3.4 || (m.y < floorAt(m.x, m.z, m.y + 2) + 0.9 && A.t > 0.5)) { A.ph = 'rise'; A.t = 0; A.cd = 1.8 + random() * 2.2; }
       } else {
@@ -847,7 +908,7 @@
     }
     function interact() {
       if (state.phase === 'shop') { closeShop(); return true; }
-      if (state.phase !== 'playing' || P.frozen) return false;
+      if (state.phase !== 'playing' || P.frozen || P.down) return false;
       const t = findInteract();
       if (!t) return false;
       if (t.type === 'leave') return leaveVehicle();
@@ -866,22 +927,30 @@
         emit('notice', { text: 'Bildstock: +30 Leben, Schutz für 25 s' }); emit('bless'); return true;
       }
       if (t.type === 'seal') {
-        const o = state.quest.objectives[t.index]; o.found = true; state.quest.got.push(o.id);
-        if (state.quest.got.length === 1) state.weapons[1].owned = true;
-        if (state.quest.got.length === 2) state.weapons[2].owned = true;
-        addReserve(1);
-        emit('objective', { id: o.id, name: o.name, found: state.quest.got.length });
-        sealGuard(o);
-        if (state.quest.objectives.length && state.quest.objectives.every(x => x.found)) {
-          state.quest.stage = 'bell'; emit('notice', { text: 'Alle Siegel gefunden. Läute die Glocke.' });
-        }
-        return true;
+        if (guest) { emit('netInteract', { what: 'seal', index: t.index }); return true; }
+        return takeSeal(t.index);
       }
       if (t.type === 'bell') {
-        state.quest.stage = 'final'; state.waves.finalT = 100; state.waves.spawnT = 1; state.waves.state = 'final'; state.waves.mod = 'blood';
-        emit('objective', { id: 'bell', name: 'Glocke geläutet' }); return true;
+        if (guest) { emit('netInteract', { what: 'bell' }); return true; }
+        return ringBell();
       }
       return false;
+    }
+    function takeSeal(index, by = null) {
+      const o = state.quest.objectives[index]; o.found = true; state.quest.got.push(o.id);
+      if (state.quest.got.length === 1) state.weapons[1].owned = true;
+      if (state.quest.got.length === 2) state.weapons[2].owned = true;
+      addReserve(1);
+      emit('objective', { id: o.id, name: o.name, found: state.quest.got.length, by });
+      sealGuard(o);
+      if (state.quest.objectives.length && state.quest.objectives.every(x => x.found)) {
+        state.quest.stage = 'bell'; emit('notice', { text: 'Alle Siegel gefunden. Läute die Glocke.' });
+      }
+      return true;
+    }
+    function ringBell(by = null) {
+      state.quest.stage = 'final'; state.waves.finalT = 100; state.waves.spawnT = 1; state.waves.state = 'final'; state.waves.mod = 'blood';
+      emit('objective', { id: 'bell', name: 'Glocke geläutet', by }); return true;
     }
     function relicStatus() {
       const list = [];
@@ -999,7 +1068,16 @@
       }
     }
 
+    // Im Teamspiel läuft die Welt weiter, während dieser Spieler beim Händler steht.
     function step(dt, input = {}) {
+      if (coop && state.phase === 'shop' && finite(dt) && dt > 0) {
+        state.phase = 'playing'; stepWorld(dt, {});
+        if (state.phase === 'playing') state.phase = 'shop';
+        return snapshot();
+      }
+      return stepWorld(dt, input);
+    }
+    function stepWorld(dt, input = {}) {
       if (!finite(dt) || dt <= 0 || !input || typeof input !== 'object') return snapshot();
       dt = Math.min(dt, 0.1);
       if (state.phase !== 'playing') return snapshot();
@@ -1008,6 +1086,8 @@
       if (cooldown > 0) cooldown = Math.max(0, cooldown - dt);
       if (swapTimer > 0) swapTimer = Math.max(0, swapTimer - dt);
       for (const k of ['hurtT', 'bless', 'slowT']) if (P[k] > 0) P[k] = Math.max(0, P[k] - dt);
+      for (const t of state.mates) if (t.hurtT > 0) t.hurtT = Math.max(0, t.hurtT - dt);
+      if (P.down) { P.downT -= dt; P.vx = P.vz = 0; if (P.downT <= 0) respawn(); }
       for (const w of state.weapons) if (w.reloading > 0) {
         w.reloading = Math.max(0, w.reloading - dt);
         if (!w.reloading) { const n = Math.min(magOf(w) - w.ammo, w.reserve); w.ammo += n; w.reserve -= n; emit('notice', { text: 'Nachgeladen', weapon: w.name }); }
@@ -1019,10 +1099,10 @@
         if (state.fish.t <= 0) { P.frozen = false; fishResult(state.fishSpots[state.fish.spot]); state.fish.spot = -1; }
       }
       if (fleet.vehicles.length) updateVehicles(dt, input);
-      if (P.ride) { P.vx = P.vz = 0; } else movePlayer(dt, input);
+      if (P.ride || P.down) { P.vx = P.vz = 0; } else movePlayer(dt, input);
       if (state.phase !== 'playing') return snapshot();
       updateMelee(dt);
-      if (input.fire) shoot(input);
+      if (input.fire && !P.down) shoot(input);
       if (state.phase !== 'playing') return snapshot();
       updateNades(dt); updateFires(dt); updateAcids(dt);
       if (state.phase !== 'playing') return snapshot();
@@ -1030,19 +1110,24 @@
         const item = state.items[i];
         item.t += dt; item.life -= dt;
         if (item.life <= 0) { state.items.splice(i, 1); continue; }
-        if (Math.hypot(P.x - item.x, P.z - item.z) >= 1.8 || Math.abs(P.y - item.y) >= 2.2) continue;
+        if (P.down || Math.hypot(P.x - item.x, P.z - item.z) >= 1.8 || Math.abs(P.y - item.y) >= 2.2) continue;
         if (item.type === 'health') {
           if (P.hp >= P.maxHp) continue;
           P.hp = Math.min(P.maxHp, P.hp + 35);
         } else addReserve(1);
         state.items.splice(i, 1); emit('pickup', { itemType: item.type, hp: P.hp });
+        if (guest) emit('netTake', { id: item.id });
       }
+      // Gast: Gegner, Wellen und Tageszeit kommen vom Host; die Puppen gleiten zu ihren gemeldeten Positionen.
+      if (guest) { stepPuppets(dt); return snapshot(); }
       for (const m of state.monsters) {
         if (m.state === 'dead') continue;
         updateMonster(m, dt);
         if (state.phase !== 'playing') return snapshot();
       }
       state.monsters = state.monsters.filter(m => m.state !== 'dead');
+      checkWipe();
+      if (state.phase !== 'playing') return snapshot();
       const w = state.waves;
       if (state.quest.stage === 'final') {
         w.finalT = Math.max(0, w.finalT - dt);
@@ -1081,6 +1166,142 @@
       state.current = i; swapTimer = 0.28; cooldown = Math.max(cooldown, 0.28); emit('notice', { text: state.weapons[i].name, weapon: i }); return true;
     }
     function snapshot() { return JSON.parse(JSON.stringify(state)); }
+
+    // ------------------------------------------------------------------ Teamspiel: Host
+    const r2 = v => Math.round(v * 100) / 100;
+    // Positionen der Mitspieler (von ihren Rechnern gemeldet); höchstens drei.
+    function setMates(list) {
+      if (coop !== 'host' || !Array.isArray(list)) return false;
+      const old = new Map(state.mates.map(t => [t.id, t]));
+      state.mates = list.slice(0, 3).filter(t => t && typeof t.id === 'string' && [t.x, t.y, t.z].every(finite)).map(t => ({
+        id: t.id.slice(0, 24), name: String(t.name || 'Gast').slice(0, 16), x: t.x, y: t.y, z: t.z, yaw: finite(t.yaw) ? t.yaw : 0,
+        vx: finite(t.vx) ? clamp(t.vx, -40, 40) : 0, vz: finite(t.vz) ? clamp(t.vz, -40, 40) : 0,
+        hp: finite(t.hp) ? clamp(t.hp, 0, 200) : 100, down: !!t.down, hurtT: old.has(t.id) ? old.get(t.id).hurtT : 0
+      }));
+      return true;
+    }
+    // Treffer eines Mitspielers; Schaden begrenzt, Schütze muss stehen und in Schussweite sein.
+    function remoteHit(e, by) {
+      if (coop !== 'host' || state.phase !== 'playing' || !e || typeof e !== 'object') return false;
+      const m = state.monsters.find(o => o.id === e.id && o.state !== 'dead');
+      const t = state.mates.find(q => q.id === by);
+      if (!m || !t || t.down || Math.hypot(t.x - m.x, t.z - m.z) > 160) return false;
+      hitMonster(m, clamp(Number(e.damage) || 0, 0, 400), !!e.head, { x: clamp(Number(e.dx) || 0, -1, 1), z: clamp(Number(e.dz) || 0, -1, 1) }, by);
+      return true;
+    }
+    // Siegel und Glocke durch einen Mitspieler, mit Abstandsprüfung wie beim eigenen Spieler.
+    function remoteInteract(e, by) {
+      if (coop !== 'host' || state.phase !== 'playing' || !e || typeof e !== 'object') return false;
+      const t = state.mates.find(q => q.id === by);
+      if (!t || t.down) return false;
+      if (e.what === 'seal' && state.quest.stage === 'seals' && Number.isInteger(e.index)) {
+        const o = state.quest.objectives[e.index];
+        if (!o || o.found) return false;
+        const oy = finite(o.y) ? o.y : floorAt(o.x, o.z, t.y);
+        if (Math.hypot(t.x - o.x, t.z - o.z) > 4.5 || Math.abs(t.y - oy) > 4) return false;
+        return takeSeal(e.index, t.name);
+      }
+      if (e.what === 'bell' && state.quest.stage === 'bell' && state.quest.bell) {
+        const b = state.quest.bell;
+        if (Math.hypot(t.x - b.x, t.z - b.z) > 4.5) return false;
+        return ringBell(t.name);
+      }
+      return false;
+    }
+    // Ein Mitspieler hat einen Vorrat aufgehoben: beim Host entfernen.
+    function remoteTake(id, by) {
+      if (coop !== 'host') return false;
+      const t = state.mates.find(q => q.id === by), i = state.items.findIndex(it => it.id === id);
+      if (!t || i < 0 || Math.hypot(t.x - state.items[i].x, t.z - state.items[i].z) > 4) return false;
+      state.items.splice(i, 1); return true;
+    }
+    // Kompakter Weltzustand für die Gäste.
+    function hostState() {
+      const w = state.waves;
+      return {
+        time: r2(state.time), phase: state.phase, seed: state.weatherSeed,
+        waves: { n: w.n, state: w.state, mod: w.mod, finalT: r2(w.finalT), alive: w.alive, total: w.total, toSpawn: w.toSpawn, timer: r2(w.timer) },
+        quest: { stage: state.quest.stage, got: state.quest.got.slice(), found: state.quest.objectives.map(o => o.found) },
+        env: { ...state.env }, stats: { kills: state.stats.kills, score: state.stats.score },
+        monsters: state.monsters.filter(m => m.state !== 'dead').map(m => [m.id, m.kind, r2(m.x), r2(m.y), r2(m.z), r2(m.yaw), m.state, r2(m.em), r2(m.lift || 0), Math.round(m.hp), r2(m.sv || 1), m.A ? m.A.ph : 0, m.hit > 0 ? 1 : 0]),
+        items: state.items.map(i => [i.id, i.type, r2(i.x), r2(i.y), r2(i.z), Math.round(i.life)]),
+        acids: state.acids.map(a => [r2(a.x), r2(a.y), r2(a.z)])
+      };
+    }
+
+    // ------------------------------------------------------------------ Teamspiel: Gast
+    const STATES = ['emerge', 'walk', 'windup', 'pounce', 'dead'];
+    function stepPuppets(dt) {
+      const k = Math.min(1, dt * 12);
+      for (const m of state.monsters) {
+        m.t += dt; if (m.hit > 0) m.hit = Math.max(0, m.hit - dt);
+        m.x += (m.tx - m.x) * k; m.y += (m.ty - m.y) * k; m.z += (m.tz - m.z) * k;
+        m.yaw += angDiff(m.tyaw, m.yaw) * k;
+      }
+      for (const it of state.items) it.t += dt;
+    }
+    function applyHost(s) {
+      if (!guest || !s || typeof s !== 'object') return false;
+      if (finite(s.time)) state.time = s.time;
+      if (Number.isInteger(s.seed)) state.weatherSeed = s.seed;
+      state.weather = { ...weatherAt(state.time, state.weatherSeed), t: state.time, seed: state.weatherSeed };
+      if (s.waves && typeof s.waves === 'object') {
+        const before = state.waves.state, w = state.waves;
+        for (const key of ['n', 'alive', 'total', 'toSpawn']) if (Number.isInteger(s.waves[key])) w[key] = s.waves[key];
+        for (const key of ['finalT', 'timer']) if (finite(s.waves[key])) w[key] = s.waves[key];
+        if (['idle', 'active', 'break', 'final'].includes(s.waves.state)) w.state = s.waves.state;
+        if (['normal', 'fog', 'blood', 'bats'].includes(s.waves.mod)) w.mod = s.waves.mod;
+        // Wellenpause: dieselbe Belohnung wie beim Host
+        if (before === 'active' && w.state === 'break') { if (!P.down) P.hp = Math.min(P.maxHp, P.hp + 20); addReserve(0.5); state.stats.lei += 20 + w.n * 10; emit('notice', { text: 'Welle überstanden', reward: 20 + w.n * 10 }); }
+        if (before !== 'active' && w.state === 'active') emit('notice', { text: { blood: `Blutmond · Welle ${w.n}`, fog: `Nebelnacht · Welle ${w.n}`, bats: `Fledermaus-Sturm · Welle ${w.n}` }[w.mod] || `Welle ${w.n}`, wave: w.n, mod: w.mod });
+      }
+      if (s.quest && Array.isArray(s.quest.found)) {
+        const q = state.quest;
+        s.quest.found.forEach((f, i) => {
+          const o = q.objectives[i];
+          if (o && f && !o.found) { o.found = true; addReserve(1); emit('objective', { id: o.id, name: o.name, found: s.quest.found.filter(Boolean).length }); }
+        });
+        q.got = Array.isArray(s.quest.got) ? s.quest.got.filter(v => typeof v === 'string' || Number.isInteger(v)).slice(0, 8) : q.got;
+        if (['seals', 'bell', 'final'].includes(s.quest.stage)) {
+          if (q.stage !== 'final' && s.quest.stage === 'final') emit('objective', { id: 'bell', name: 'Glocke geläutet' });
+          q.stage = s.quest.stage;
+        }
+        const n = q.objectives.filter(o => o.found).length;
+        if (n >= 1) state.weapons[1].owned = true;
+        if (n >= 2) state.weapons[2].owned = true;
+      }
+      if (s.env && typeof s.env === 'object') for (const key of ['light', 'cover', 'dusk', 'sunrise']) if (finite(s.env[key])) state.env[key] = s.env[key];
+      if (s.env && typeof s.env.mod === 'string') state.env.mod = s.env.mod;
+      if (s.stats) { if (Number.isInteger(s.stats.kills)) state.stats.kills = s.stats.kills; if (Number.isInteger(s.stats.score)) state.stats.score = s.stats.score; }
+      if (Array.isArray(s.monsters)) {
+        const old = new Map(state.monsters.map(m => [m.id, m]));
+        state.monsters = s.monsters.slice(0, 80).filter(r => Array.isArray(r) && ENEMIES[r[1]] && [r[2], r[3], r[4]].every(finite)).map(r => {
+          const m = old.get(r[0]) || { id: r[0], kind: r[1], x: r[2], y: r[3], z: r[4], yaw: r[5] || 0, t: 0, hit: 0, seed: (r[0] % 13) * 0.5 };
+          m.kind = r[1]; m.tx = r[2]; m.ty = r[3]; m.tz = r[4]; m.tyaw = finite(r[5]) ? r[5] : m.yaw;
+          m.state = STATES.includes(r[6]) ? r[6] : 'walk'; m.em = finite(r[7]) ? r[7] : 0; m.lift = finite(r[8]) ? r[8] : 0;
+          m.hp = finite(r[9]) ? r[9] : 1; m.sv = finite(r[10]) ? r[10] : 1;
+          if (ENEMIES[m.kind].air) m.A = { ph: typeof r[11] === 'string' ? r[11] : 'circle' };
+          if (r[12]) m.hit = Math.max(m.hit, 0.1);
+          return m;
+        });
+      }
+      if (Array.isArray(s.items)) {
+        const old = new Map(state.items.map(i => [i.id, i]));
+        state.items = s.items.slice(0, 64).filter(r => Array.isArray(r) && (r[1] === 'ammo' || r[1] === 'health') && [r[2], r[3], r[4]].every(finite))
+          .map(r => ({ id: r[0], type: r[1], x: r[2], y: r[3], z: r[4], life: finite(r[5]) ? r[5] : 30, t: old.has(r[0]) ? old.get(r[0]).t : 0 }));
+      }
+      if (Array.isArray(s.acids)) state.acids = s.acids.slice(0, 40).filter(a => Array.isArray(a) && a.every(finite)).map(a => ({ x: a[0], y: a[1], z: a[2], vx: 0, vy: 0, vz: 0, t: 0, damage: 0 }));
+      if ((s.phase === 'dead' || s.phase === 'won') && state.phase !== s.phase) { state.phase = s.phase; emit('state', { phase: s.phase }); }
+      return true;
+    }
+    // Schaden durch Gegner des Hosts und Lei für eigene Abschüsse.
+    function applyHurt(damage, melee, kind) {
+      if (!guest || !finite(damage)) return false;
+      const dead = hurtPlayer(clamp(damage, 0, 200), !!melee, typeof kind === 'string' ? kind.slice(0, 16) : 'gegner');
+      if (kind === 'acid' && !P.down) { P.slowT = 1.8; emit('notice', { text: 'Säure: du wirst langsamer' }); }
+      return dead;
+    }
+    function addLei(n) { if (!finite(n)) return false; state.stats.lei += clamp(Math.round(n), 0, 500); return true; }
     function drainEvents() { return events.splice(0); }
     updateEnv();
     return {
@@ -1088,6 +1309,7 @@
       pause() { if (state.phase === 'playing') { state.phase = 'paused'; emit('state', { phase: 'paused' }); } return snapshot(); },
       resume() { if (state.phase === 'paused') { state.phase = 'playing'; emit('state', { phase: 'playing' }); } return snapshot(); },
       setLook, step, reload, selectWeapon, interact, snapshot, drainEvents,
+      setMates, remoteHit, remoteInteract, remoteTake, hostState, applyHost, applyHurt, addLei,
       melee, throwGrenade: () => throwNade(false), throwMolotov: () => throwNade(true),
       buy, closeShop, shopList, prompt, relicStatus, changeSeat,
       // Feste Fahrzeugdaten (Schienennetz, Gondelstrecke) für die Darstellung.

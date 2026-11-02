@@ -3,7 +3,7 @@
 // Kleine Lichtinseln wie im Altay-Original. Viele sichtbare Laternen, aber nur drei
 // echte Lichter ohne Schatten; die nächsten Lampen teilen sich diesen festen Pool.
 globalThis.NachtjagdOutdoor = {
-  create({ THREE: T, scene, layout, routes, height, clearance, box, label, houses=[], occupied:buildingOccupied=()=>false }) {
+  create({ THREE: T, scene, layout, routes, height, clearance, box, label, houses=[], occupied:buildingOccupied=()=>false, lightCount=3 }) {
     const lamps = [], batches = new Map(), dummy = new T.Object3D();
     const iron = new T.MeshLambertMaterial({ color: 0x29332e });
     const wood = new T.MeshLambertMaterial({ color: 0x46392b });
@@ -82,7 +82,8 @@ globalThis.NachtjagdOutdoor = {
       const mesh=new T.InstancedMesh(cube,material,parts.length); mesh.frustumCulled=false;
       mesh.receiveShadow=material!==glass; scene.add(mesh); built.push({mesh,parts});
     }
-    const pool=Array.from({length:3},()=>{
+    // lightCount 0: das Lampenfeld (lamp-field.js) übernimmt die Lichtwirkung, echte Lichter entfallen.
+    const pool=Array.from({length:lightCount},()=>{
       const light=new T.PointLight(0xffbf73,0,18,2); light.userData.outdoor=true; scene.add(light); return light;
     });
     // Transparenter radialer Lichtschein liegt auf dem Gelände, ohne weitere Lichtquellen.
