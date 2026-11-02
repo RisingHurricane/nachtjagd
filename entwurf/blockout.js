@@ -46,12 +46,15 @@
   const colors = { ground: '#e4e7df', house: '#d6ba92', landmark: '#b59370', forest: '#658777', path: '#dfe6eb', castle: '#8a9aab', viaduct: '#b7ad97', water: '#8eb0bc', hill: '#bac3b4' };
   const materials = {};
   for (const [key, value] of Object.entries(colors)) materials[key] = new THREE.MeshLambertMaterial({ name: key, color: new THREE.Color(value).convertSRGBToLinear() });
+  // Fahrbahn liegt nur 5 cm über dem Gelände: Tiefenversatz gegen Flimmern in der Ferne.
+  Object.assign(materials.path,{polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-2});
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1), coneGeometry = NachtjagdImportedModels.pineGeometry();
   materials.forest.vertexColors = true; materials.forest.color.setRGB(1,1,1);
   const edgeGeometry = new THREE.EdgesGeometry(boxGeometry);
   const edgeMaterial = new THREE.LineBasicMaterial({ color: '#526266', transparent: true, opacity: .3 });
   const colliders = [], anchors = [], roadMeshes = [], labelAnchors = [], treePlacements = [], coverPlacements=[];
   const roadVertices=[],roadIndices=[],roadRanges=[],roadInfo=[];
+  let groundReady=false; // roadTop folgt dem Gelände erst, wenn das Höhenraster steht (Kirchenhöhe wird vorher bestimmt)
   const labels = new THREE.Group();
   scene.add(labels);
   const layout = NachtjagdLayout;
@@ -86,7 +89,8 @@
     return h;
   }
   const { bridgeSpec,castleRoute,shoreRoute,routes,anchors:roadAnchors }=NachtjagdRoadLayout({ height:unpavedHeight,castle });
-  const roadNetwork=NachtjagdRoads.create({ routes,height:unpavedHeight,maxGrade:.18,anchors:roadAnchors });
+  // Boden 0,35 m über dem Profil: die Fahrbahn (Profil + 0,4) liegt 5 cm darüber, bündig statt erhöht.
+  const roadNetwork=NachtjagdRoads.create({ routes,height:unpavedHeight,maxGrade:.18,anchors:roadAnchors,lift:.35 });
   for(const h of buildingSpecs) {
     const p=h.approaches[0];
     const road=roadNetwork.segments.filter(s=>!s.bridge).map(s=>roadNetwork.project(s,p.x,p.z)).sort((a,b)=>a.distance-b.distance)[0];
@@ -160,7 +164,7 @@
       }
     }
   }
-  updateHeightGrid();
+  updateHeightGrid(); groundReady=true;
   function vertexHeight(col, row) {
     col = THREE.MathUtils.clamp(col, 0, 320); row = THREE.MathUtils.clamp(row, 0, 280);
     const index = row * 321 + col;
@@ -178,14 +182,25 @@
     const anchor=bridgeAnchors.find(n=>Math.hypot(n.x-x,n.z-z)<.001);
     return anchor?anchor.y:groundHeight(x,z);
   } });
+  // Fahrbahnoberkante: Das Profil liegt 0,4 m über der Profillinie. Neben Häusern und Kirche wird der Boden aber bis unter
+  // die Hausböden abgesenkt; dort stand die Fahrbahn bis 0,9 m als Damm darüber. Bis 0,8 m Abstand folgt die Fahrbahn deshalb
+  // dem Gelände (5 cm darüber), ab 1,6 m bleibt sie auf dem Profil (echte Dämme), dazwischen gleitender Übergang.
+  // Sichtbare Fläche (road, updateSkirts) und Laufhöhe (streetHeight, shoulderHeight) verwenden dieselbe Formel.
+  function roadTop(profileY,x,z) {
+    const raw=profileY+.4;
+    if(!groundReady) return raw;
+    // Höchster Boden im Umkreis von 0,5 m: Zwischen den Fahrbahnpunkten darf keine Geländekante durchstoßen.
+    const ground=Math.max(groundHeight(x,z),groundHeight(x+.5,z),groundHeight(x-.5,z),groundHeight(x,z+.5),groundHeight(x,z-.5)),gap=raw-ground-.05;
+    return raw-gap*(1-smooth(.8,1.6,gap));
+  }
   function streetHeight(x,z) {
     let best=Infinity,y=null;
     for(const segment of roadNetwork.nearby(x,z)) {
       if(segment.bridge) continue;
       const p=roadNetwork.project(segment,x,z);
-      if(p.distance<=segment.width/2 && p.distance<best) { best=p.distance; y=p.y+.4; }
+      if(p.distance<=segment.width/2 && p.distance<best) { best=p.distance; y=p.y; }
     }
-    return y;
+    return y===null?null:roadTop(y,x,z);
   }
   function surfaceHeight(x,z,previousFeet) {
     const deck=landmarks && landmarks.floor(x,z);
@@ -260,7 +275,7 @@
           const offset = width * (k / across - .5);
           const px = x + dz / length * offset, pz = z - dx / length * offset;
           const height=segment.bridge?viaduct.top(viaduct.coordinates(x,z).s)-.4:an.y+(bn.y-an.y)*j/count;
-          vertices.push(px,height+.4,pz);
+          vertices.push(px,segment.bridge?height+.4:roadTop(height,px,pz),pz);
           // Oberflächenwerte für surface-style.js: Randnähe (0 Mitte, 1 Rand) und Lage außerhalb des Dorfs (0 Pflaster, 1 Feldweg).
           roadInfo.push(Math.abs(k/across-.5)*2,smooth(-4,6,layout.villageDistance(px,pz)));
           if (j < count && k < across) {
@@ -364,9 +379,9 @@
   function updateSkirts() {
     const p=skirtGeometry.attributes.position;
     skirtData.forEach(({segment,x,z,ox,oz},i)=>{
-      const top=roadNetwork.project(segment,x,z).y+.4,drop=Math.max(.3,top-Math.min(groundHeight(x,z),top)+.25);
-      const reach=Math.min(4,Math.max(.8,drop*1.6)),bx=x+ox*reach,bz=z+oz*reach;
-      const bottom=Math.min(groundHeight(bx,bz),top)-.2;
+      const top=roadTop(roadNetwork.project(segment,x,z).y,x,z),drop=top-Math.min(groundHeight(x,z),top)+.08;
+      const reach=Math.min(4,Math.max(.25,drop*1.6)),bx=x+ox*reach,bz=z+oz*reach;
+      const bottom=Math.min(groundHeight(bx,bz),top)-.08;
       p.setY(i*2,top); p.setXYZ(i*2+1,bx,bottom,bz);
     });
     p.needsUpdate=true; skirtGeometry.computeVertexNormals(); skirtGeometry.computeBoundingSphere();
@@ -731,7 +746,7 @@
       const p = mesh.geometry.attributes.position;
       for(const range of roadRanges) for(let i=range.start;i<range.start+range.count;i++) {
         const x=p.getX(i),z=p.getZ(i),s=range.segment;
-        p.setY(i,(s.bridge?viaduct.top(viaduct.coordinates(x,z).s)-.4:roadNetwork.project(s,x,z).y)+.4);
+        p.setY(i,s.bridge?viaduct.top(viaduct.coordinates(x,z).s):roadTop(roadNetwork.project(s,x,z).y,x,z));
       }
       p.needsUpdate = true; mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere();
     }
@@ -838,7 +853,7 @@
   updateEditorStatus(storageWarning || (restored ? 'Dein gespeichertes Gelände wurde wieder geladen.' : 'Ausgangsform geladen.'));
   let previous = performance.now(),menuTime=0;
   const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const perf = { sum: 0, frames: 0, last: performance.now(), level: 0 };
+  const perf = { sum: 0, frames: 0, last: performance.now(), level: 0, start: pixelRatio };
   let shadowTime=-Infinity,shadowX=Infinity,shadowZ=Infinity;
   const perfReport = new URLSearchParams(location.search).has('perf') ? document.createElement('output') : null;
   const timings = [];
@@ -862,9 +877,14 @@
     if (now - perf.last < 250) { perf.sum += now - perf.last; perf.frames++; } perf.last = now; // lange Pausen (Tab im Hintergrund) zählen nicht
     if (perf.sum >= 2000 && perf.frames > 0) {
       const average = perf.sum / perf.frames; perf.sum = 0; perf.frames = 0;
-      if (!document.hidden && average > 30 && perf.level < 5) {
+      // Schon unter etwa 45 Bildern pro Sekunde (22 ms) nachregeln; bei viel Luft (unter 11 ms) eine Stufe zurück.
+      if (!document.hidden && average > 22 && perf.level < 5) {
         perf.level++;
         if (pixelRatio > 1) pixelRatio = Math.max(1, pixelRatio - .5); else if (pixelRatio > .75) pixelRatio = .75; else terrainUniforms.uDetail.value = 0;
+        renderer.setPixelRatio(pixelRatio); renderer.setSize(innerWidth, innerHeight);
+      } else if (!document.hidden && average < 11 && perf.level > 0) {
+        perf.level--;
+        if (terrainUniforms.uDetail.value === 0) terrainUniforms.uDetail.value = 1; else pixelRatio = Math.min(perf.start, pixelRatio + .25);
         renderer.setPixelRatio(pixelRatio); renderer.setSize(innerWidth, innerHeight);
       }
     }
@@ -947,7 +967,9 @@
     const stairBlocked=stairs.treads.filter(t=>blocked(t.x,t.z,t.top));
     check('Zwei Treppenwege haben freie waagerechte Trittflächen',stairs.treads.length>30 && stairBlocked.length===0,{treads:stairs.treads.length,blocked:stairBlocked.slice(0,4)});
     let crossSlope=0;
-    for(const range of roadRanges) for(let i=range.start;i<range.start+range.count;i+=range.across) for(let j=1;j<range.across;j++) crossSlope=Math.max(crossSlope,Math.abs(roadGeometry.attributes.position.getY(i)-roadGeometry.attributes.position.getY(i+j)));
+    // Querneigung am Fahrbahnprofil; die sichtbare Fläche folgt bewusst dem Gelände (roadTop).
+    const rp=roadGeometry.attributes.position,profileAt=(s,i)=>roadNetwork.project(s,rp.getX(i),rp.getZ(i)).y;
+    for(const range of roadRanges) if(!range.segment.bridge) for(let i=range.start;i<range.start+range.count;i+=range.across) for(let j=1;j<range.across;j++) crossSlope=Math.max(crossSlope,Math.abs(profileAt(range.segment,i)-profileAt(range.segment,i+j)));
     const steepest=Math.max(...roadNetwork.segments.map(s=>Math.abs(roadNetwork.nodes[s.a].y-roadNetwork.nodes[s.b].y)/s.length));
     check('Fahrbahnen quer waagerecht und längs höchstens 18 Prozent',crossSlope<.001 && steepest<=.18001,{crossSlope,steepest,routes:routes.length});
     const routeBlocked = [];
@@ -1038,7 +1060,7 @@
     for(const segment of roadNetwork.nearby(x,z)) {
       if(segment.bridge || segment.stairs) continue;
       const p=roadNetwork.project(segment,x,z),over=p.distance-segment.width/2;
-      if(over>0 && over<SHOULDER && (!best || over<best.over)) best={over,y:p.y+.4};
+      if(over>0 && over<SHOULDER && (!best || over<best.over)) best={over,y:roadTop(p.y,x,z)};
     }
     if(!best || Math.abs(best.y-y)<=.4) return y;
     return best.y+(y-best.y)*(best.over/SHOULDER);
