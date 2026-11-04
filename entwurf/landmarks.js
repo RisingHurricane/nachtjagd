@@ -5,6 +5,7 @@ globalThis.NachtjagdLandmarks = {
   create({THREE,scene,materials,box,label,groundHeight,streetHeight,layout}) {
     const {wind,stones,ruin}=layout.landmarkSites;
     materials.mine=new THREE.MeshLambertMaterial({color:new THREE.Color('#293431').convertSRGBToLinear()});
+    materials.rock=new THREE.MeshLambertMaterial({name:'rock',color:new THREE.Color('#8a8c88').convertSRGBToLinear()});
     const windWheel=new THREE.Group();
     windWheel.position.set(wind[0]+Math.sin(-2.2)*6,groundHeight(...wind)+17,wind[1]+Math.cos(-2.2)*6);
     windWheel.rotation.y=-2.2;
@@ -26,10 +27,10 @@ globalThis.NachtjagdLandmarks = {
       const angle=i/10*Math.PI*2+.08*Math.sin(i*3),radius=14+Math.sin(i*7)*1.1;
       return [stones[0]+Math.cos(angle)*radius,stones[1]+Math.sin(angle)*radius];
     });
-    positions.forEach(([x,z],i)=>box(x,z,2.5,2.9,Math.max(4,stoneTop-groundHeight(x,z)),'castle',i*.38));
+    positions.forEach(([x,z],i)=>box(x,z,2.5,2.9,Math.max(4,stoneTop-groundHeight(x,z)),'rock',i*.38));
     for(const i of [0,2,5,8]) {
       const a=positions[i],b=positions[(i+1)%positions.length];
-      box((a[0]+b[0])/2,(a[1]+b[1])/2,Math.hypot(b[0]-a[0],b[1]-a[1])+2.3,2.5,1.1,'castle',-Math.atan2(b[1]-a[1],b[0]-a[0]),stoneTop,false);
+      box((a[0]+b[0])/2,(a[1]+b[1])/2,Math.hypot(b[0]-a[0],b[1]-a[1])+2.3,2.5,1.1,'rock',-Math.atan2(b[1]-a[1],b[0]-a[0]),stoneTop,false);
     }
     label('Steinkreis',...stones,13,58);
 

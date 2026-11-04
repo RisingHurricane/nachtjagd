@@ -124,7 +124,7 @@ globalThis.NachtjagdMines = {
         });
         mesh.instanceMatrix.needsUpdate=true;mesh.castShadow=true;mesh.receiveShadow=true;mesh.userData.mine=true;root.add(mesh);
       }
-      for(let i=0;i<2;i++){const light=new THREE.PointLight(0xd8bd74,.43,8,2);light.userData.mineLight=true;light.visible=false;pointLights.push(light);root.add(light);}
+      // Grubenlampen wirken über das Lampenfeld (lamps); keine ein- und ausgeblendeten Punktlichter.
     }
     function closest(x,z,margin=0,feet=undefined,feetTolerance=Infinity) {
       let best=null;
@@ -189,6 +189,6 @@ globalThis.NachtjagdMines = {
       });
     }
     return {routes,points:routes.map(route=>({id:route.id,type:route.type,points:route.points.map(p=>({...p}))})),targets,
-      floor,blocked,indoor,cutTerrain,terrainClearance,entrance,seal,update,root};
+      floor,blocked,indoor,cutTerrain,terrainClearance,entrance,seal,update,root,lamps:lampSites};
   }
 };

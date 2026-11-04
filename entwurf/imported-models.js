@@ -48,9 +48,8 @@ globalThis.NachtjagdImportedModels = (() => {
     return new Promise((resolve, reject) => loader.parse(bytes.buffer, new URL('.', url).href, resolve, reject));
   }
   const files = {
-    monster: 'monster.glb', wendigo: 'stylized_low-poly_wendigo.glb',
-    pine: 'low_poly_forest_tree.glb', pack: 'low_poly_forest_tree_pack.glb',
-    dead: 'low-poly_trees.glb', mountain: 'mountain_low_poly.glb'
+    // Gegner kommen aus monster-models.js; geladen wird nur noch die Gebirgskulisse.
+    mountain: 'mountain_low_poly.glb'
   };
   const meshes = object => {
     const result = [];
@@ -86,49 +85,9 @@ globalThis.NachtjagdImportedModels = (() => {
     });
     return group;
   }
-  // Jeder Gegner bekommt eigene Knochen; Geometrien und Texturen werden geteilt.
-  function cloneCharacter(source) {
-    const copy = source.clone(true), sourceToCopy = new Map();
-    function pair(a, b) {
-      sourceToCopy.set(a, b);
-      a.children.forEach((child, i) => pair(child, b.children[i]));
-    }
-    pair(source, copy);
-    source.traverse(node => {
-      if (!node.isSkinnedMesh) return;
-      const cloned = sourceToCopy.get(node);
-      cloned.skeleton = node.skeleton.clone();
-      cloned.skeleton.bones = node.skeleton.bones.map(bone => sourceToCopy.get(bone));
-      cloned.bindMatrix.copy(node.bindMatrix);
-      cloned.bind(cloned.skeleton, cloned.bindMatrix);
-    });
-    return copy;
-  }
-  function character(gltf) {
-    const source = gltf.scene;
-    // Die tatsächliche Haut verwenden, nicht die untransformierte Bindepose.
-    const mixer = new T.AnimationMixer(source);
-    if (gltf.animations[0]) mixer.clipAction(gltf.animations[0]).play();
-    mixer.update(0);
-    source.updateMatrixWorld(true);
-    const bounds = new T.Box3(), point = new T.Vector3();
-    for (const mesh of meshes(source)) {
-      if (mesh.isSkinnedMesh) mesh.skeleton.update();
-      const position = mesh.geometry.attributes.position;
-      for (let i = 0; i < position.count; i++) {
-        point.fromBufferAttribute(position, i);
-        if (mesh.isSkinnedMesh) mesh.boneTransform(i, point);
-        bounds.expandByPoint(point.applyMatrix4(mesh.matrixWorld));
-      }
-    }
-    mixer.stopAllAction();
-    return { source, clips: gltf.animations, bounds };
-  }
   function prepare(key, gltf) {
     const all = meshes(gltf.scene), parts = all.filter(p => !/__far$/.test(p.name));
     const farOf = list => list.map(p => all.find(q => q.name === p.name + '__far') || null);
-    if (key === 'monster') return staticModel(parts, 1.5);
-    if (key === 'wendigo') return character(gltf);
     if (key === 'mountain') {
       // Kachel mit Berg in der Mitte. Der flache Rand (unter 10 m) wird abgeschnitten, der Rest um die Mitte zentriert.
       const mesh = parts[0], geometry = mesh.geometry.clone().applyMatrix4(mesh.matrixWorld), index = geometry.index.array, position = geometry.attributes.position;
@@ -164,7 +123,12 @@ globalThis.NachtjagdImportedModels = (() => {
       errors.push(file); console.warn('Modell bleibt vorläufig als Platzhalter:', file, error);
     }
   })()));
-  const treesReady=Promise.all(['pine','pack','dead'].map(key=>loading[key]));
+  // Bäume: eigene, sparsame Modelle aus tree-models.js (acht Varianten wie zuvor: eine häufige Fichte, vier weitere
+  // Nadelbäume, drei kahle Bäume). Die früheren Baum-GLBs werden nicht mehr geladen.
+  const treesReady=Promise.resolve().then(()=>{
+    const v=globalThis.NachtjagdTreeModels.variants(T);
+    templates.pine=[v[0]]; templates.pack=v.slice(1,5); templates.dead=v.slice(5);
+  });
   // Die Kirche wird sofort mitgeladen, parallel zu den übrigen Modellen und zum Aufbau der Welt.
   const churchModel = onPages ? new URL('church.glb', base).href : null;
   const churchBytes = churchModel && typeof fetch === 'function' ? fetch(churchModel).then(r => { if (!r.ok) throw new Error('Kirche ' + r.status); return r.arrayBuffer(); }) : null;
@@ -289,87 +253,6 @@ globalThis.NachtjagdImportedModels = (() => {
     return { root, setMood };
   }
 
-  // Körpermaße je Gegnerart: Höhe in Metern (null: 2,5 m mal spec.scale), Breitenfaktor und Farbton.
-  const BODIES = {
-    villager: { height: 1.95, width: 1, tint: [1.25, 1.1, 1.0] },
-    spitter: { height: 2.1, width: 1, tint: [0.85, 1.35, 0.7] },
-    bloater: { height: 2.0, width: 1.5, tint: [1.4, 0.85, 0.8] },
-    lycan: { height: null, width: 1, tint: [1, 1, 1] },
-    samca: { height: null, width: 1, tint: [1.15, 0.85, 0.85] },
-    brute: { height: null, width: 1.1, tint: [0.9, 0.95, 1.2] }
-  };
-  const boneName = node => { const m = /^mixamorig(\w+?)(?:_\d+)?$/.exec(node.name); return m ? m[1] : null; };
-  function decorateEnemy(group, kind, spec) {
-    if (group.userData.imported) return;
-    const body = BODIES[kind], key = body ? 'wendigo' : kind === 'wolf' ? 'monster' : null;
-    if (!key || !templates[key]) return;
-    const holder = new T.Group();
-    if (key === 'wendigo') {
-      const { source, bounds, clips } = templates.wendigo, model = cloneCharacter(source);
-      const scale = (body.height || 2.5 * spec.scale) / (bounds.max.y - bounds.min.y);
-      const center = bounds.getCenter(new T.Vector3());
-      model.scale.multiplyScalar(scale);
-      model.position.add(new T.Vector3(-center.x, -bounds.min.y, -center.z).multiplyScalar(scale));
-      holder.add(model); holder.scale.x = holder.scale.z = body.width;
-      const mixer = new T.AnimationMixer(model);
-      if (clips[0]) mixer.clipAction(clips[0]).play();
-      group.userData.mixer = mixer;
-      // Die mitgelieferte Animation ist ein Stehen im Leerlauf. Gehen, Lauern und Zuschlagen kommen aus Knochendrehungen darüber.
-      const bones = {};
-      model.traverse(node => { if (node.isBone) { const name = boneName(node); if (name) bones[name] = node; } });
-      group.userData.rig = { bones, phase: (group.id || 0) * 1.7, attack: 0, holder, legLength: 0.62 * (body.height || 2.5 * spec.scale) };
-    } else {
-      // Die Sprungpose des Downloads ist starr: Der Wolf bekommt Schaukeln und Nicken von außen.
-      holder.add(templates.monster.clone(true));
-      group.userData.rig = { phase: (group.id || 0) * 1.3, attack: 0, holder, rigid: true };
-    }
-    holder.traverse(node => {
-      if (!node.isMesh) return;
-      node.castShadow = true;
-      // Trefferfärbung darf andere Gegner nicht mitfärben.
-      node.material = node.material.clone();
-      if (body && node.material.color) node.material.color.multiply(new T.Color(...body.tint));
-    });
-    for (const child of group.children) child.visible = false;
-    group.add(holder); group.userData.imported = holder;
-  }
-  const tilt = new T.Quaternion(), axisX = new T.Vector3(1, 0, 0);
-  function bend(bone, angle) { if (bone) bone.quaternion.multiply(tilt.setFromAxisAngle(axisX, angle)); }
-  // motion: { speed (m/s), state ('walk', 'windup', 'pounce', ...) }
-  function updateEnemy(group, dt, hurt, hot, motion = { speed: 0, state: 'walk' }) {
-    if (!group.userData.imported) return;
-    group.userData.mixer?.update(dt);
-    const rig = group.userData.rig;
-    if (rig) {
-      const speed = Math.min(motion.speed || 0, 8), run = Math.min(1, speed / 3.2);
-      rig.phase += speed * dt * 2.1;
-      const target = motion.state === 'windup' || motion.state === 'pounce' ? 1 : 0;
-      rig.attack += (target - rig.attack) * Math.min(1, dt * 9);
-      const swing = Math.sin(rig.phase) * run * 0.62, lift = Math.abs(Math.sin(rig.phase));
-      if (rig.rigid) {
-        // Wolf: Nicken im Rhythmus der Schritte, Neigung nach vorn beim Sprung.
-        rig.holder.rotation.x = -0.12 * run - rig.attack * 0.45;
-        rig.holder.rotation.z = Math.sin(rig.phase) * 0.12 * run;
-        rig.holder.position.y = lift * 0.16 * run;
-      } else {
-        const b = rig.bones, k = rig.attack;
-        bend(b.LeftUpLeg, swing); bend(b.RightUpLeg, -swing);
-        bend(b.LeftLeg, -Math.max(0, Math.sin(rig.phase)) * run * 0.8); bend(b.RightLeg, -Math.max(0, -Math.sin(rig.phase)) * run * 0.8);
-        bend(b.LeftArm, swing * 0.8 - k * 1.9); bend(b.RightArm, -swing * 0.8 - k * 1.9);
-        bend(b.Spine1, 0.1 + run * 0.18 + k * 0.35); bend(b.Head, -k * 0.25);
-        // Beim Schreiten sinkt das Becken um den Beinwinkel, damit das hintere Standbein den Boden berührt (Beinlänge etwa 62 % der Höhe).
-        rig.holder.position.y = -rig.legLength * (1 - Math.cos(Math.abs(swing))) + lift * 0.04 * run;
-      }
-    }
-    group.userData.imported.traverse(node => {
-      if (node.isMesh && node.material.emissive) node.material.emissive.setRGB(Math.max(hurt, hot), hurt*.1, 0);
-    });
-  }
-  function disposeEnemy(group) {
-    group.userData.mixer?.stopAllAction();
-    if (group.userData.mixer) group.userData.mixer.uncacheRoot(group.userData.mixer.getRoot());
-    group.userData.imported?.traverse(node => { if (node.isMesh) node.material.dispose(); });
-  }
   async function loadChurch(options) {
     const churchBase=new URL('../church/',base);
     const {loadChurch:load}=await import(new URL('church-adapter.js',churchBase).href);
@@ -382,5 +265,5 @@ globalThis.NachtjagdImportedModels = (() => {
     }};
     return load({THREE:T,GLTFLoader:Loader,baseURL:churchBase.href,modelURL:churchModel,...options});
   }
-  return { ready, errors, pineGeometry, buildForest, buildBackdrop, decorateEnemy, updateEnemy, disposeEnemy, loadChurch };
+  return { ready, errors, pineGeometry, buildForest, buildBackdrop, loadChurch };
 })();

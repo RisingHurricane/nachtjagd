@@ -40,7 +40,7 @@
   const lampField = NachtjagdLampField.create({ THREE, scene });
   const postFx = NachtjagdPostFx.create({ THREE, renderer });
   const noPost = new URLSearchParams(location.search).has('nopost');
-  let lampPatchTime = 0, menuSkyOn = false;
+  let lampPatchTime = 0, menuSkyOn = false, warmedInGame = false;
   const menuSky = { night: .26, sunrise: 0, cover: .72, grey: 0, blood: 0, lightK: .72 };
   scene.background = sky.apply(layoutSky);
   const colors = { ground: '#e4e7df', house: '#d6ba92', landmark: '#b59370', forest: '#658777', path: '#dfe6eb', castle: '#8a9aab', viaduct: '#b7ad97', water: '#8eb0bc', hill: '#bac3b4' };
@@ -54,7 +54,8 @@
   const edgeMaterial = new THREE.LineBasicMaterial({ color: '#526266', transparent: true, opacity: .3 });
   const colliders = [], anchors = [], roadMeshes = [], labelAnchors = [], treePlacements = [], coverPlacements=[];
   const roadVertices=[],roadIndices=[],roadRanges=[],roadInfo=[];
-  let groundReady=false; // roadTop folgt dem Gelände erst, wenn das Höhenraster steht (Kirchenhöhe wird vorher bestimmt)
+  let groundReady=false, towerFloor=null, towerBlocked=null;
+  const arcades=NachtjagdArcades.create({THREE}); // Säulen in Kirche und Burghof (eigene Kollision) // towerFloor: Wendeltreppe und Plattform des Wachturms (outdoor-details.js) // roadTop folgt dem Gelände erst, wenn das Höhenraster steht (Kirchenhöhe wird vorher bestimmt)
   const labels = new THREE.Group();
   scene.add(labels);
   const layout = NachtjagdLayout;
@@ -203,6 +204,8 @@
     return y===null?null:roadTop(y,x,z);
   }
   function surfaceHeight(x,z,previousFeet) {
+    const tower=towerFloor && towerFloor(x,z,previousFeet);
+    if(tower!==null && tower!==undefined) return tower;
     const deck=landmarks && landmarks.floor(x,z);
     if(deck!==null && deck!==false) return deck;
     const bridge=viaduct.floor(x,z,previousFeet),street=streetHeight(x,z);
@@ -467,19 +470,25 @@
       const p=h.toLocal(x,z);
       return h.plan.volumes.some(v=>p.x>v.x0-1&&p.x<v.x1+1&&p.z>v.z0-1&&p.z<v.z1+1)||h.approaches.some(a=>Math.hypot(a.x-x,a.z-z)<2);
     })});
+  towerFloor=outdoor.floor; towerBlocked=outdoor.blocked;
   // Laternen an Wegen und im Dorf als Lampen des Lampenfelds (ersetzen die drei echten Nahlichter).
   const lanternLamps=()=>outdoor.lamps.map((l,i)=>({x:l.x,y:l.y,z:l.z,r:16,c:[1,.62,.3],k:.85,halo:4.6,a:.42,flick:i%7===3,kind:'laterne'}));
   lampField.add(lanternLamps());
+  lampField.add((mines.lamps||[]).map(s=>({x:s.x,y:s.y,z:s.z,r:10,c:[.85,.72,.42],k:.65,halo:1,a:.18,flick:true,kind:'grube'})));
   // Fackeln an der Burg: Torhaus außen und innen, neben den Palastüren und an der Turmtür (Modellkoordinaten).
   const torchIron=new THREE.MeshLambertMaterial({color:0x2a2622}),torchWood=new THREE.MeshLambertMaterial({color:0x4a3624});
   const torchStick=new THREE.CylinderGeometry(.035,.045,.62,6),torchBowl=new THREE.CylinderGeometry(.13,.07,.16,8);
   function addTorch(x,y,z,lean) {
     const g=new THREE.Group(),stick=new THREE.Mesh(torchStick,torchWood),bowl=new THREE.Mesh(torchBowl,torchIron);
     stick.position.y=-.32;bowl.position.y=-.02;g.add(stick,bowl);g.position.set(x,y,z);g.rotation.x=lean.x;g.rotation.z=lean.z;scene.add(g);
-    lampField.add({x,y:y+.22,z,r:13,c:[1,.5,.2],k:.75,fire:true,halo:3.4,a:.46,kind:'fackel'});
+    lampField.add({x,y:y+.22,z,r:13,c:[1,.5,.2],k:.75,fire:true,halo:5.2,a:.62,kind:'fackel'});
   }
   castleSite.ready.then(site=>{
     if(!site.walk)return;
+    // Kleiner Kreuzgang im Osten des Burghofs; der Weg vom Tor zu den Türen im Westen bleibt frei.
+    scene.add(arcades.cloister({rect:{x0:9,x1:19,z0:8.5,z1:15.5},toWorld:(x,z)=>site.walk.toWorld(x,z),floor:(x,z)=>gameFloor(x,z),rot:castleRot}));
+    // Raumlampen der Burg über das Lampenfeld (feste Shaderplätze, keine neuen Shader beim Betreten).
+    lampField.add((site.lamps||[]).map(l=>{const c=new THREE.Color(l.color);return {x:l.x,y:l.y,z:l.z,r:(l.distance||10)*1.35,c:[c.r,c.g,c.b],k:.8,halo:.8,a:.12,kind:'burg-innen'};}));
     const torches=[[.4,3.1,21.85,1],[7.6,3.1,21.85,1],[.4,3.1,16.15,-1],[7.6,3.1,16.15,-1],
       [-14.3,2.7,1.85,1],[-9.7,2.7,1.85,1],[2.7,2.7,1.85,1],[7.3,2.7,1.85,1],[-5.1,2.6,6.95,1],[-1.9,2.6,6.95,1]];
     for(const [lx,ly,lz,out] of torches) {
@@ -492,6 +501,8 @@
   // Kirche: zwei Laternen neben dem Portal, gedämpftes Kerzenlicht im Schiff.
   buildings.ready.then(church=>{
     if(!church?.root)return;
+    // Arkaden im Kirchenschiff: zwei Säulenreihen mit Rundbögen, Mittelgang 6 m frei.
+    scene.add(arcades.church({toWorld:(lx,lz)=>({x:churchOrigin.x+lx,z:churchOrigin.z-lz}),floor:(x,z)=>gameFloor(x,z,churchOrigin.y),from:4,to:22}));
     const bounds=new THREE.Box3().setFromObject(church.root),front=bounds.max.z;
     const lantern=new THREE.MeshLambertMaterial({color:0x3a2a14,emissive:0xffc477,emissiveIntensity:1.2});
     for(const side of [-1,1]) {
@@ -701,6 +712,8 @@
     if(mines && mines.indoor(x,feet,z))return mines.blocked(x,z,feet);
     if (groundHeight(x, z) < .35 && landmarks.floor(x,z)===null) return true;
     if (viaduct.collides(x,z,feet)) return true;
+    if (towerBlocked && towerBlocked(x,z,feet)) return true;
+    if (arcades.blocked(x,z,feet)) return true;
     if (mines && mines.blocked(x,z,feet)) return true;
     if (villageWall && villageWall.blocked(x,z,feet)) return true;
     if (castleSite.walk && castleSite.walk.blocked(x,z,feet)) return true;
@@ -717,7 +730,10 @@
       return Math.abs(cosine * dx - sine * dz) < c.w + .45 && Math.abs(sine * dx + cosine * dz) < c.d + .45;
     });
   }
-  const boatOk = (x, z) => layout.lakeDistance(x, z) < -1.5 && landmarks.floor(x, z) === null && !hitsSolid(x, z);
+  // Das Boot darf bis 0,7 m ans Ufer (vorher 1,5 m): Anlegen und Aussteigen klappen dann überall am See und an der Insel.
+  // Insel im See ist Land: außerhalb der Ellipse plus Rand (m) liegt Wasser.
+  const offIsland = (x, z, margin = 0) => { const i = layout.island; return !i || ((x - i.x) / (i.rx + margin)) ** 2 + ((z - i.z) / (i.rz + margin)) ** 2 > 1; };
+  const boatOk = (x, z) => layout.lakeDistance(x, z) < -.7 && offIsland(x, z, .7) && landmarks.floor(x, z) === null && !hitsSolid(x, z);
   function refreshTerrain() {
     updateHeightGrid();
     refreshViaduct();
@@ -891,6 +907,8 @@
     if(gameplay && !gameplay.active) gameplay.previewUpdate(dt);
     if(gameplay && gameplay.active) {
       gameplay.update(dt);
+      // Einmal im ersten Spielbild mit Spielnebel und Spiellicht vorübersetzen (Burg, Minen, Innenräume).
+      if(!warmedInGame) { warmedInGame=true; warmShaders(); }
     } else if (document.body.classList.contains('in-menu')) {
       if(!reducedMotion) menuTime+=dt;
       const shot=NachtjagdInterface.flyover(menuTime,groundHeight);
@@ -924,7 +942,7 @@
     const inMenu=!gameplay?.active&&document.body.classList.contains('in-menu');
     if(inMenu) scene.background=sky.apply(menuSky); else if(menuSkyOn&&!gameplay?.active) scene.background=sky.apply(layoutSky);
     menuSkyOn=inMenu;
-    const nightK=gameplay?.active?Math.max(0,Math.min(1,(.38+.62*sky.state.night)*(1-sky.state.sunrise))):inMenu?.62:0;
+    const nightK=gameplay?.active?Math.max(0,Math.min(1,(.58+.42*sky.state.night)*(1-sky.state.sunrise))):inMenu?.62:0;
     if(now-lampPatchTime>1500){NachtjagdSurface.styleScene(THREE,scene);lampField.patchScene();lampPatchTime=now;}
     lampField.update(camera,dt,{k:nightK,scale:renderer.domElement.height*.66,fogDensity:scene.fog?.density||0});
     lampField.setVisible(nightK>.01);
@@ -1068,6 +1086,9 @@
   function gameFloor(x,z,previousFeet) {
     const mf=mines && mines.floor(x,z,previousFeet);
     if(mf!==null && mf!==false)return mf;
+    // Wachturm (Wendeltreppe, Plattform) vor allen Rampen und Schultern der Straßen.
+    const tf=towerFloor && towerFloor(x,z,previousFeet);
+    if(tf!==null && tf!==undefined) return tf;
     const wf=villageWall && villageWall.floor(x,z,previousFeet);
     if(wf!==null && wf!==false)return wf;
     const bf=buildings && buildings.floor(x,z,previousFeet);
@@ -1111,7 +1132,7 @@
   const world={
     spawn:[90,45],floor:gameFloor,blocked,chaseTarget,resetNavigation:()=>paths.clear(),
     objectives:[{id:'church',name:'Kirche',x:91,z:-1.1},{...mines.seal('mine-west'),id:'mine',name:'Westmine',guard:'deep'},{id:'castle',name:'Burg',x:castleSeal.x,z:castleSeal.z,guard:'alpha'}],
-    waterDepth:(x,z)=>layout.lakeDistance(x,z)<0?1:0,waterLevel:.09,boatOk,onRoad:(x,z)=>streetHeight(x,z)!==null,
+    waterDepth:(x,z)=>layout.lakeDistance(x,z)<0&&offIsland(x,z)?1:0,waterLevel:.09,boatOk,onRoad:(x,z)=>streetHeight(x,z)!==null,
     bell:{x:91,z:22.5},
     tick:(x,y,z)=>{castleSite.update(x,y,z);buildings.update(x,y,z);mines.update(x,y,z);},
     indoor:(x,y,z)=>Math.max(castleSite.indoor(x,y,z),buildings.indoor(x,y,z),Number(mines.indoor(x,y,z))),
@@ -1144,12 +1165,12 @@
       return null;
     }
   };
-  Object.assign(world,NachtjagdSpots.build({layout,blocked,floor:gameFloor,boatOk,routes})); // Truhen, Händler, Schmied, Bildstöcke, Angelplätze, Notizen, Reliquien
+  Object.assign(world,NachtjagdSpots.build({layout,blocked,floor:gameFloor,boatOk,routes,mineRoutes:mines.points})); // Truhen, Händler, Schmied, Bildstöcke, Angelplätze, Notizen, Reliquien
   scene.updateMatrixWorld(true);
   world.checks=[{name:'Dorfstart frei',passed:!blocked(90,45,gameFloor(90,45))},...world.objectives.map(o=>({name:o.name+'-Siegel erreichbar',passed:!blocked(o.x,o.z,gameFloor(o.x,o.z))})),{name:'Glockenplatz frei',passed:!blocked(world.bell.x,world.bell.z,gameFloor(world.bell.x,world.bell.z))},{name:'Spielorte frei',passed:[...world.loots,...world.shrines,...world.fishSpots,world.merchant,world.smith].every(p=>!blocked(p.x,p.z,gameFloor(p.x,p.z)))}];
   world.checks.push(
     {name:'Geländewagen stehen frei',passed:world.jeeps.length===2 && world.jeeps.every(j=>[[0,0],[0,2.4],[0,-2.4],[1.3,2.2],[-1.3,2.2],[1.3,-2.2],[-1.3,-2.2]].every(([lx,lz])=>{const s=Math.sin(j.yaw),c=Math.cos(j.yaw),x=j.x-c*lx+s*lz,z=j.z+s*lx+c*lz;return !blocked(x,z,gameFloor(x,z));}))},
-    {name:'Lorenschienen frei',passed:world.carts.length===4 && world.rails.nodes.every(n=>!blocked(n.x,n.z,gameFloor(n.x,n.z)))},
+    {name:'Lorenschienen frei',passed:world.carts.length===4 && world.rails.nodes.every(n=>{const f=gameFloor(n.x,n.z,Number.isFinite(n.y)?n.y:undefined);return !blocked(n.x,n.z,f);})},
     {name:'Gondelstationen begehbar, Strecke über 250 m',passed:world.gondola.stations.every(s=>!blocked(s.x,s.z,gameFloor(s.x,s.z))) && Math.hypot(world.gondola.stations[0].x-world.gondola.stations[1].x,world.gondola.stations[0].z-world.gondola.stations[1].z)>250},
     {name:'Boote liegen im Wasser',passed:world.boats.length>=2 && world.boats.every(b=>boatOk(b.x,b.z))}
   );
@@ -1157,10 +1178,21 @@
   const menuPlay=document.querySelector('#menu-play');menuPlay.disabled=true;
   startButton.disabled=true; startButton.textContent='Modelle werden geladen …';
   gameplay=NachtjagdPlay.create({THREE,scene,camera,canvas,world,sky,layoutSky,backdrop,lamps:lampField,onStart:()=>{ toggleEditor(false); labels.visible=false; grid.visible=false; keys.clear(); drag=null; },onExit:()=>setView('village')});
+  // Alle Shader vorab übersetzen, auch für gerade ausgeblendete Teile (Burginnenraum, Fahrzeuge, Minen).
+  // Sonst übersetzt der Browser sie beim ersten Anblick und das Spiel hängt kurz. Lichter bleiben unverändert,
+  // damit die Lichtanzahl stimmt.
+  function warmShaders() {
+    NachtjagdSurface.styleScene(THREE,scene); lampField.patchScene();
+    const hidden=[];
+    scene.traverse(o=>{if(!o.isLight&&!o.visible){hidden.push(o);o.visible=true;}});
+    try { renderer.compile(scene,camera); } catch (error) { console.warn('Vorübersetzen der Shader:',error); }
+    for(const o of hidden) o.visible=false;
+  }
   Promise.all([castleSite.ready,buildings.ready,importedForest.ready]).then(()=>{
   if(buildings.failed) {startButton.textContent='Kirche konnte nicht geladen werden';return;}
   if(!importedForest.root.userData.treeCount) {startButton.textContent='Baummodelle konnten nicht geladen werden · bitte neu laden';return;}
   world.checks.push({name:'Alle Bäume verwenden importierte Modelle einschließlich Seeinsel',passed:importedForest.root.userData.treeCount===treePlacements.length+3&&importedForest.root.userData.variantCount===8,value:importedForest.root.userData});
+  warmShaders();
   startButton.disabled=false; menuPlay.disabled=false; startButton.textContent=startLabel;
   // Das Burg-Siegel liegt im Rittersaal: erst mit geladenem Modell prüfbar.
   world.checks=world.checks.filter(c=>c.name!=='Burg-Siegel erreichbar');
@@ -1224,7 +1256,7 @@
       world.checks.push({name,passed:Math.hypot(p.x-end[0],p.z-end[1])<.5});
     }
     world.checks.push({name:'Kirchenmauer hält Schüsse auf',passed:world.rayDistance({x:91,y:churchOrigin.y+2,z:10},{x:1,y:0,z:0},30)<8});
-    globalThis.NachtjagdDebug={buildings,buildingSpecs,churchOrigin,castleSite,renderer,sky,world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
+    globalThis.NachtjagdDebug={colliders,villageWall,mines,landmarks,buildings,buildingSpecs,churchOrigin,castleSite,renderer,sky,world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
     const report=document.createElement('pre'); report.id='game-tests'; report.hidden=true; report.textContent=JSON.stringify({checks:world.checks}); document.body.append(report);
   }
   if(new URLSearchParams(location.search).get('play')==='1') gameplay.start();

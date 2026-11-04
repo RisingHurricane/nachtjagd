@@ -3,7 +3,7 @@
 // Spielorte für die Bergdorf-Welt: Truhen, Händler, Schmied, Bildstöcke, Angelplätze, Notizen und Reliquien.
 // Die Lage folgt dem bestätigten Layout (world-layout.js); jeder Punkt wird auf den nächsten freien, begehbaren Boden gesetzt.
 globalThis.NachtjagdSpots = {
-  build({ layout, blocked, floor, boatOk, routes }) {
+  build({ layout, blocked, floor, boatOk, routes, mineRoutes }) {
     const walkable = (x, z) => { const y = floor(x, z); return Number.isFinite(y) && !blocked(x, z, y); };
     // Nächster freier Punkt um (x,z): Spirale in 1-m-Schritten, deterministisch.
     function free(x, z, minR = 0) {
@@ -71,6 +71,12 @@ globalThis.NachtjagdSpots = {
     loots.push(at(village.x - 6, village.z - 12, { relicId: 'compass' }));
     loots.push(at(castle.x + 14, castle.z - 6, { relicId: 'heart' }));
     loots.push(at(mines[0].a[0] + 9, mines[0].a[1] - 3, { relicId: 'lamp' }));
+    // Besondere Ziele mit Wächtern: Gipfelkrone an der Bergstation der Gondel, Runenstein in der Mitte des Steinkreises,
+    // Seeperle auf der Insel im See (nur mit dem Boot erreichbar).
+    const summit = layout.gondolaCorridor ? layout.gondolaCorridor[1] : null;
+    if (summit) loots.push(at(summit[0] + 7, summit[1] - 9, { relicId: 'crown' }));
+    loots.push(at(landmarkSites.stones[0], landmarkSites.stones[1], { relicId: 'circle' }));
+    if (layout.island) loots.push(at(layout.island.x + 2, layout.island.z - 1, { relicId: 'pearl' }));
 
     return { merchant, smith, shrines, fishSpots, loots, ...buildVehicles() };
 
@@ -107,6 +113,14 @@ globalThis.NachtjagdSpots = {
         for (let i = 0; i < route.points.length - 1; i++) rails.links.push([first + i, first + i + 1]);
         const link0 = rails.links.length - route.points.length + 1;
         carts.push({ link: link0, t: 4 }, { link: rails.links.length - 1, t: Math.max(2, Math.hypot(route.points[route.points.length - 1][0] - route.points[route.points.length - 2][0], route.points[route.points.length - 1][1] - route.points[route.points.length - 2][1]) - 4) });
+        // Die Schienen führen weiter in den Hauptgang der Mine (mit Tunnelhöhe), die Lore fährt bis unter Tage.
+        const main = (mineRoutes || []).find(r => r.id === id && r.type === 'main');
+        if (main) {
+          // Prellbock 4 m vor der Stirnwand des Stollens.
+          const pts = main.points.slice(1), last = pts[pts.length - 1], prev = pts[pts.length - 2], len = Math.hypot(last.x - prev.x, last.z - prev.z), k = Math.max(0, (len - 4) / len);
+          pts[pts.length - 1] = { x: prev.x + (last.x - prev.x) * k, z: prev.z + (last.z - prev.z) * k, y: prev.y + (last.y - prev.y) * k };
+          pts.forEach(p => { rails.nodes.push({ x: p.x, z: p.z, y: p.y }); rails.links.push([rails.nodes.length - 2, rails.nodes.length - 1]); });
+        }
       }
 
       // Gondel: Talstation am Osttor, Bergstation auf dem Nordostgrat. Nächster ebener, freier Punkt.
