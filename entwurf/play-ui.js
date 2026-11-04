@@ -24,13 +24,22 @@ globalThis.NachtjagdInterface = (() => {
       const m=new T.Mesh(new T.CylinderGeometry(r,r,length,12),mat);m.rotation.x=Math.PI/2;m.position.set(x,y,z);g.add(m);return m;
     }
     for(let i=0;i<3;i++) {
-      const g=new T.Group();group.add(g);models.push(g);g.name=['Revolver','Schrotflinte','Jagdgewehr'][i];
+      const g=new T.Group();group.add(g);models.push(g);g.name=['Pistole','Schrotflinte','Jagdgewehr'][i];
       if(i===0) {
-        tube(g,metal,0,.012,-.21,.027,.28);tube(g,dark,0,.012,-.352,.019,.008);
-        box(g,metal,0,-.04,-.075,.085,.09,.21);box(g,wood,0,-.145,.025,.065,.17,.095,-.3);
-        tube(g,dark,0,-.017,-.075,.06,.105);
-        for(let n=0;n<6;n++){const a=n*Math.PI/3;tube(g,metal,Math.sin(a)*.05,-.017+Math.cos(a)*.05,-.075,.012,.11);tube(g,brass,Math.sin(a)*.037,-.017+Math.cos(a)*.037,-.014,.009,.005);}
-        box(g,dark,0,.045,-.33,.008,.022,.022);box(g,dark,0,.05,-.005,.045,.015,.012);
+        // Moderne Pistole: Verschluss mit Griffrillen, Polymerrahmen mit Schiene, schräger Griff, Abzugsbügel, Magazinboden, Visierung.
+        const slide=new T.MeshStandardMaterial({color:0x1d2124,metalness:.6,roughness:.38}),poly=new T.MeshStandardMaterial({color:0x111315,metalness:.1,roughness:.75});
+        box(g,slide,0,.012,-.16,.05,.055,.24);                                   // Verschluss
+        for(let k=0;k<6;k++) box(g,poly,0,.014,-.06+k*.012-.03,.052,.045,.004); // Griffrillen hinten
+        box(g,poly,0,.03,-.28,.006,.02,.012);                                   // Auswurföffnung-Kante vorn
+        tube(g,dark,0,.016,-.282,.012,.012);                                    // Laufmündung
+        box(g,poly,0,-.03,-.17,.046,.035,.2);                                    // Rahmen
+        box(g,poly,0,-.05,-.22,.03,.012,.08);                                    // Zubehörschiene
+        box(g,poly,0,-.12,-.045,.048,.16,.07,-.28);                              // Griff
+        box(g,dark,0,-.2,-.02,.052,.02,.078,-.28);                               // Magazinboden
+        box(g,poly,0,-.075,-.12,.012,.012,.07);                                  // Abzugsbügel unten
+        box(g,poly,0,-.055,-.155,.012,.04,.012);                                 // Abzugsbügel vorn
+        box(g,dark,0,-.05,-.105,.008,.03,.01,.3);                                // Abzug
+        box(g,dark,0,.046,-.27,.008,.014,.012);box(g,dark,-.012,.046,-.05,.01,.014,.012);box(g,dark,.012,.046,-.05,.01,.014,.012); // Visierung
       } else {
         box(g,wood,0,-.03,.105,.075,.13,.34,-.1);box(g,metal,0,0,-.14,.085,.085,.25);
         tube(g,metal,0,.015,-.48,.025,.48);tube(g,dark,0,.015,-.724,.018,.008);

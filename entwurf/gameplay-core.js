@@ -13,7 +13,7 @@
   const angDiff = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; };
 
   const WDEF = [
-    { name: 'Revolver', mag: 6, dmg: 38, rate: 0.36, pellets: 1, spread: 0.006, reload: 2.1, range: 150, res: 30, max: 90, pick: 12 },
+    { name: 'Pistole', mag: 12, dmg: 36, rate: 0.36, pellets: 1, spread: 0.006, reload: 2.1, range: 150, res: 36, max: 120, pick: 15 },
     { name: 'Schrotflinte', mag: 6, dmg: 11, rate: 0.85, pellets: 9, spread: 0.05, reload: 2.7, range: 70, res: 12, max: 48, pick: 6 },
     { name: 'Jagdgewehr', mag: 5, dmg: 110, rate: 1.05, pellets: 1, spread: 0.0012, reload: 2.9, range: 240, res: 10, max: 40, pick: 5 }
   ];
