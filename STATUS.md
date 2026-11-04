@@ -1,6 +1,26 @@
 # STATUS
 
-Letzte Aktualisierung: 2026-11-02 (Claude, Entwurf 30 auf gh-pages veröffentlicht, Bildrate auf echter Hardware offen)
+Letzte Aktualisierung: 2026-11-04 (Claude, Entwurf 31 auf `claude/grafik-laden`)
+
+## Entwurf 31 · Nebelnacht, Gegner, neue Ziele
+
+Branch `claude/grafik-laden`, Basis Entwurf 30. Rückmeldung von Light: Hänger beim Einsteigen in den Geländewagen und in der Burg, Nacht zu dunkel, Gondel und Steinkreis ohne Zweck, eigene sparsame Bäume und Gegner, Burgstraße mit Schlenker, Minen befahrbar, Boot unzuverlässig, Wachturm ohne Treppe, Händler zu grob, Säulengänge in Kirche und Burg. Wunsch: einfache, eindrucksvolle Spielideen statt Text.
+
+- Hänger: Ursache war jedes Ein- und Ausblenden einer Lichtquelle (Waffenlicht beim Fahren, Burg-Lampenpool beim Gehen, Grubenlampen). Three.js übersetzt dann alle Shader neu. Jetzt bleibt die Lichtanzahl fest: Burg- und Grubenlampen laufen über das Lampenfeld, das Waffenlicht hängt an der Kamera, ein gemeinsamer Scheinwerfer hängt an der Szene. `warmShaders()` übersetzt beim Laden und im ersten Spielbild alle Shader vorab (auch für ausgeblendete Teile). Gemessen: Einsteigen 0 neue Shader (vorher 24), Burg betreten und durchlaufen höchstens 1.
+- Nacht: blaugrau und neblig statt fast schwarz (`sky.js` Nachtfarben, mehr Mond- und Himmelslicht, dichterer Nebel); Lampen schon in der Dämmerung kräftiger, Burgfenster ohne Nebel, Fackeln mit größerem Schein, Lichtscheine dringen weiter durch den Nebel.
+- Bäume: `tree-models.js`, acht eigene Varianten (fünf Nadelbäume mit Schnee, drei kahle) aus 90–160 Dreiecken, Fernfassungen; die Baum-GLBs werden nicht mehr geladen.
+- Gegner: `monster-models.js`, eigene Gestalten für alle zehn Arten mit Gelenken (Laufen, Zuschlagen, Flügelschlag) und leuchtenden Augen, Formen je Art geteilt. Wendigo- und Wolf-GLB entfallen. Fledermäuse wie im Altay-Original ab Welle 2, gehäuft in Fledermausnächten.
+- Händler und Schmied: Figuren mit Marktstand bzw. Amboss und Esse.
+- Neue Ziele (`relic-sites.js`, Relikte im Spielkern): Gipfelkrone an der Bergstation (Leben +40, Wächter Sensenschwingen und Fledermäuse), Runenstein im Steinkreis löst einen grünen Lichtstrahl in den Himmel aus (Unheilige nehmen 25 % mehr Schaden, Wächter Lykaner und Alpha), Seeperle auf der Insel (Nachladen 25 % schneller, Wächter Fledermäuse und Hexe). Menhire mit Felsoberfläche.
+- Gondelstationen mit Steinsockel, Satteldach mit Schnee, Umlenkrad, Geländer, Laternen, Bänken.
+- Burgstraße nach dem Viadukt als weiter Bogen statt Zickzack (Steigung unter 18 %).
+- Boot: darf bis 0,7 m ans Ufer, gleitet entlang statt abzuprallen, Ausstieg nur auf trockenes Land, Insel zählt als Land.
+- Minen: Schienen führen in den Hauptgang beider Minen (mit Tunnelhöhe), Prellbock 4 m vor der Stirnwand.
+- Wachturm: hinter die Mauer am Osttor versetzt (die Mauer lief mitten hindurch), Wendeltreppe, Plattform mit Luke und Brüstung.
+- `arcades.js`: zwei Arkadenreihen im Kirchenschiff, kleiner Kreuzgang mit Garten und Brunnen im Osten des Burghofs; Säulen mit eigener Kollision.
+- Versionskennung auf 31.
+
+Validierung: 223/223 Node-Tests (neu: Gegnerfiguren, Bootsufer), 23/23 Gelände- und 166/166 Spielprüfungen im Browser. Einsteigen, Burg, Relikte mit Wächtern, Lore bis unter Tage, Wendeltreppe bis auf die Plattform im Browser durchgespielt. Nicht geprüft: Bildrate auf echter Hardware.
 
 ## Entwurf 30 · Wege bündig, weniger Last
 
