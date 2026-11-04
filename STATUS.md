@@ -236,6 +236,7 @@ Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` un
 
 ## Übergabe-Log
 
+- 2026-11-04, Claude Code: Revolver durch moderne Pistole ersetzt (Modell in `play-ui.js`; Werte: 12 Schuss, 36 Schaden, Reserve 36, höchstens 120); Burgdächer schwarz (`models/kit.js` roofSlate/roofCopper) mit Schneeflecken aus `surface-style.js` (gilt für alle Dächer, auf hellen kaum sichtbar). Tests angepasst, 223 grün. Nach gh-pages veröffentlicht.
 - 2026-11-02, Claude Code: Entwurf 30 nach gh-pages veröffentlicht (`05e8377`, Fast-Forward von `6b178a8`, kein Force), `entwurf/` inhaltsgleich mit `public/entwurf/`. 220 Node-Tests, 23 Gelände- und 166 Spielprüfungen grün. Live-Seite aus der Agentenumgebung nicht erreichbar.
 - 2026-11-02, Claude Code: Entwurf 29 auf Wunsch des Besitzers nach gh-pages veröffentlicht (`6b178a8`, Fast-Forward von `45a9794`, kein Force): `entwurf/` inhaltsgleich mit `public/entwurf/`, neu `assets/opt/`, dazu `assets/church/church-adapter.js` und `models/kit.js`. Live-Seite aus der Agentenumgebung nicht erreichbar, daher nicht geprüft.
 - 2026-11-02, Claude Code: Entwurf 29 auf `claude/grafik-laden` (Basis `b4cdd01`): verkleinerte Modelle unter `assets/opt/` (`tools/optimize-models.mjs`), Kirche parallel geladen, vereinfachte Fernbäume, gemeinsame Shader-Oberflächen (`surface-style.js`), Wege mit Pflaster/Fahrspur und Schneewällen, Seehäuser mit Dach, Wintersee, eigener Geländewagen. 220 Node-Tests, 23 Gelände- und 166 Spielprüfungen grün. Nicht veröffentlicht; gh-pages wartet auf Lights Freigabe.

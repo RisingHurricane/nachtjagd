@@ -36,7 +36,7 @@ test('body shots deal base damage, head shots multiply it and score more, emergi
   assert.equal(mon(game).hp, 70, 'während des Auftauchens unverwundbar');
   advance(game, 0.6); // Auftauchen halb geschafft
   aim(game, 0, 1.23, 8); game.step(0.1, { fire: true });
-  assert.equal(mon(game).hp, 32);
+  assert.equal(mon(game).hp, 34);
   advance(game, 0.4);
   const m = mon(game);
   aim(game, m.x, m.y + 1.78, m.z); game.step(0.1, { fire: true });
@@ -286,12 +286,12 @@ test('blacksmith upgrades change damage, magazine, reload time and health', () =
   game.spawn('villager', 0, 10, true); advance(game, 0.2);
   const m = mon(game); aim(game, m.x, m.y + 1.2, m.z);
   const hp0 = m.hp; game.step(0.1, { fire: true });
-  assert.ok(Math.abs(hp0 - mon(game).hp - 45.6) < 0.01, 'Schaden +20 %');
+  assert.ok(Math.abs(hp0 - mon(game).hp - 43.2) < 0.01, 'Schaden +20 %');
   advance(game, 0.4);
   game.reload(); advance(game, 1.5);
-  assert.equal(game.snapshot().weapons[0].ammo, 5, 'nach 1,5 s noch nicht fertig');
+  assert.equal(game.snapshot().weapons[0].ammo, 11, 'nach 1,5 s noch nicht fertig');
   advance(game, 0.2);
-  assert.equal(game.snapshot().weapons[0].ammo, 8, 'Nachladen nach 1,68 s, Magazin fasst 8 Schuss');
+  assert.equal(game.snapshot().weapons[0].ammo, 14, 'Nachladen nach 1,68 s, Magazin fasst 14 Schuss');
 });
 
 test('shrine blesses once per wave: heal, 28 percent less damage, resets at the next wave', () => {

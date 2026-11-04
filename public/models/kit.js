@@ -9,8 +9,8 @@ export const PALETTE = {
   stone: 0x596b74,
   stoneDark: 0x4e4e4b,
   stoneLight: 0x7e868c,
-  roofSlate: 0x2f3d4a,
-  roofCopper: 0x6e4637,
+  roofSlate: 0x17181b,   // schwarzer Schiefer (Schnee kommt aus surface-style.js)
+  roofCopper: 0x1c1d20,
   snow: 0xdfe6ec,
   wood: 0x4a3a2e,
 };

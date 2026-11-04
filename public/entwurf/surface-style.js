@@ -88,7 +88,11 @@ vec3 sfSurface(vec3 base) {
   vec3 shingle = base * (0.74 + 0.26 * lip) * (0.93 + 0.12 * h) * (1.0 - 0.18 * gap);
   float bare = smoothstep(0.62, 0.8, mid + (h - 0.5) * 0.2) * 0.6;
   shingle = mix(shingle, base * vec3(0.42, 0.44, 0.47), bare);
-  c = mix(far, shingle, fade);
+  // Schneeauflage in Flecken und Streifen längs der Reihen: auf dunklen Dächern deutlich, auf hellen kaum sichtbar.
+  float snowy = smoothstep(0.48, 0.7, big * 0.55 + mid * 0.45 + (h - 0.5) * 0.12) * (0.75 + 0.25 * lip);
+  vec3 snowCol = vec3(0.84, 0.88, 0.92);
+  shingle = mix(shingle, snowCol, snowy * 0.85);
+  c = mix(mix(far, snowCol, smoothstep(0.48, 0.7, big) * 0.6), shingle, fade);
 #elif SURF_KIND == 5
   // Weg: Pflaster im Dorf, festgetretene Fahrspur außerhalb; Schnee in Fugen, an Rändern und in Flecken.
   // Flächen ohne Angaben (Dorfplätze aus Quadern) gelten als gepflastert.
