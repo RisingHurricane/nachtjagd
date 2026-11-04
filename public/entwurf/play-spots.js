@@ -3,7 +3,7 @@
 // Spielorte für die Bergdorf-Welt: Truhen, Händler, Schmied, Bildstöcke, Angelplätze, Notizen und Reliquien.
 // Die Lage folgt dem bestätigten Layout (world-layout.js); jeder Punkt wird auf den nächsten freien, begehbaren Boden gesetzt.
 globalThis.NachtjagdSpots = {
-  build({ layout, blocked, floor, boatOk, routes }) {
+  build({ layout, blocked, floor, boatOk, routes, mineRoutes }) {
     const walkable = (x, z) => { const y = floor(x, z); return Number.isFinite(y) && !blocked(x, z, y); };
     // Nächster freier Punkt um (x,z): Spirale in 1-m-Schritten, deterministisch.
     function free(x, z, minR = 0) {
@@ -113,6 +113,9 @@ globalThis.NachtjagdSpots = {
         for (let i = 0; i < route.points.length - 1; i++) rails.links.push([first + i, first + i + 1]);
         const link0 = rails.links.length - route.points.length + 1;
         carts.push({ link: link0, t: 4 }, { link: rails.links.length - 1, t: Math.max(2, Math.hypot(route.points[route.points.length - 1][0] - route.points[route.points.length - 2][0], route.points[route.points.length - 1][1] - route.points[route.points.length - 2][1]) - 4) });
+        // Die Schienen führen weiter in den Hauptgang der Mine (mit Tunnelhöhe), die Lore fährt bis unter Tage.
+        const main = (mineRoutes || []).find(r => r.id === id && r.type === 'main');
+        if (main) main.points.slice(1).forEach(p => { rails.nodes.push({ x: p.x, z: p.z, y: p.y }); rails.links.push([rails.nodes.length - 2, rails.nodes.length - 1]); });
       }
 
       // Gondel: Talstation am Osttor, Bergstation auf dem Nordostgrat. Nächster ebener, freier Punkt.

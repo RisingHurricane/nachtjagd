@@ -62,7 +62,7 @@
       add('jeep', { x: j.x, z: j.z, y, yaw: j.yaw || 0, steer: 0, yawRate: 0 });
     }
 
-    const nodes = world.rails && world.rails.nodes ? world.rails.nodes.map((n, i) => ({ id: i, x: n.x, z: n.z })) : [];
+    const nodes = world.rails && world.rails.nodes ? world.rails.nodes.map((n, i) => ({ id: i, x: n.x, z: n.z, y: finite(n.y) ? n.y : undefined })) : [];
     const links = world.rails && world.rails.links ? world.rails.links.map((l, i) => {
       const a = nodes[l[0]], b = nodes[l[1]];
       return { id: i, a: l[0], b: l[1], length: Math.hypot(b.x - a.x, b.z - a.z), yaw: Math.atan2(b.x - a.x, b.z - a.z) };
@@ -265,10 +265,17 @@
     const target = v.seats[0] !== null ? (f > 0 ? f : f * 0.5) * (c.sprint ? 4.8 : 3.3) : 0;
     v.sp += (target - v.sp) * Math.min(1, dt * (target !== 0 ? 1.2 : 0.6));
     const turn = v.seats[0] !== null ? c.steer : 0;
-    v.yaw += turn * dt * (0.5 + 0.28 * Math.min(1, Math.abs(v.sp) / 3.3)) * (v.sp < -0.2 ? -1 : 1);
+    v.yaw += turn * dt * (0.75 + 0.35 * Math.min(1, Math.abs(v.sp) / 3.3)) * (v.sp < -0.2 ? -1 : 1);
     const hx = Math.sin(v.yaw), hz = Math.cos(v.yaw), nx = v.x + hx * v.sp * dt, nz = v.z + hz * v.sp * dt;
-    if (boatOk(world, nx, nz) && boatOk(world, nx + hx * 1.4, nz + hz * 1.4) && boatOk(world, nx - hx * 1.3, nz - hz * 1.3)) { v.x = nx; v.z = nz; }
-    else { if (Math.abs(v.sp) > 1.2) v.bump = true; v.sp *= -0.3; }
+    const free = (x, z) => boatOk(world, x, z) && boatOk(world, x + hx * 1.2, z + hz * 1.2) && boatOk(world, x - hx * 1.1, z - hz * 1.1);
+    if (free(nx, nz)) { v.x = nx; v.z = nz; }
+    else {
+      // Am Ufer weich abbremsen und entlanggleiten statt zurückzuprallen.
+      if (Math.abs(v.sp) > 2.2) v.bump = true;
+      const dx = nx - v.x, dz = nz - v.z;
+      if (free(v.x + dx, v.z)) v.x += dx * .6; else if (free(v.x, v.z + dz)) v.z += dz * .6;
+      v.sp *= Math.max(0, 1 - dt * 6);
+    }
     v.y = finite(world.waterLevel) ? world.waterLevel : v.y;
     v.ph = (v.ph || 0) + Math.abs(v.sp) * dt * 1.9;
   }
@@ -304,13 +311,14 @@
       }
       return null;
     }
-    const radii = v.kind === 'boat' ? [2.2, 3.3, 4.6, 6.2] : [2.5, 3.5, 4.5];
+    const radii = v.kind === 'boat' ? [1.8, 2.6, 3.4, 4.4, 5.6, 7, 8.5] : [2.5, 3.5, 4.5];
     let best = null, bestD = Infinity;
     for (const r of radii) for (let k = 0; k < 24; k++) {
       const a = k * TAU / 24, x = v.x + Math.cos(a) * r, z = v.z + Math.sin(a) * r, y = floorAt(x, z, v.y + 0.8);
       const reach = v.kind === 'boat' ? 2.6 : 1.7;
       if (!finite(y) || Math.abs(y - v.y) > reach || world.blocked(x, z, y)) continue;
-      if (v.kind === 'boat' && boatOk(world, x, z)) continue;
+      // Vom Boot nur auf trockenes Land (nicht ins seichte Wasser zwischen Boot und Ufer).
+      if (v.kind === 'boat' && (boatOk(world, x, z) || (typeof world.waterDepth === 'function' && world.waterDepth(x, z) > 0))) continue;
       if (r < bestD) { bestD = r; best = { x, y, z }; }
     }
     return best;

@@ -720,7 +720,10 @@
       return Math.abs(cosine * dx - sine * dz) < c.w + .45 && Math.abs(sine * dx + cosine * dz) < c.d + .45;
     });
   }
-  const boatOk = (x, z) => layout.lakeDistance(x, z) < -1.5 && landmarks.floor(x, z) === null && !hitsSolid(x, z);
+  // Das Boot darf bis 0,7 m ans Ufer (vorher 1,5 m): Anlegen und Aussteigen klappen dann überall am See und an der Insel.
+  // Insel im See ist Land: außerhalb der Ellipse plus Rand (m) liegt Wasser.
+  const offIsland = (x, z, margin = 0) => { const i = layout.island; return !i || ((x - i.x) / (i.rx + margin)) ** 2 + ((z - i.z) / (i.rz + margin)) ** 2 > 1; };
+  const boatOk = (x, z) => layout.lakeDistance(x, z) < -.7 && offIsland(x, z, .7) && landmarks.floor(x, z) === null && !hitsSolid(x, z);
   function refreshTerrain() {
     updateHeightGrid();
     refreshViaduct();
@@ -1116,7 +1119,7 @@
   const world={
     spawn:[90,45],floor:gameFloor,blocked,chaseTarget,resetNavigation:()=>paths.clear(),
     objectives:[{id:'church',name:'Kirche',x:91,z:-1.1},{...mines.seal('mine-west'),id:'mine',name:'Westmine',guard:'deep'},{id:'castle',name:'Burg',x:castleSeal.x,z:castleSeal.z,guard:'alpha'}],
-    waterDepth:(x,z)=>layout.lakeDistance(x,z)<0?1:0,waterLevel:.09,boatOk,onRoad:(x,z)=>streetHeight(x,z)!==null,
+    waterDepth:(x,z)=>layout.lakeDistance(x,z)<0&&offIsland(x,z)?1:0,waterLevel:.09,boatOk,onRoad:(x,z)=>streetHeight(x,z)!==null,
     bell:{x:91,z:22.5},
     tick:(x,y,z)=>{castleSite.update(x,y,z);buildings.update(x,y,z);mines.update(x,y,z);},
     indoor:(x,y,z)=>Math.max(castleSite.indoor(x,y,z),buildings.indoor(x,y,z),Number(mines.indoor(x,y,z))),
@@ -1149,7 +1152,7 @@
       return null;
     }
   };
-  Object.assign(world,NachtjagdSpots.build({layout,blocked,floor:gameFloor,boatOk,routes})); // Truhen, Händler, Schmied, Bildstöcke, Angelplätze, Notizen, Reliquien
+  Object.assign(world,NachtjagdSpots.build({layout,blocked,floor:gameFloor,boatOk,routes,mineRoutes:mines.points})); // Truhen, Händler, Schmied, Bildstöcke, Angelplätze, Notizen, Reliquien
   scene.updateMatrixWorld(true);
   world.checks=[{name:'Dorfstart frei',passed:!blocked(90,45,gameFloor(90,45))},...world.objectives.map(o=>({name:o.name+'-Siegel erreichbar',passed:!blocked(o.x,o.z,gameFloor(o.x,o.z))})),{name:'Glockenplatz frei',passed:!blocked(world.bell.x,world.bell.z,gameFloor(world.bell.x,world.bell.z))},{name:'Spielorte frei',passed:[...world.loots,...world.shrines,...world.fishSpots,world.merchant,world.smith].every(p=>!blocked(p.x,p.z,gameFloor(p.x,p.z)))}];
   world.checks.push(

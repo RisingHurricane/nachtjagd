@@ -5,7 +5,7 @@ globalThis.NachtjagdRoadLayout = ({ height,castle }) => {
   const bridgeSpec={ a:[-210,-80],b:[-120,-180],width:8,arches:7 };
   const bridgeLength=Math.hypot(90,100);
   const bridgePoint=s=>[bridgeSpec.a[0]+90*s/bridgeLength,bridgeSpec.a[1]-100*s/bridgeLength];
-  const castleRoute=[[90,45],[-5,45],[-50,30],[-65,-20],[-55,-95],[-65,-145],bridgePoint(bridgeLength+10),bridgeSpec.b,bridgeSpec.a,bridgePoint(-10),[-215,-48],[-238,-48],[-225,-78],[-236,-100],[-248,-100]];
+  const castleRoute=[[90,45],[-5,45],[-50,30],[-65,-20],[-55,-95],[-65,-145],bridgePoint(bridgeLength+10),bridgeSpec.b,bridgeSpec.a,[-222,-61],[-240,-54],[-250,-66],[-248,-84],[-248,-100]]; // nach dem Viadukt ein weiter Bogen statt Zickzack (rund 17 % Steigung)
   const southRoad=[[90,45],[115,45],[115,112],[110,143],[140,174],[200,185]];
   const southLoop=[[200,185],[215,240],[175,275],[80,265],[55,225],[15,180],[-45,150],[-90,162],[-110,170]];
   const shoreRoute=[...southRoad,...southLoop.slice(1)];

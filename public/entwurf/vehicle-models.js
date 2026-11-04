@@ -235,7 +235,10 @@ globalThis.NachtjagdVehicleModels = (() => {
       for (const l of rails.links) {
         const a = rails.nodes[l.a], b = rails.nodes[l.b], count = Math.max(1, Math.round(l.length / 1.9));
         for (let i = 0; i <= count; i++) {
-          const t = i / count, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t, y = world.floor(x, z) + 0.1;
+          // Unter Tage tragen die Knoten ihre Tunnelhöhe; über Tage folgen die Schienen dem Boden.
+          const t = i / count, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t;
+          const ya = Number.isFinite(a.y) ? a.y : null, yb = Number.isFinite(b.y) ? b.y : null;
+          const y = (ya === null && yb === null ? world.floor(x, z) : (ya ?? world.floor(a.x, a.z)) + ((yb ?? world.floor(b.x, b.z)) - (ya ?? world.floor(a.x, a.z))) * t) + 0.1;
           sleepers.push([x, y, z, l.yaw]);
           for (const s of [-1, 1]) pieces.push([x - Math.cos(l.yaw) * s * 0.55, y + 0.09, z + Math.sin(l.yaw) * s * 0.55, l.yaw, l.length / count + 0.15]);
         }
@@ -249,7 +252,7 @@ globalThis.NachtjagdVehicleModels = (() => {
       const degree = new Map();
       for (const l of rails.links) { degree.set(l.a, (degree.get(l.a) || 0) + 1); degree.set(l.b, (degree.get(l.b) || 0) + 1); }
       for (const [id, n] of degree) if (n === 1) {
-        const node = rails.nodes[id], y = world.floor(node.x, node.z) + 0.1;
+        const node = rails.nodes[id], y = (Number.isFinite(node.y) ? node.y : world.floor(node.x, node.z)) + 0.1;
         box(THREE, group, wood, 1.6, 0.5, 0.3, node.x, y + 0.3, node.z);
       }
     }
@@ -276,13 +279,34 @@ globalThis.NachtjagdVehicleModels = (() => {
         }
         const beam = box(THREE, group, iron, 11.2, 0.3, 0.5, p.x, top, p.z); beam.rotation.y = yaw + Math.PI / 2;
       }
-      // Stationen: offener Holzrahmen mit Dach (Platzhalter), keine Kollision
+      // Stationen: Steinsockel, Holzpfosten, Satteldach mit Schnee, Umlenkrad für das Seil, Geländer, Laternen, Schild.
+      // Nur Darstellung, keine Kollision.
+      const stoneMat = lambert(THREE, 0x6f7273), snowMat = lambert(THREE, 0xdfe7ec), roofWood = lambert(THREE, 0x4a3a2c);
+      const glow = new THREE.MeshBasicMaterial({ color: 0xffd08a });
       for (const s of stations) {
         const st = new THREE.Group(); st.position.set(s.x, s.y, s.z); st.rotation.y = yaw; group.add(st);
-        box(THREE, st, plank, 9, 0.12, 6.5, 0, 0.06, 0);
-        for (const x of [-4.2, 4.2]) for (const z of [-3, 3]) box(THREE, st, wood, 0.35, 5.6, 0.35, x, 2.8, z);
-        box(THREE, st, roofMat, 10, 0.3, 7.4, 0, 5.75, 0);
-        const sign = box(THREE, st, lambert(THREE, 0xe8dcc0, 0x201c14), 3.2, 0.6, 0.1, 0, 4.6, 3.2); sign.name = s.name || 'Station';
+        box(THREE, st, stoneMat, 10.5, 1.2, 8, 0, -.3, 0);                        // Sockel
+        box(THREE, st, plank, 9.6, .14, 7.2, 0, .37, 0);                          // Bohlenboden
+        for (const x of [-4.4, 4.4]) for (const z of [-3.2, 3.2]) box(THREE, st, wood, .45, 5.6, .45, x, 3.1, z);
+        for (const z of [-3.2, 3.2]) box(THREE, st, wood, 9.4, .4, .4, 0, 5.9, z); // Pfetten
+        // Satteldach mit Schnee (Firstlinie längs der Seilrichtung)
+        for (const side of [-1, 1]) {
+          const r = box(THREE, st, roofWood, 5.6, .22, 11, side * 2.45, 7.05, 0, 0, 0, -side * .5);
+          const sn = box(THREE, st, snowMat, 5.3, .1, 10.6, side * 2.4, 7.2, 0, 0, 0, -side * .5); sn.castShadow = false;
+        }
+        box(THREE, st, roofWood, .3, .3, 11.2, 0, 8.25, 0);                        // First
+        // Großes Umlenkrad an der Bergseite: Kranz und Speichen
+        const wheel = new THREE.Group(); wheel.position.set(0, 5.3, -2.4); st.add(wheel);
+        const rim = new THREE.Mesh(new THREE.TorusGeometry(2.15, .14, 6, 28), iron); rim.rotation.x = Math.PI / 2; rim.castShadow = true; wheel.add(rim);
+        for (let i = 0; i < 6; i++) { const sp = box(THREE, wheel, iron, 4.3, .1, .1, 0, 0, 0); sp.rotation.y = i * Math.PI / 6; }
+        box(THREE, st, iron, .5, 5.3, .5, 0, 2.65, -2.4);                          // Radachse
+        // Geländer an den Längsseiten, Einstieg vorn frei
+        for (const x of [-4.6, 4.6]) { box(THREE, st, wood, .1, .1, 6.6, x, 1.4, 0); for (const z of [-3, -1, 1, 3]) box(THREE, st, wood, .1, 1, .1, x, .9, z); }
+        // Laternen an den vorderen Pfosten
+        for (const x of [-4.4, 4.4]) { box(THREE, st, iron, .3, .4, .3, x, 4.2, 3.55); box(THREE, st, glow, .2, .28, .2, x, 4.2, 3.55).castShadow = false; }
+        const sign = box(THREE, st, lambert(THREE, 0xe8dcc0, 0x201c14), 3.4, .7, .12, 0, 5.1, 3.45); sign.name = s.name || 'Station';
+        // Bänke
+        for (const x of [-3, 3]) box(THREE, st, plank, 1.6, .12, .5, x, .95, -3);
       }
     }
     return group;

@@ -230,6 +230,22 @@ test('boat: rows on water, bounces off the shore, and the rider steps out on lan
   assert.ok(p.x <= 20 && p.ride === null, 'Spieler steht an Land ' + p.x);
 });
 
+test('boat: glides along the shore without bouncing back and lands only on dry ground', () => {
+  // Fahrwasser x > 22, seichtes Wasser 20..22 (kein Boot, aber auch kein Ausstieg), Land x <= 20
+  const world = { boatOk: x => x > 22, waterDepth: x => x > 20 ? 1 : 0, blocked: () => false, waterLevel: 0.1, boats: [{ x: 23, z: 0, yaw: -Math.PI / 2 + 0.6 }], spawn: [23, -2] };
+  const { game } = make(world); game.start();
+  assert.equal(game.interact(), true);
+  let minSpeed = Infinity, startZ = veh(game, 'boat').z;
+  for (let i = 0; i < 60; i++) { game.step(0.05, { forward: 1 }); minSpeed = Math.min(minSpeed, veh(game, 'boat').sp); }
+  const b = veh(game, 'boat');
+  assert.ok(minSpeed >= 0, 'prallt nicht rückwärts ab: ' + minSpeed);
+  assert.ok(b.x > 22 && Math.abs(b.z - startZ) > 0.5, 'gleitet am Ufer entlang ' + b.x + ' ' + b.z);
+  advance(game, 3);
+  assert.equal(game.interact(), true, 'aussteigen');
+  const p = game.snapshot().player;
+  assert.ok(p.ride === null && p.x <= 20, 'steht auf trockenem Land, nicht im Seichten: ' + p.x);
+});
+
 test('boat cannot leave when no shore is nearby', () => {
   const world = { boats: [{ x: 60, z: 0, yaw: 0 }], waterLevel: 0, boatOk: x => x > 22, blocked: x => x > 20, spawn: [58, 0] };
   const { game } = make(world);
