@@ -2,6 +2,13 @@
 
 Letzte Aktualisierung: 2026-11-04 (Claude, Entwurf 31 auf `claude/grafik-laden`)
 
+## Nächste Schritte (Stand 2026-11-04, Wunsch von Light)
+
+- Arbeitsweise für Modelle: jedes Modell (Baum, Gegner, Haus, Fahrzeug) einzeln als Three.js-Modul entwerfen, in einer eigenen Vorschauseite prüfen (Muster: `public/models/preview.html`, `public/entwurf/haeuser.html`) und erst nach Lights Freigabe ins Spiel übernehmen. Vertrag wie bisher: Fuß bei y = 0, Blick nach +z, 1 Einheit = 1 m, Formen und Materialien teilen.
+- Bäume überzeugen Light noch nicht (`tree-models.js`). Als Erstes eine Baum-Vorschauseite mit mehreren Entwürfen bauen und Light auswählen lassen.
+- Danach dasselbe Vorgehen für die Gegner (`monster-models.js`).
+- Arbeitszweig: `claude/grafik-laden`. Veröffentlichung auf gh-pages: `public/entwurf/` nach `entwurf/`, `public/assets/opt/` nach `assets/opt/`, dazu `assets/church/church-adapter.js` und `models/kit.js`.
+
 ## Entwurf 31 · Nebelnacht, Gegner, neue Ziele
 
 Branch `claude/grafik-laden`, Basis Entwurf 30. Rückmeldung von Light: Hänger beim Einsteigen in den Geländewagen und in der Burg, Nacht zu dunkel, Gondel und Steinkreis ohne Zweck, eigene sparsame Bäume und Gegner, Burgstraße mit Schlenker, Minen befahrbar, Boot unzuverlässig, Wachturm ohne Treppe, Händler zu grob, Säulengänge in Kirche und Burg. Wunsch: einfache, eindrucksvolle Spielideen statt Text.
