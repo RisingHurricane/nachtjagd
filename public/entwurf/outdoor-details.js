@@ -54,7 +54,8 @@ globalThis.NachtjagdOutdoor = {
       part(iron,lx,y+4.98,lz,.12,.2,.12);
     }
     // Offener Holzwachturm am Osttor, mit Querstreben, Brüstung und steilem Satteldach.
-    const tx=191,tz=29,base=height(tx,tz),top=base+11,towerParts=[];
+    // Steht frei hinter der Mauer am Osttor (die Mauer lief früher mitten durch den Turm).
+    const tx=178,tz=36,base=height(tx,tz),top=base+11,towerParts=[];
     for(const dx of [-2.5,2.5]) for(const dz of [-2.5,2.5]) {
       box(tx+dx,tz+dz,.48,.48,14,'landmark',0,base);
       for(const y of [base+3,base+7]) {
@@ -62,12 +63,16 @@ globalThis.NachtjagdOutdoor = {
         part(wood,tx,y,tz+dz,5.5,.22,.22);
       }
     }
-    box(tx,tz,6.2,6.2,.4,'landmark',0,top,false);
+    // Plattform 8,4 m breit mit Luke (4,6 m) für die Wendeltreppe, Brüstung am Außenrand.
     for(const side of [-1,1]) {
-      box(tx+side*2.8,tz,.18,5.8,1.1,'landmark',0,top+.4,false);
-      box(tx,tz+side*2.8,5.8,.18,1.1,'landmark',0,top+.4,false);
-      const roof = new T.Mesh(new T.BoxGeometry(4.35,.2,7),wood);
-      roof.position.set(tx+side*1.65,top+4,tz); roof.rotation.z=-side*.78;
+      box(tx+side*3.5,tz,1.4,8.4,.4,'landmark',0,top,false);
+      box(tx,tz+side*3.5,5.6,1.4,.4,'landmark',0,top,false);
+    }
+    for(const side of [-1,1]) {
+      box(tx+side*4.1,tz,.18,8.2,1.1,'landmark',0,top+.4,false);
+      box(tx,tz+side*4.1,8.2,.18,1.1,'landmark',0,top+.4,false);
+      const roof = new T.Mesh(new T.BoxGeometry(6,.2,9),wood);
+      roof.position.set(tx+side*2.15,top+4.4,tz); roof.rotation.z=-side*.78;
       roof.castShadow=true; scene.add(roof); towerParts.push({mesh:roof,y:roof.position.y});
     }
     // Schrägstreben als ein einziges instanziertes Netz.
@@ -75,6 +80,38 @@ globalThis.NachtjagdOutdoor = {
       const brace = new T.Mesh(new T.BoxGeometry(.23,6.7,.23),wood);
       brace.position.set(tx,base+6,tz+side*2.5); brace.rotation.z=direction*.75;
       scene.add(brace); towerParts.push({mesh:brace,y:brace.position.y});
+    }
+    // Wendeltreppe um einen Mittelpfosten: 16 Stufen je Umdrehung, 20 cm Stufenhöhe, endet an der Luke.
+    const STEPS_TURN=16,RISE=.2,STEPS=Math.round((top+.4-base)/RISE),STEP_ANGLE=Math.PI*2/STEPS_TURN;
+    const pole=new T.Mesh(new T.CylinderGeometry(.3,.3,top+1.6-base,8),wood); pole.position.set(tx,base+(top+1.6-base)/2,tz); pole.castShadow=true; scene.add(pole); towerParts.push({mesh:pole,y:pole.position.y});
+    const steps=new T.InstancedMesh(new T.BoxGeometry(1.95,.12,.62),wood,STEPS); steps.castShadow=steps.receiveShadow=true; scene.add(steps);
+    function placeSteps(ground) {
+      for(let k=0;k<STEPS;k++) {
+        const a=(k+.5)*STEP_ANGLE;
+        dummy.position.set(tx+Math.cos(a)*1.32,ground+(k+1)*RISE-.06,tz+Math.sin(a)*1.32); dummy.rotation.set(0,-a,0); dummy.scale.set(1,1,1); dummy.updateMatrix(); steps.setMatrixAt(k,dummy.matrix);
+      }
+      steps.instanceMatrix.needsUpdate=true;
+    }
+    placeSteps(base);
+    // Laufhöhe am Turm: Stufe unter den Füßen (höchstens 45 cm Anstieg), oben die Plattform rund um die Luke.
+    function towerFloor(x,z,feet) {
+      const ground=height(tx,tz),dx=x-tx,dz=z-tz,platform=top+.4+(ground-base);
+      if(Math.abs(dx)<4.6&&Math.abs(dz)<4.6&&Math.hypot(dx,dz)>2.3&&Number.isFinite(feet)&&feet>platform-.6) return platform;
+      const r=Math.hypot(dx,dz);
+      if(r<.33||r>2.35) return null;
+      const angle=(Math.atan2(dz,dx)+Math.PI*2)%(Math.PI*2),first=Math.floor(angle/STEP_ANGLE);
+      let best=null;
+      for(let k=first;k<STEPS;k+=STEPS_TURN) {
+        const h=ground+(k+1)*RISE;
+        if(!Number.isFinite(feet)) { best=h; break; }
+        if(h<=feet+.45) best=h;
+      }
+      return best;
+    }
+    // Brüstung: Oben auf der Plattform kann man nicht über den Rand laufen.
+    function towerBlocked(x,z,feet) {
+      const ground=height(tx,tz),platform=top+.4+(ground-base),dx=Math.abs(x-tx),dz=Math.abs(z-tz);
+      return Number.isFinite(feet)&&feet>platform-.6&&Math.max(dx,dz)>3.85&&Math.max(dx,dz)<4.6;
     }
     label('Wachturm · Osttor',tx,tz,20,47);
     const built=[];
@@ -98,6 +135,7 @@ globalThis.NachtjagdOutdoor = {
     });
     function refresh() {
       for(const p of towerParts) p.mesh.position.y=p.y+height(tx,tz)-base;
+      placeSteps(height(tx,tz));
       for(const {mesh,parts} of built) {
         parts.forEach((p,i)=>{
           dummy.position.set(p.x,p.y+height(p.x,p.z)-p.ground,p.z);
@@ -118,6 +156,6 @@ globalThis.NachtjagdOutdoor = {
       glowMaterial.uniforms.strength.value=.2+.38*night;
     }
     refresh();
-    return {lamps,pool,refresh,update,tower:{x:tx,z:tz,top}};
+    return {lamps,pool,refresh,update,tower:{x:tx,z:tz,top},floor:towerFloor,blocked:towerBlocked};
   }
 };

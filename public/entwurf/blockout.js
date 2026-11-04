@@ -54,7 +54,7 @@
   const edgeMaterial = new THREE.LineBasicMaterial({ color: '#526266', transparent: true, opacity: .3 });
   const colliders = [], anchors = [], roadMeshes = [], labelAnchors = [], treePlacements = [], coverPlacements=[];
   const roadVertices=[],roadIndices=[],roadRanges=[],roadInfo=[];
-  let groundReady=false; // roadTop folgt dem Gelände erst, wenn das Höhenraster steht (Kirchenhöhe wird vorher bestimmt)
+  let groundReady=false, towerFloor=null, towerBlocked=null; // towerFloor: Wendeltreppe und Plattform des Wachturms (outdoor-details.js) // roadTop folgt dem Gelände erst, wenn das Höhenraster steht (Kirchenhöhe wird vorher bestimmt)
   const labels = new THREE.Group();
   scene.add(labels);
   const layout = NachtjagdLayout;
@@ -203,6 +203,8 @@
     return y===null?null:roadTop(y,x,z);
   }
   function surfaceHeight(x,z,previousFeet) {
+    const tower=towerFloor && towerFloor(x,z,previousFeet);
+    if(tower!==null && tower!==undefined) return tower;
     const deck=landmarks && landmarks.floor(x,z);
     if(deck!==null && deck!==false) return deck;
     const bridge=viaduct.floor(x,z,previousFeet),street=streetHeight(x,z);
@@ -467,6 +469,7 @@
       const p=h.toLocal(x,z);
       return h.plan.volumes.some(v=>p.x>v.x0-1&&p.x<v.x1+1&&p.z>v.z0-1&&p.z<v.z1+1)||h.approaches.some(a=>Math.hypot(a.x-x,a.z-z)<2);
     })});
+  towerFloor=outdoor.floor; towerBlocked=outdoor.blocked;
   // Laternen an Wegen und im Dorf als Lampen des Lampenfelds (ersetzen die drei echten Nahlichter).
   const lanternLamps=()=>outdoor.lamps.map((l,i)=>({x:l.x,y:l.y,z:l.z,r:16,c:[1,.62,.3],k:.85,halo:4.6,a:.42,flick:i%7===3,kind:'laterne'}));
   lampField.add(lanternLamps());
@@ -704,6 +707,7 @@
     if(mines && mines.indoor(x,feet,z))return mines.blocked(x,z,feet);
     if (groundHeight(x, z) < .35 && landmarks.floor(x,z)===null) return true;
     if (viaduct.collides(x,z,feet)) return true;
+    if (towerBlocked && towerBlocked(x,z,feet)) return true;
     if (mines && mines.blocked(x,z,feet)) return true;
     if (villageWall && villageWall.blocked(x,z,feet)) return true;
     if (castleSite.walk && castleSite.walk.blocked(x,z,feet)) return true;
@@ -1076,6 +1080,9 @@
   function gameFloor(x,z,previousFeet) {
     const mf=mines && mines.floor(x,z,previousFeet);
     if(mf!==null && mf!==false)return mf;
+    // Wachturm (Wendeltreppe, Plattform) vor allen Rampen und Schultern der Straßen.
+    const tf=towerFloor && towerFloor(x,z,previousFeet);
+    if(tf!==null && tf!==undefined) return tf;
     const wf=villageWall && villageWall.floor(x,z,previousFeet);
     if(wf!==null && wf!==false)return wf;
     const bf=buildings && buildings.floor(x,z,previousFeet);
@@ -1243,7 +1250,7 @@
       world.checks.push({name,passed:Math.hypot(p.x-end[0],p.z-end[1])<.5});
     }
     world.checks.push({name:'Kirchenmauer hält Schüsse auf',passed:world.rayDistance({x:91,y:churchOrigin.y+2,z:10},{x:1,y:0,z:0},30)<8});
-    globalThis.NachtjagdDebug={buildings,buildingSpecs,churchOrigin,castleSite,renderer,sky,world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
+    globalThis.NachtjagdDebug={colliders,villageWall,mines,landmarks,buildings,buildingSpecs,churchOrigin,castleSite,renderer,sky,world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
     const report=document.createElement('pre'); report.id='game-tests'; report.hidden=true; report.textContent=JSON.stringify({checks:world.checks}); document.body.append(report);
   }
   if(new URLSearchParams(location.search).get('play')==='1') gameplay.start();
