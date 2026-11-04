@@ -54,7 +54,8 @@
   const edgeMaterial = new THREE.LineBasicMaterial({ color: '#526266', transparent: true, opacity: .3 });
   const colliders = [], anchors = [], roadMeshes = [], labelAnchors = [], treePlacements = [], coverPlacements=[];
   const roadVertices=[],roadIndices=[],roadRanges=[],roadInfo=[];
-  let groundReady=false, towerFloor=null, towerBlocked=null; // towerFloor: Wendeltreppe und Plattform des Wachturms (outdoor-details.js) // roadTop folgt dem Gelände erst, wenn das Höhenraster steht (Kirchenhöhe wird vorher bestimmt)
+  let groundReady=false, towerFloor=null, towerBlocked=null;
+  const arcades=NachtjagdArcades.create({THREE}); // Säulen in Kirche und Burghof (eigene Kollision) // towerFloor: Wendeltreppe und Plattform des Wachturms (outdoor-details.js) // roadTop folgt dem Gelände erst, wenn das Höhenraster steht (Kirchenhöhe wird vorher bestimmt)
   const labels = new THREE.Group();
   scene.add(labels);
   const layout = NachtjagdLayout;
@@ -484,6 +485,8 @@
   }
   castleSite.ready.then(site=>{
     if(!site.walk)return;
+    // Kleiner Kreuzgang im Osten des Burghofs; der Weg vom Tor zu den Türen im Westen bleibt frei.
+    scene.add(arcades.cloister({rect:{x0:9,x1:19,z0:8.5,z1:15.5},toWorld:(x,z)=>site.walk.toWorld(x,z),floor:(x,z)=>gameFloor(x,z),rot:castleRot}));
     // Raumlampen der Burg über das Lampenfeld (feste Shaderplätze, keine neuen Shader beim Betreten).
     lampField.add((site.lamps||[]).map(l=>{const c=new THREE.Color(l.color);return {x:l.x,y:l.y,z:l.z,r:(l.distance||10)*1.35,c:[c.r,c.g,c.b],k:.8,halo:.8,a:.12,kind:'burg-innen'};}));
     const torches=[[.4,3.1,21.85,1],[7.6,3.1,21.85,1],[.4,3.1,16.15,-1],[7.6,3.1,16.15,-1],
@@ -498,6 +501,8 @@
   // Kirche: zwei Laternen neben dem Portal, gedämpftes Kerzenlicht im Schiff.
   buildings.ready.then(church=>{
     if(!church?.root)return;
+    // Arkaden im Kirchenschiff: zwei Säulenreihen mit Rundbögen, Mittelgang 6 m frei.
+    scene.add(arcades.church({toWorld:(lx,lz)=>({x:churchOrigin.x+lx,z:churchOrigin.z-lz}),floor:(x,z)=>gameFloor(x,z,churchOrigin.y),from:4,to:22}));
     const bounds=new THREE.Box3().setFromObject(church.root),front=bounds.max.z;
     const lantern=new THREE.MeshLambertMaterial({color:0x3a2a14,emissive:0xffc477,emissiveIntensity:1.2});
     for(const side of [-1,1]) {
@@ -708,6 +713,7 @@
     if (groundHeight(x, z) < .35 && landmarks.floor(x,z)===null) return true;
     if (viaduct.collides(x,z,feet)) return true;
     if (towerBlocked && towerBlocked(x,z,feet)) return true;
+    if (arcades.blocked(x,z,feet)) return true;
     if (mines && mines.blocked(x,z,feet)) return true;
     if (villageWall && villageWall.blocked(x,z,feet)) return true;
     if (castleSite.walk && castleSite.walk.blocked(x,z,feet)) return true;
@@ -1164,7 +1170,7 @@
   world.checks=[{name:'Dorfstart frei',passed:!blocked(90,45,gameFloor(90,45))},...world.objectives.map(o=>({name:o.name+'-Siegel erreichbar',passed:!blocked(o.x,o.z,gameFloor(o.x,o.z))})),{name:'Glockenplatz frei',passed:!blocked(world.bell.x,world.bell.z,gameFloor(world.bell.x,world.bell.z))},{name:'Spielorte frei',passed:[...world.loots,...world.shrines,...world.fishSpots,world.merchant,world.smith].every(p=>!blocked(p.x,p.z,gameFloor(p.x,p.z)))}];
   world.checks.push(
     {name:'Geländewagen stehen frei',passed:world.jeeps.length===2 && world.jeeps.every(j=>[[0,0],[0,2.4],[0,-2.4],[1.3,2.2],[-1.3,2.2],[1.3,-2.2],[-1.3,-2.2]].every(([lx,lz])=>{const s=Math.sin(j.yaw),c=Math.cos(j.yaw),x=j.x-c*lx+s*lz,z=j.z+s*lx+c*lz;return !blocked(x,z,gameFloor(x,z));}))},
-    {name:'Lorenschienen frei',passed:world.carts.length===4 && world.rails.nodes.every(n=>!blocked(n.x,n.z,gameFloor(n.x,n.z)))},
+    {name:'Lorenschienen frei',passed:world.carts.length===4 && world.rails.nodes.every(n=>{const f=gameFloor(n.x,n.z,Number.isFinite(n.y)?n.y:undefined);return !blocked(n.x,n.z,f);})},
     {name:'Gondelstationen begehbar, Strecke über 250 m',passed:world.gondola.stations.every(s=>!blocked(s.x,s.z,gameFloor(s.x,s.z))) && Math.hypot(world.gondola.stations[0].x-world.gondola.stations[1].x,world.gondola.stations[0].z-world.gondola.stations[1].z)>250},
     {name:'Boote liegen im Wasser',passed:world.boats.length>=2 && world.boats.every(b=>boatOk(b.x,b.z))}
   );

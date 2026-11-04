@@ -115,7 +115,12 @@ globalThis.NachtjagdSpots = {
         carts.push({ link: link0, t: 4 }, { link: rails.links.length - 1, t: Math.max(2, Math.hypot(route.points[route.points.length - 1][0] - route.points[route.points.length - 2][0], route.points[route.points.length - 1][1] - route.points[route.points.length - 2][1]) - 4) });
         // Die Schienen führen weiter in den Hauptgang der Mine (mit Tunnelhöhe), die Lore fährt bis unter Tage.
         const main = (mineRoutes || []).find(r => r.id === id && r.type === 'main');
-        if (main) main.points.slice(1).forEach(p => { rails.nodes.push({ x: p.x, z: p.z, y: p.y }); rails.links.push([rails.nodes.length - 2, rails.nodes.length - 1]); });
+        if (main) {
+          // Prellbock 4 m vor der Stirnwand des Stollens.
+          const pts = main.points.slice(1), last = pts[pts.length - 1], prev = pts[pts.length - 2], len = Math.hypot(last.x - prev.x, last.z - prev.z), k = Math.max(0, (len - 4) / len);
+          pts[pts.length - 1] = { x: prev.x + (last.x - prev.x) * k, z: prev.z + (last.z - prev.z) * k, y: prev.y + (last.y - prev.y) * k };
+          pts.forEach(p => { rails.nodes.push({ x: p.x, z: p.z, y: p.y }); rails.links.push([rails.nodes.length - 2, rails.nodes.length - 1]); });
+        }
       }
 
       // Gondel: Talstation am Osttor, Bergstation auf dem Nordostgrat. Nächster ebener, freier Punkt.
