@@ -6,7 +6,7 @@
 // Nur die Grundfarbe wird verändert; Licht, Schatten, Nebel und das Lampenfeld bleiben unberührt.
 // Vertrag: style(material, kind) bzw. styleScene(scene) mit Zuordnung über material.name.
 globalThis.NachtjagdSurface = (() => {
-  const KINDS = { stone: 1, plaster: 2, wood: 3, roof: 4, path: 5, snow: 6, water: 7 };
+  const KINDS = { stone: 1, plaster: 2, wood: 3, roof: 4, path: 5, snow: 6, water: 7, rock: 8 };
   // Materialnamen aus blockout.js, village-houses.js, village-wall.js, building-site.js, mine-tunnels.js und models/kit.js.
   const BY_NAME = {
     castle: 'stone', viaduct: 'stone', 'kit-stone': 'stone', 'kit-stoneDark': 'stone', 'kit-stoneLight': 'stone', 'kit-reveal': 'stone',
@@ -14,7 +14,7 @@ globalThis.NachtjagdSurface = (() => {
     house: 'plaster', plaster: 'plaster',
     wood: 'wood', darkWood: 'wood', landmark: 'wood', board: 'wood', floor: 'wood', 'mine-timber': 'wood', 'kit-wood': 'wood',
     slate: 'roof', 'kit-slate': 'roof', 'kit-copper': 'roof', roof: 'roof',
-    path: 'path', 'path-bank': 'snow', 'kit-snow': 'snow', water: 'water'
+    path: 'path', 'path-bank': 'snow', 'kit-snow': 'snow', water: 'water', rock: 'rock'
   };
   let noise = null;
   function noiseTexture(THREE) {
@@ -120,6 +120,13 @@ vec3 sfSurface(vec3 base) {
   vec3 sheet = vec3(0.74, 0.8, 0.85) * (0.9 + 0.12 * fine);
   c = mix(deep, sheet, ice);
   c = mix(c, vec3(0.5, 0.58, 0.64), rim * 0.6);
+#elif SURF_KIND == 8
+  // Rauer Fels (Menhire): fleckig, Flechten, Schnee obenauf, keine Fugen.
+  float lichen = smoothstep(0.62, 0.75, mid + (fine - 0.5) * 0.3);
+  vec3 rockC = base * (0.72 + 0.38 * mid + (fine - 0.5) * 0.3);
+  rockC = mix(rockC, rockC * vec3(0.85, 1.05, 0.8), lichen * 0.6);
+  float cap = top ? smoothstep(0.4, 0.6, big + fine * 0.2) : 0.0;
+  c = mix(far, mix(rockC, vec3(0.86, 0.89, 0.92), cap), fade);
 #elif SURF_KIND == 6
   // Schneewall: weiß wie das Gelände, mit leichter Struktur.
   c = vec3(0.86, 0.89, 0.92) * (0.93 + 0.08 * big + (fine - 0.5) * 0.06 * fade);

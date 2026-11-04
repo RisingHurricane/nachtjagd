@@ -90,7 +90,9 @@ globalThis.NachtjagdPlay = {
     }
     // --- Orte: Truhen, Händler, Schmied, Bildstöcke, Angelplätze
     const crateMat=lam(0x7a5530),crateBand=lam(0xc9a45a),noteMat=lam(0xf2ead2,0x403c30),grenMat=lam(0x44513a);
-    const relicMat={heart:lam(0x8fd8ff,0x2a6f96),compass:lam(0xf0d27a,0x6a5316),lamp:lam(0xffb347,0x7a4210)};
+    const relicMat={heart:lam(0x8fd8ff,0x2a6f96),compass:lam(0xf0d27a,0x6a5316),lamp:lam(0xffb347,0x7a4210),crown:lam(0xffd86a,0x9a6a10),circle:lam(0x9dffc4,0x2a8a55),pearl:lam(0xdff4ff,0x4a7a9a)};
+    // Gipfelheiligtum, Runenstein mit Lichtstrahl, Inselaltar (relic-sites.js)
+    const relicSites=NachtjagdRelicSites.create({THREE,scene,world,lamps});
     const lootMeshes=world.loots?.map(l=>{
       const g=new THREE.Group(),y=world.floor(l.x,l.z);
       if(l.relicId) g.add(new THREE.Mesh(new THREE.OctahedronGeometry(.35),relicMat[l.relicId]));
@@ -496,6 +498,7 @@ globalThis.NachtjagdPlay = {
       }
       for(const [id,mesh] of actorMeshes) if(!current.monsters.some(m=>m.id===id)) { mesh.userData.mat.dispose(); actors.remove(mesh); actorMeshes.delete(id); }
       // Siegel, Glocke, Beute
+      relicSites.update(dt,clock,current.relics);
       markerMeshes.forEach(({o,mesh},i)=>{
         mesh.visible=!current.quest.objectives[i].found;
         mesh.position.set(o.x,world.floor(o.x,o.z)+1.5+Math.sin(clock*2)*.12,o.z); mesh.rotation.y=clock;

@@ -74,7 +74,18 @@
     'Steiger Brandt: Die Sprengkammer ist voll. Wenn dort einer schießt, fliegt der halbe Berg. Haltet Abstand von den roten Fässern.',
     'Letzter Eintrag des Grafen: Ich habe die Glocke nicht geläutet. Wer das Dorf retten will, trägt alle drei Siegel zum Turm.'
   ];
-  const RELIC_NAMES = { heart: 'Winterherz', compass: 'Jägerkompass', lamp: 'Grubenlampe' };
+  const RELIC_NAMES = { heart: 'Winterherz', compass: 'Jägerkompass', lamp: 'Grubenlampe', crown: 'Gipfelkrone', circle: 'Mondstrahl', pearl: 'Seeperle' };
+  // Besondere Fundorte: Wer das Relikt nimmt, ruft seine Wächter herbei (Art, Anzahl, Abstand in m).
+  const RELIC_GUARDS = {
+    crown: [['reaper', 2, 16], ['bat', 6, 8]],          // Gipfel an der Bergstation
+    circle: [['lycan', 3, 14], ['samca', 1, 20]],        // Steinkreis: der Mondstrahl weckt die Lykaner
+    pearl: [['bat', 8, 6], ['hag', 1, 12]]               // Seeinsel
+  };
+  const RELIC_LINES = {
+    heart: 'Nahkampftreffer werden alle 20 Sekunden halbiert', compass: 'Die Richtung zum nächsten fehlenden Mondsiegel erscheint im HUD',
+    lamp: 'Dein Lichtkegel wird heller und breiter', crown: 'Höchstes Leben +40, sofort voll geheilt',
+    circle: 'Ein Lichtstrahl steigt aus dem Steinkreis · Schüsse treffen Unheilige um 25 % härter', pearl: 'Nachladen 25 % schneller'
+  };
 
   // Händler (h) verkauft Vorräte, der Schmied (s) schmiedet Verbesserungen.
   const SHOP = [
@@ -121,7 +132,7 @@
       player: { x: start[0], y: initialY, z: start[1], yaw: 0, pitch: 0, hp: 100, maxHp: 100, vx: 0, vy: 0, vz: 0, onGround: true, hurtT: 0, bless: 0, slowT: 0, frozen: false, gren: 2, molo: 2, ride: null, eye: 1.75 },
       weapons: WDEF.map((w, i) => ({ ...w, owned: i === 0, ammo: w.mag, reserve: w.res, reloading: 0 })),
       current: 0, up: { dmg: 0, mag: 0, rel: 0, hp: 0, lamp: 0, silver: 0 },
-      relics: { heart: false, compass: false, lamp: false, heartReady: 0 },
+      relics: { heart: false, compass: false, lamp: false, crown: false, circle: false, pearl: false, heartReady: 0 },
       waves: { n: 0, state: 'idle', timer: 3.5, toSpawn: 0, alive: 0, total: 0, spawnT: 0, finalT: 0, mod: 'normal' },
       monsters: [], items: [], acids: [], nades: [], fires: [], vehicles: fleet.vehicles,
       loots: (world.loots || []).map((l, i) => ({ ...place(l, i), taken: false })),
@@ -295,6 +306,7 @@
       if (m.state === 'dead') return;
       const spec = ENEMIES[m.kind];
       if (spec.unholy && state.up.silver) damage *= 1 + 0.35 * state.up.silver;
+      if (spec.unholy && state.relics.circle) damage *= 1.25;
       if (guest) {
         // Gast: Der Host entscheidet über Leben und Abschuss; hier nur Rückmeldung und Meldung an den Host.
         m.hit = 0.12; if (head) state.stats.head++;
@@ -526,7 +538,7 @@
     function reload() {
       const w = state.weapons[state.current];
       if (state.phase !== 'playing' || P.frozen || w.reloading > 0 || w.ammo >= magOf(w) || w.reserve <= 0 || swapTimer > 0) return false;
-      w.reloading = w.reload * (1 - 0.2 * state.up.rel); emit('notice', { text: 'Nachladen' }); return true;
+      w.reloading = w.reload * (1 - 0.2 * state.up.rel) * (state.relics.pearl ? 0.75 : 1); emit('notice', { text: 'Nachladen' }); return true;
     }
     // Axt: kurzer Schlag nach vorn, trifft nur, was im Blick und in Reichweite ist.
     function melee() {
@@ -798,8 +810,13 @@
       l.taken = true;
       if (l.relicId) {
         state.relics[l.relicId] = true;
-        const line = { heart: 'Nahkampftreffer werden alle 20 Sekunden halbiert', compass: 'Die Richtung zum nächsten fehlenden Mondsiegel erscheint im HUD', lamp: 'Dein Lichtkegel wird heller und breiter' }[l.relicId];
-        emit('relic', { id: l.relicId, name: RELIC_NAMES[l.relicId], text: `${RELIC_NAMES[l.relicId]} gefunden`, detail: line, x: P.x, y: P.y, z: P.z });
+        if (l.relicId === 'crown') { P.maxHp += 40; P.hp = P.maxHp; }
+        emit('relic', { id: l.relicId, name: RELIC_NAMES[l.relicId], text: `${RELIC_NAMES[l.relicId]} gefunden`, detail: RELIC_LINES[l.relicId], x: l.x, y: l.y ?? P.y, z: l.z });
+        // Wächter erscheinen ringsum (nur der Rechner, der die Gegner führt).
+        if (coop !== 'guest') for (const [kind, count, radius] of RELIC_GUARDS[l.relicId] || []) for (let i = 0; i < count; i++) {
+          const a = random() * TAU, x = l.x + Math.sin(a) * radius, z = l.z + Math.cos(a) * radius;
+          spawnMonster(kind, x, z, false); state.waves.alive++;
+        }
       } else if (l.special === 'shotgun') { state.weapons[1].owned = true; state.weapons[1].reserve += 12; emit('notice', { text: 'Schrotflinte gefunden' }); }
       else if (l.special === 'rifle') { state.weapons[2].owned = true; state.weapons[2].reserve += 10; emit('notice', { text: 'Jagdgewehr gefunden' }); }
       else if (l.special === 'grenades') { P.gren = Math.min(9, P.gren + 4); P.molo = Math.min(9, P.molo + 2); state.stats.lei += 120; emit('notice', { text: 'Granaten, Molotows und 120 Lei' }); }
@@ -956,6 +973,9 @@
       const list = [];
       if (state.relics.heart) list.push('Winterherz');
       if (state.relics.lamp) list.push('Grubenlampe');
+      if (state.relics.crown) list.push('Gipfelkrone');
+      if (state.relics.circle) list.push('Mondstrahl');
+      if (state.relics.pearl) list.push('Seeperle');
       if (state.relics.compass) {
         let near = null, nd = Infinity;
         if (state.quest.stage === 'seals') for (const o of state.quest.objectives) { const d = Math.hypot(o.x - P.x, o.z - P.z); if (!o.found && d < nd) { nd = d; near = o; } }

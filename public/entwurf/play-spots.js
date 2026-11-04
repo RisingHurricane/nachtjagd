@@ -71,6 +71,12 @@ globalThis.NachtjagdSpots = {
     loots.push(at(village.x - 6, village.z - 12, { relicId: 'compass' }));
     loots.push(at(castle.x + 14, castle.z - 6, { relicId: 'heart' }));
     loots.push(at(mines[0].a[0] + 9, mines[0].a[1] - 3, { relicId: 'lamp' }));
+    // Besondere Ziele mit Wächtern: Gipfelkrone an der Bergstation der Gondel, Runenstein in der Mitte des Steinkreises,
+    // Seeperle auf der Insel im See (nur mit dem Boot erreichbar).
+    const summit = layout.gondolaCorridor ? layout.gondolaCorridor[1] : null;
+    if (summit) loots.push(at(summit[0] + 7, summit[1] - 9, { relicId: 'crown' }));
+    loots.push(at(landmarkSites.stones[0], landmarkSites.stones[1], { relicId: 'circle' }));
+    if (layout.island) loots.push(at(layout.island.x + 2, layout.island.z - 1, { relicId: 'pearl' }));
 
     return { merchant, smith, shrines, fishSpots, loots, ...buildVehicles() };
 
