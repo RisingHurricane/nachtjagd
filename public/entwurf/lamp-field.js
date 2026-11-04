@@ -107,7 +107,7 @@ void main() {
     : (lfInfo.y > 0.5 ? (sin(uT * 13.0 + lfInfo.z) * sin(uT * 7.1 + lfInfo.z) > 0.8 ? 0.35 : 1.0) : 1.0);
   // Ferne Lichter bleiben als kleine Punkte sichtbar (mindestens 2,5 px), der Nebel dämpft sie nur teilweise.
   gl_PointSize = clamp(lfInfo.x * uScale / d, 2.5, 220.0);
-  float fog = exp(-pow(uFogD * d * 0.55, 2.0));
+  float fog = exp(-pow(uFogD * d * 0.32, 2.0)); // Lichter dringen weiter durch den Nebel als die Umgebung
   vA = lfColor.a * uK * fl * (0.35 + 0.65 * fog) * smoothstep(0.6, 2.5, d);
   vC = lfColor.rgb;
   gl_Position = projectionMatrix * mv;

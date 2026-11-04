@@ -52,7 +52,9 @@
     { x: 9, z: -12, h: 22 }, { x: 18.5, z: 1.5, h: 10 }, { x: -17.5, z: 10, h: 10 }, { x: -3, z: -18, h: 9 }, { x: -8.4, z: -13.6, h: 8 } // Bergfried, Kemenate, Kapelle, Rückflügel, Verbindung
   ];
 
-  function create({ THREE, scene, origin, rot, nearRadius = 46, lightCount = 4 }) {
+  // lightCount: eigene Punktlichter (Standard 0). Die Raumlampen (site.lamps) laufen über das Lampenfeld in blockout.js;
+  // ein- und ausgeblendete Punktlichter ändern die Lichtanzahl und zwingen Three.js, alle Shader neu zu übersetzen.
+  function create({ THREE, scene, origin, rot, nearRadius = 46, lightCount = 0 }) {
     const site = { ready: null, walk: null, group: null, interior: null, lamps: [], failed: null, stats: null, interiorVisible: false, glow: [] };
     const pool = [];
     site.ready = (async () => {
@@ -63,7 +65,8 @@
       outside.traverse(o=>{
         if(o.material?.name!=='interiorGlow')return;
         if(!windowGlows.has(o.material)) {
-          const material=o.material.clone();material.color.multiplyScalar(1.4);material.toneMapped=false;
+          // Burgfenster leuchten durch den Nachtnebel und sind schon von weitem zu sehen.
+          const material=o.material.clone();material.color.multiplyScalar(1.7);material.toneMapped=false;material.fog=false;
           windowGlows.set(o.material,material);
         }
         o.material=windowGlows.get(o.material);

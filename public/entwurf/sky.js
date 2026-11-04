@@ -1,7 +1,7 @@
 'use strict';
 
 // Himmel und Licht: Kuppel mit Verlauf, Sonne und Wolken aus Rauschen, dazu Sonnen-/Mondlicht, Hemisphärenlicht und Nebelfarbe.
-// Zustand: night 0 = Sonnenuntergang (Spielstart), 1 = tiefe, graue Nacht; sunrise 0..1 = Morgengrauen; cover = Bewölkung;
+// Zustand: night 0 = Sonnenuntergang (Spielstart), 1 = neblige, blaugraue Nacht (nicht schwarz); sunrise 0..1 = Morgengrauen; cover = Bewölkung;
 // grey = zusätzliche Entsättigung; blood = roter Schimmer in der letzten Phase; lightK = Gesamtfaktor der Lichtstärke.
 globalThis.NachtjagdSky = {
   create({ THREE, scene, sun, hemi }) {
@@ -10,17 +10,17 @@ globalThis.NachtjagdSky = {
     const smooth = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
     // Farbsätze: Sonnenuntergang, Nacht, Morgengrauen (sRGB, werden einmal nach linear umgerechnet).
     const SET = {
-      horizon:    [col('#f08a4b'), col('#2b3240'), col('#f4b48c')],
-      mid:        [col('#6c5a7c'), col('#1a202c'), col('#b98f98')],
-      zenith:     [col('#1f2850'), col('#090d16'), col('#5d7090')],
-      ground:     [col('#6a5258'), col('#10141b'), col('#8b7076')],
+      horizon:    [col('#f08a4b'), col('#5d6878'), col('#f4b48c')],
+      mid:        [col('#6c5a7c'), col('#46505f'), col('#b98f98')],
+      zenith:     [col('#1f2850'), col('#262e3b'), col('#5d7090')],
+      ground:     [col('#6a5258'), col('#343b46'), col('#8b7076')],
       sunCol:     [col('#ffb06a'), col('#8fa4d6'), col('#ffd2a8')],
-      cloudLit:   [col('#ffb383'), col('#4b5565'), col('#ffd6b0')],
-      cloudDark:  [col('#4a3f52'), col('#12161f'), col('#8a7a86')],
-      fog:        [col('#5f5a74'), col('#1d222c'), col('#cfa58f')],
-      lightCol:   [col('#ffbd8c'), col('#8196c9'), col('#ffc8a0')],
-      hemiSky:    [col('#7d86b0'), col('#4b5c7e'), col('#e0b6a4')],
-      hemiGround: [col('#5d4a48'), col('#1c2028'), col('#6e5b57')]
+      cloudLit:   [col('#ffb383'), col('#6c7889'), col('#ffd6b0')],
+      cloudDark:  [col('#4a3f52'), col('#343c49'), col('#8a7a86')],
+      fog:        [col('#5f5a74'), col('#4f5a69'), col('#cfa58f')],
+      lightCol:   [col('#ffbd8c'), col('#9cb0d2'), col('#ffc8a0')],
+      hemiSky:    [col('#7d86b0'), col('#7486a4'), col('#e0b6a4')],
+      hemiGround: [col('#5d4a48'), col('#3a414c'), col('#6e5b57')]
     };
     const blood = col('#4a1218'), greyTarget = new THREE.Color();
     const mix3 = (set, night, dawn, out) => {
@@ -104,9 +104,9 @@ void main() {
       const setColor = (target, set, tint) => {
         mix3(set, n, dawn, target);
         if (state.blood > 0 && tint) target.lerp(blood, state.blood * tint);
-        const grey = Math.min(1, state.grey + n * .55) * (1 - dawn * .8);
+        const grey = Math.min(1, state.grey + n * .25) * (1 - dawn * .8);
         const l = target.r * .3 + target.g * .59 + target.b * .11;
-        target.lerp(greyTarget.setRGB(l, l, l * 1.04), grey * .6);
+        target.lerp(greyTarget.setRGB(l * .96, l, l * 1.12), grey * .6);
       };
       setColor(uniforms.uHorizon.value, SET.horizon, .45); setColor(uniforms.uMid.value, SET.mid, .5); setColor(uniforms.uZenith.value, SET.zenith, .3);
       setColor(uniforms.uGround.value, SET.ground, .3); setColor(uniforms.uSunCol.value, SET.sunCol, .2);
@@ -122,9 +122,9 @@ void main() {
       sun.position.copy(dir).multiplyScalar(300);
       setColor(sun.color, SET.lightCol, .4);
       const lk = state.lightK;
-      sun.intensity = baseSun * lk * lerp(lerp(1.15, .38, n), 1, dawn);
+      sun.intensity = baseSun * lk * lerp(lerp(1.15, .55, n), 1, dawn);
       setColor(hemi.color, SET.hemiSky, .3); setColor(hemi.groundColor, SET.hemiGround, .2);
-      hemi.intensity = baseHemi * lk * lerp(lerp(1, .55, n), .95, dawn);
+      hemi.intensity = baseHemi * lk * lerp(lerp(1, .85, n), .95, dawn);
       // Nebelfarbe für Szene und Rückfall-Hintergrund
       setColor(fogColor, SET.fog, .5);
       return fogColor;

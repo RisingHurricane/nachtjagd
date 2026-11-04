@@ -45,7 +45,7 @@ globalThis.NachtjagdInterface = (() => {
     // Eine schwache Kameraleuchte hält die Waffe in der Nacht lesbar.
     const light=new T.PointLight(0xb4c7d7,.35,1.8);light.position.set(-.2,.2,.2);group.add(light);
     let recoil=0,time=0;
-    return {group,kick(){recoil=1;},update(s,dt,aiming,moving){
+    return {group,light,kick(){recoil=1;},update(s,dt,aiming,moving){
       time+=dt;recoil*=Math.exp(-dt*13);models.forEach((m,i)=>m.visible=i===s.current);
       const w=s.weapons[s.current],reload=w.reloading>0?Math.sin(Math.min(1,w.reloading/w.reload)*Math.PI):0;
       group.position.set(aiming?.045:.23,-.22-reload*.16+Math.sin(time*9)*.008*moving,-.38+recoil*.09);

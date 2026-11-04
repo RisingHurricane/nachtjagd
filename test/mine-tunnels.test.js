@@ -86,22 +86,17 @@ test('Wände und Decke begrenzen die Gehfläche; Innenraum ist klar erkennbar',(
   assert.equal(world.indoor(x,y+4,z),false);
 });
 
-test('optionale Three-Geometrie baut geschlossene Gänge, Träger und sparsame Lampen',()=>{
+test('optionale Three-Geometrie baut geschlossene Gänge, Träger und Lampenstellen fürs Lampenfeld',()=>{
   const {world,scene}=setup(true);
   assert.ok(world.root && world.root.children.length>0);
   assert.equal(world.root.parent,scene);
   assert.equal(world.targets.length,2);
-  const lights=world.root.children.filter(child=>child.isPointLight);
-  assert.equal(lights.length,2,'höchstens zwei echte Lichter werden geteilt');
+  // Grubenlampen laufen über das Lampenfeld: keine eigenen Punktlichter, deren Ein- und Ausblenden alle Shader neu übersetzen ließe.
+  assert.equal(world.root.children.filter(child=>child.isLight).length,0,'keine eigenen Lichtquellen');
+  assert.ok(world.lamps.length>0 && world.lamps.every(l=>Number.isFinite(l.x)&&Number.isFinite(l.y)&&Number.isFinite(l.z)),'Lampenstellen für das Lampenfeld');
   assert.ok(world.root.children.filter(child=>child.isInstancedMesh).length<=5);
   assert.ok(world.root.children.filter(child=>child.isInstancedMesh).every(child=>child.material.isMeshLambertMaterial));
-  world.update(0,0,0);
-  assert.equal(lights.filter(light=>light.visible).length,0,'ferne Tunnellampen belasten Außenansichten nicht');
-  const entry=world.entrance('mine-west');
-  world.update(entry.x,entry.y+1.75,entry.z);
-  assert.ok(lights.some(light=>light.visible),'am Eingang wird Licht aus dem gemeinsamen Pool aktiv');
-  world.update();
-  assert.equal(lights.filter(light=>light.visible).length,0);
+  world.update(0,0,0); world.update();
 
   scene.updateMatrixWorld(true);
   const raycaster=new THREE.Raycaster();

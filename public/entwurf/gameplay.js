@@ -56,6 +56,8 @@ globalThis.NachtjagdPlay = {
     const headMat=lam(0xc8a8a0);
     const weaponView=NachtjagdInterface.weapon(THREE),weapon=weaponView.group;
     camera.add(weapon); scene.add(camera);
+    // Das Waffenlicht hängt direkt an der Kamera: Beim Fahren wird die Waffe ausgeblendet, die Lichtanzahl muss gleich bleiben.
+    if(weaponView.light) camera.add(weaponView.light);
     const ui=NachtjagdInterface.create({world,onPlay:start,onLayout:onExit,onMap:(open,ownedPause)=>{
       if(open) { const wasPlaying=current?.phase==='playing'; pause(); return wasPlaying; }
       if(room&&teamMenu) { teamMenu=false; clearInput(); showPanel(); lockPointer(); return false; }
@@ -151,10 +153,10 @@ globalThis.NachtjagdPlay = {
       const inside=world.indoor?world.indoor(s.player.x,s.player.y,s.player.z):0;
       indoorK+=(inside-indoorK)*Math.min(1,dt*4);
       if(world.tick) world.tick(s.player.x,s.player.y,s.player.z);
-      const color=sky.apply({night,sunrise:e.sunrise,cover:e.cover,grey:w.fog>1.2?.25:0,blood:e.mod==='blood'&&e.sunrise<.4?.55:0,lightK:Math.max(.55,k)*(1-.7*indoorK)*(.55+.45*Math.max(night,e.sunrise))});
+      const color=sky.apply({night,sunrise:e.sunrise,cover:e.cover,grey:w.fog>1.2?.25:0,blood:e.mod==='blood'&&e.sunrise<.4?.55:0,lightK:Math.max(.7,k)*(1-.7*indoorK)*(.7+.3*Math.max(night,e.sunrise))});
       scene.background=color; backdrop?.setMood(color);
       scene.fog=scene.fog||new THREE.FogExp2(color,.002);
-      scene.fog.color.copy(color); scene.fog.density=.0022*(1+.9*night)*w.fog*(e.mod==='fog'?2.1:1)*(e.sunrise>0?.8:1);
+      scene.fog.color.copy(color); scene.fog.density=.003*(1+1.1*night)*w.fog*(e.mod==='fog'?2.1:1)*(e.sunrise>0?.8:1);
       for(const l of lights) l.o.intensity=l.base*k;
       const lampBonus=(s.up.lamp+(s.relics.lamp?1:0));
       torch.intensity=torchOn?(1.05+.25*lampBonus)*(.62+.38*night):0; torch.distance=70+14*lampBonus; torch.angle=.5+.07*lampBonus;

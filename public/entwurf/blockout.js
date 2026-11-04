@@ -40,7 +40,7 @@
   const lampField = NachtjagdLampField.create({ THREE, scene });
   const postFx = NachtjagdPostFx.create({ THREE, renderer });
   const noPost = new URLSearchParams(location.search).has('nopost');
-  let lampPatchTime = 0, menuSkyOn = false;
+  let lampPatchTime = 0, menuSkyOn = false, warmedInGame = false;
   const menuSky = { night: .26, sunrise: 0, cover: .72, grey: 0, blood: 0, lightK: .72 };
   scene.background = sky.apply(layoutSky);
   const colors = { ground: '#e4e7df', house: '#d6ba92', landmark: '#b59370', forest: '#658777', path: '#dfe6eb', castle: '#8a9aab', viaduct: '#b7ad97', water: '#8eb0bc', hill: '#bac3b4' };
@@ -470,16 +470,19 @@
   // Laternen an Wegen und im Dorf als Lampen des Lampenfelds (ersetzen die drei echten Nahlichter).
   const lanternLamps=()=>outdoor.lamps.map((l,i)=>({x:l.x,y:l.y,z:l.z,r:16,c:[1,.62,.3],k:.85,halo:4.6,a:.42,flick:i%7===3,kind:'laterne'}));
   lampField.add(lanternLamps());
+  lampField.add((mines.lamps||[]).map(s=>({x:s.x,y:s.y,z:s.z,r:10,c:[.85,.72,.42],k:.65,halo:1,a:.18,flick:true,kind:'grube'})));
   // Fackeln an der Burg: Torhaus außen und innen, neben den Palastüren und an der Turmtür (Modellkoordinaten).
   const torchIron=new THREE.MeshLambertMaterial({color:0x2a2622}),torchWood=new THREE.MeshLambertMaterial({color:0x4a3624});
   const torchStick=new THREE.CylinderGeometry(.035,.045,.62,6),torchBowl=new THREE.CylinderGeometry(.13,.07,.16,8);
   function addTorch(x,y,z,lean) {
     const g=new THREE.Group(),stick=new THREE.Mesh(torchStick,torchWood),bowl=new THREE.Mesh(torchBowl,torchIron);
     stick.position.y=-.32;bowl.position.y=-.02;g.add(stick,bowl);g.position.set(x,y,z);g.rotation.x=lean.x;g.rotation.z=lean.z;scene.add(g);
-    lampField.add({x,y:y+.22,z,r:13,c:[1,.5,.2],k:.75,fire:true,halo:3.4,a:.46,kind:'fackel'});
+    lampField.add({x,y:y+.22,z,r:13,c:[1,.5,.2],k:.75,fire:true,halo:5.2,a:.62,kind:'fackel'});
   }
   castleSite.ready.then(site=>{
     if(!site.walk)return;
+    // Raumlampen der Burg über das Lampenfeld (feste Shaderplätze, keine neuen Shader beim Betreten).
+    lampField.add((site.lamps||[]).map(l=>{const c=new THREE.Color(l.color);return {x:l.x,y:l.y,z:l.z,r:(l.distance||10)*1.35,c:[c.r,c.g,c.b],k:.8,halo:.8,a:.12,kind:'burg-innen'};}));
     const torches=[[.4,3.1,21.85,1],[7.6,3.1,21.85,1],[.4,3.1,16.15,-1],[7.6,3.1,16.15,-1],
       [-14.3,2.7,1.85,1],[-9.7,2.7,1.85,1],[2.7,2.7,1.85,1],[7.3,2.7,1.85,1],[-5.1,2.6,6.95,1],[-1.9,2.6,6.95,1]];
     for(const [lx,ly,lz,out] of torches) {
@@ -891,6 +894,8 @@
     if(gameplay && !gameplay.active) gameplay.previewUpdate(dt);
     if(gameplay && gameplay.active) {
       gameplay.update(dt);
+      // Einmal im ersten Spielbild mit Spielnebel und Spiellicht vorübersetzen (Burg, Minen, Innenräume).
+      if(!warmedInGame) { warmedInGame=true; warmShaders(); }
     } else if (document.body.classList.contains('in-menu')) {
       if(!reducedMotion) menuTime+=dt;
       const shot=NachtjagdInterface.flyover(menuTime,groundHeight);
@@ -924,7 +929,7 @@
     const inMenu=!gameplay?.active&&document.body.classList.contains('in-menu');
     if(inMenu) scene.background=sky.apply(menuSky); else if(menuSkyOn&&!gameplay?.active) scene.background=sky.apply(layoutSky);
     menuSkyOn=inMenu;
-    const nightK=gameplay?.active?Math.max(0,Math.min(1,(.38+.62*sky.state.night)*(1-sky.state.sunrise))):inMenu?.62:0;
+    const nightK=gameplay?.active?Math.max(0,Math.min(1,(.58+.42*sky.state.night)*(1-sky.state.sunrise))):inMenu?.62:0;
     if(now-lampPatchTime>1500){NachtjagdSurface.styleScene(THREE,scene);lampField.patchScene();lampPatchTime=now;}
     lampField.update(camera,dt,{k:nightK,scale:renderer.domElement.height*.66,fogDensity:scene.fog?.density||0});
     lampField.setVisible(nightK>.01);
@@ -1157,10 +1162,21 @@
   const menuPlay=document.querySelector('#menu-play');menuPlay.disabled=true;
   startButton.disabled=true; startButton.textContent='Modelle werden geladen …';
   gameplay=NachtjagdPlay.create({THREE,scene,camera,canvas,world,sky,layoutSky,backdrop,lamps:lampField,onStart:()=>{ toggleEditor(false); labels.visible=false; grid.visible=false; keys.clear(); drag=null; },onExit:()=>setView('village')});
+  // Alle Shader vorab übersetzen, auch für gerade ausgeblendete Teile (Burginnenraum, Fahrzeuge, Minen).
+  // Sonst übersetzt der Browser sie beim ersten Anblick und das Spiel hängt kurz. Lichter bleiben unverändert,
+  // damit die Lichtanzahl stimmt.
+  function warmShaders() {
+    NachtjagdSurface.styleScene(THREE,scene); lampField.patchScene();
+    const hidden=[];
+    scene.traverse(o=>{if(!o.isLight&&!o.visible){hidden.push(o);o.visible=true;}});
+    try { renderer.compile(scene,camera); } catch (error) { console.warn('Vorübersetzen der Shader:',error); }
+    for(const o of hidden) o.visible=false;
+  }
   Promise.all([castleSite.ready,buildings.ready,importedForest.ready]).then(()=>{
   if(buildings.failed) {startButton.textContent='Kirche konnte nicht geladen werden';return;}
   if(!importedForest.root.userData.treeCount) {startButton.textContent='Baummodelle konnten nicht geladen werden · bitte neu laden';return;}
   world.checks.push({name:'Alle Bäume verwenden importierte Modelle einschließlich Seeinsel',passed:importedForest.root.userData.treeCount===treePlacements.length+3&&importedForest.root.userData.variantCount===8,value:importedForest.root.userData});
+  warmShaders();
   startButton.disabled=false; menuPlay.disabled=false; startButton.textContent=startLabel;
   // Das Burg-Siegel liegt im Rittersaal: erst mit geladenem Modell prüfbar.
   world.checks=world.checks.filter(c=>c.name!=='Burg-Siegel erreichbar');

@@ -295,7 +295,7 @@ globalThis.NachtjagdVehicleModels = (() => {
     // Ein einziges Scheinwerferlicht für alle Geländewagen: Jedes Licht kostet in jedem Material Rechenzeit,
     // auch mit Stärke 0. Es hängt am ersten Wagen mit Fahrer, sonst aus.
     const headlight = new THREE.SpotLight(0xfff0cf, 0, 45, 0.55, 0.5, 1);
-    headlight.position.set(0, 1.1, 1.9); headlight.target.position.set(0, 0.6, 12); root.add(headlight, headlight.target);
+    headlight.position.set(0, 1.1, 1.9); headlight.target.position.set(0, 0.6, 12); scene.add(headlight, headlight.target); // nie ausgeblendet: feste Lichtanzahl
     const meshes = new Map(); let statics = null;
     function setStatic(object) {
       if (statics) { root.remove(statics); }
@@ -324,7 +324,7 @@ globalThis.NachtjagdVehicleModels = (() => {
         if (d.oars && d.oars.length) d.oars.forEach((o, i) => { const s = i ? 1 : -1; o.rotation.set(0, s * (0.55 + Math.sin((v.ph || 0) + i * 0.4) * 0.35), s * (0.1 + Math.max(0, Math.cos((v.ph || 0) + i * 0.4)) * 0.25)); });
       }
       if (lit && headlight.parent !== lit) lit.add(headlight, headlight.target);
-      if (!lit && headlight.parent !== root) root.add(headlight, headlight.target);
+      if (!lit && headlight.parent !== scene) scene.add(headlight, headlight.target);
       headlight.intensity = lit ? 3.2 : 0;
     }
     return { root, update, clear, setStatic, setVisible(v) { root.visible = v; } };
