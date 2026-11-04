@@ -76,25 +76,10 @@ globalThis.NachtjagdPlay = {
       villager:{c:0x714d56},lycan:{c:0x645a42},wolf:{c:0x5b6473},hag:{c:0x6b4a7a},samca:{c:0x7a4020},spitter:{c:0x5d7a3e},
       bloater:{c:0xa0642a},brute:{c:0x5a5658},reaper:{c:0x3d2d36},bat:{c:0x241d22}
     };
+    // Gegnerfiguren aus monster-models.js: je Art eigene Gestalt, Gelenke als Gruppen, Haut je Gegner (Trefferfärbung).
     function makeActor(kind) {
-      const spec=ENEMIES[kind],look=LOOK[kind],mat=lam(look.c),group=new THREE.Group(),model=new THREE.Group(); group.add(model);
-      const add=(geo,m,x,y,z,sx=1,sy=1,sz=1)=>{ const o=new THREE.Mesh(geo,m); o.position.set(x,y,z); o.scale.set(sx,sy,sz); o.castShadow=true; model.add(o); return o; };
-      const parts={};
-      if(spec.air) {
-        const span=kind==='bat'?.55:3.4,len=kind==='bat'?.35:1.2;
-        add(sphereGeo,mat,0,0,0,len*.35,len*.28,len*.6);
-        parts.wingL=add(boxGeo,mat,-span/2,0,0,span,.04,len*.6); parts.wingR=add(boxGeo,mat,span/2,0,0,span,.04,len*.6);
-        parts.wingL.geometry=parts.wingR.geometry=boxGeo;
-        add(sphereGeo,lam(0xff3a1a,0xff3a1a),0,.02,len*.6,len*.12,len*.12,len*.12);
-      } else if(kind==='wolf') {
-        add(boxGeo,mat,0,.9,0,.55,.55,1.3); add(boxGeo,mat,0,1.15,.95,.38,.38,.5); add(boxGeo,mat,0,.4,.4,.5,.8,.3); add(boxGeo,mat,0,.4,-.4,.5,.8,.3);
-      } else if(kind==='bloater') {
-        add(sphereGeo,mat,0,1.05,0,.75,.85,.7); add(headGeo,headMat,0,1.9,.15);
-      } else {
-        add(bodyGeo,mat,0,.85,0); add(headGeo,headMat,0,1.65,.1);
-        if(kind==='hag') { add(boxGeo,lam(0x3a2748),0,.9,0,1.1,1.3,.4); }
-        if(kind==='brute') { add(boxGeo,lam(0x3a3638),0,1.35,0,.95,.3,.55); }
-      }
+      const spec=ENEMIES[kind],look=LOOK[kind],mat=lam(look.c),group=new THREE.Group();
+      const {model,parts}=NachtjagdMonsterModels.build(THREE,kind,mat); group.add(model);
       const s=kind==='bat'?1:spec.scale; model.scale.setScalar(s);
       group.userData={mat,parts,kind,spec};
       return group;
@@ -113,14 +98,12 @@ globalThis.NachtjagdPlay = {
       else { const c=new THREE.Mesh(boxGeo,l.special==='grenades'?grenMat:crateMat); c.scale.set(.9,.55,.6); c.position.y=.28; g.add(c); const b=new THREE.Mesh(boxGeo,crateBand); b.scale.set(.1,.58,.62); b.position.y=.28; g.add(b); }
       g.position.set(l.x,y+(l.relicId?1:0),l.z); g.rotation.y=(l.x*3.1+l.z*1.7)%6.28; props.add(g); return {l,g,baseY:g.position.y};
     })||[];
-    function person(spot,color,label) {
-      const g=new THREE.Group(),y=world.floor(spot.x,spot.z);
-      const body=new THREE.Mesh(bodyGeo,lam(color)),head=new THREE.Mesh(headGeo,headMat); body.position.y=.85; head.position.y=1.65; g.add(body,head);
-      const pole=new THREE.Mesh(boxGeo,lam(0x4c3a2a)); pole.scale.set(.08,2.4,.08); pole.position.set(1,1.2,0); g.add(pole);
-      const sign=new THREE.Mesh(boxGeo,lam(color,color>>1)); sign.scale.set(.8,.5,.05); sign.position.set(1,2.3,0); g.add(sign);
-      g.position.set(spot.x,y,spot.z); props.add(g); return g;
+    // Händler und Schmied mit Stand (monster-models.js), zur Welt hin gedreht wie der Ort vorgibt.
+    function person(spot,role) {
+      const g=NachtjagdMonsterModels.person(THREE,role),y=world.floor(spot.x,spot.z);
+      g.position.set(spot.x,y,spot.z); g.rotation.y=spot.yaw??0; props.add(g); return g;
     }
-    const merchantMesh=world.merchant?person(world.merchant,0x2f8f7a):null,smithMesh=world.smith?person(world.smith,0x8c3b2a):null;
+    const merchantMesh=world.merchant?person(world.merchant,'merchant'):null,smithMesh=world.smith?person(world.smith,'smith'):null;
     for(const s of world.shrines||[]) {
       const g=new THREE.Group(),stone=lam(0x8b9494); const base=new THREE.Mesh(boxGeo,stone); base.scale.set(.9,.5,.9); base.position.y=.25; const post=new THREE.Mesh(boxGeo,stone); post.scale.set(.5,1.9,.5); post.position.y=1.4;
       const top=new THREE.Mesh(boxGeo,stone); top.scale.set(.9,.7,.8); top.position.y=2.6; const lamp=new THREE.Mesh(sphereGeo,lam(0xffd68a,0xffb04a)); lamp.scale.setScalar(.18); lamp.position.y=2.6;
@@ -223,7 +206,7 @@ globalThis.NachtjagdPlay = {
       camera.fov=74; camera.updateProjectionMatrix(); game.setLook(Math.PI,0); current=game.snapshot();
       feedLines.length=0; say('Finde die drei Mondsiegel bei Kirche, Mine und Burg.',8); torchOn=true;
       if(room) { say(room.role==='host'?`Teamspiel · Raum ${room.code} · bis zu vier Spieler`:`Teamspiel · Raum ${room.code} · Host ${room.hostName}`,8); clearMates(); }
-      for(const m of actorMeshes.values()) actors.remove(m); for(const mesh of actorMeshes.values()) NachtjagdImportedModels.disposeEnemy(mesh); actorMeshes.clear();
+      for(const m of actorMeshes.values()) actors.remove(m); for(const mesh of actorMeshes.values()) mesh.userData.mat.dispose(); actorMeshes.clear();
       vehicleLayer.clear(); vehicleLayer.setStatic(NachtjagdVehicleModels.buildStatic(THREE,{world,layout:game.layout()}));
       update(0); showPanel(); lockPointer();
     }
@@ -501,7 +484,6 @@ globalThis.NachtjagdPlay = {
       // Gegner
       for(const m of current.monsters) {
         const group=actor(m),spec=ENEMIES[m.kind],d=group.userData;
-        NachtjagdImportedModels.decorateEnemy(group,m.kind,spec);
         const rise=m.state==='emerge'&&!spec.air?-(1-Math.min(1,m.em/spec.emerge))*2.2*spec.scale:0;
         group.position.set(m.x,m.y+(m.lift||0)+rise,m.z); group.rotation.y=m.yaw;
         group.scale.setScalar(m.sv||1);
@@ -509,10 +491,10 @@ globalThis.NachtjagdPlay = {
         const hot=m.state==='windup'?.5:0,hurt=m.hit>0?.7:0;
         const last=d.last||(d.last={x:m.x,z:m.z,speed:0});
         last.speed+=((dt>0?Math.hypot(m.x-last.x,m.z-last.z)/dt:0)-last.speed)*Math.min(1,dt*8); last.x=m.x; last.z=m.z;
-        NachtjagdImportedModels.updateEnemy(group,dt,hurt,hot,{speed:last.speed,state:m.state});
+        NachtjagdMonsterModels.animate(group,dt,{speed:last.speed,state:m.A?.ph==='dive'?'dive':m.state},clock);
         d.mat.emissive.setRGB(Math.max(hurt,hot*(m.kind==='bloater'?.5+.5*Math.sin(clock*40):1)),hurt*.1,0);
       }
-      for(const [id,mesh] of actorMeshes) if(!current.monsters.some(m=>m.id===id)) { NachtjagdImportedModels.disposeEnemy(mesh); actors.remove(mesh); actorMeshes.delete(id); }
+      for(const [id,mesh] of actorMeshes) if(!current.monsters.some(m=>m.id===id)) { mesh.userData.mat.dispose(); actors.remove(mesh); actorMeshes.delete(id); }
       // Siegel, Glocke, Beute
       markerMeshes.forEach(({o,mesh},i)=>{
         mesh.visible=!current.quest.objectives[i].found;

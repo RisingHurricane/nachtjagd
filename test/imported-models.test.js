@@ -17,8 +17,7 @@ T.TextureLoader.prototype.load = function (url, onLoad) {
 };
 vm.runInContext(read('public/entwurf/vendor/GLTFLoader.js').toString(), context);
 const Loader = T.GLTFLoader;
-const names = ['monster.glb', 'stylized_low-poly_wendigo.glb', 'low_poly_forest_tree.glb',
-  'low_poly_forest_tree_pack.glb', 'low-poly_trees.glb', 'mountain_low_poly.glb'];
+const names = ['mountain_low_poly.glb'];
 const loaded = new Map(await Promise.all(names.map(async name => {
   // Das Spiel lädt die verkleinerten Fassungen (tools/optimize-models.mjs).
   const bytes = read('public/assets/opt/' + name);
@@ -26,16 +25,21 @@ const loaded = new Map(await Promise.all(names.map(async name => {
   const gltf = await new Promise((resolve, reject) => new Loader().parse(data, '', resolve, reject));
   return [name, gltf];
 })));
+let lastContext = null;
+const globalThisTrees = () => lastContext.NachtjagdTreeModels.variants(T);
 function api(fail = false) {
   T.GLTFLoader = class { loadAsync(url) {
     return fail ? Promise.reject(new Error('Test: fehlendes Modell')) : Promise.resolve(loaded.get(new URL(url).pathname.split('/').pop()));
   } };
   const c = { THREE: T, URL, console: { warn() {} }, document: { currentScript: { src: 'http://localhost/entwurf/imported-models.js' } } };
+  c.globalThis = c;
+  vm.runInNewContext(read('public/entwurf/tree-models.js').toString(), c);
   vm.runInNewContext(read('public/entwurf/imported-models.js').toString(), c);
+  lastContext = c;
   return c.NachtjagdImportedModels;
 }
 
-test('Alle sechs verkleinerten GLBs laden; acht Baumvarianten bleiben nach Geländeänderungen am Boden', async () => {
+test('Gebirgs-GLB lädt; acht eigene Baumvarianten bleiben nach Geländeänderungen am Boden', async () => {
   const models = api(); await models.ready;
   assert.equal(models.errors.length, 0);
   const scene = new T.Scene(), forest = new T.Group(), trunks = new T.Group();
@@ -54,26 +58,15 @@ test('Alle sechs verkleinerten GLBs laden; acht Baumvarianten bleiben nach Gelä
   }
 });
 
-test('Wendigos haben unabhängige Skelette und Animationen; fehlende Dateien behalten Platzhalter', async () => {
-  const models = api(); await models.ready;
-  const a = new T.Group(), b = new T.Group();
-  models.decorateEnemy(a, 'lycan', { scale: 1 }); models.decorateEnemy(b, 'lycan', { scale: 1 });
-  let skinA, skinB;
-  a.traverse(n => { if (n.isSkinnedMesh) skinA = n; });
-  b.traverse(n => { if (n.isSkinnedMesh) skinB = n; });
-  assert.ok(skinA && skinB); assert.notEqual(skinA.skeleton, skinB.skeleton);
-  skinA.skeleton.bones.forEach((bone, i) => assert.notEqual(bone, skinB.skeleton.bones[i]));
-  models.updateEnemy(a, .2, .7, 0);
-  assert.equal(b.userData.mixer.time, 0);
-  assert.equal(a.userData.mixer.time, .2);
-  assert.notEqual(skinA.material, skinB.material);
-  models.disposeEnemy(a); models.disposeEnemy(b);
+test('Fehlende Gebirgsdatei: Wald steht trotzdem aus eigenen Bäumen', async () => {
   const missing = api(true); await missing.ready;
   const forest = new T.Group(), trunks = new T.Group();
-  const fallback = missing.buildForest({ scene: new T.Scene(), placements: [], heightAt: () => 0, forest, trunks });
+  const fallback = missing.buildForest({ scene: new T.Scene(), placements: [{ x: 0, z: 0, height: 15, clearance: 4 }], heightAt: () => 0, forest, trunks });
   await missing.ready;
-  assert.equal(missing.errors.length, 6); assert.equal(fallback.root.children.length, 0);
-  assert.equal(forest.visible, true); assert.equal(trunks.visible, true);
+  assert.equal(missing.errors.length, 1);
+  // Die Bäume hängen nicht mehr an Downloads: Auch ohne GLBs steht der eigene Wald.
+  await fallback.ready; assert.ok(fallback.root.children.length > 0);
+  assert.equal(forest.visible, false); assert.equal(trunks.visible, false);
 });
 
 test('Alle Entfernungen behalten die importierten Baumformen (fern vereinfacht); nur nahe Modelle werfen Schatten', async () => {
@@ -93,8 +86,9 @@ test('Alle Entfernungen behalten die importierten Baumformen (fern vereinfacht);
   for(let i=0;i<result.root.children.length;i+=2) {
     const near=result.root.children[i],far=result.root.children[i+1];pairs.push([near,far]);
     assert.equal(near.material,far.material);
-    assert.notEqual(far.geometry,geometry,'Fernbäume verwenden echte GLB-Geometrie');
-    assert.ok(far.geometry.index.count<=near.geometry.index.count,'Fernfassung hat höchstens so viele Dreiecke wie das nahe Modell');
+    assert.notEqual(far.geometry,geometry,'Fernbäume verwenden die Baumform, keine Ersatzkegel');
+    const tris=g=>g.index?g.index.count:g.attributes.position.count;
+    assert.ok(tris(far.geometry)<=tris(near.geometry),'Fernfassung hat höchstens so viele Dreiecke wie das nahe Modell');
     assert.equal(near.castShadow,true);assert.equal(far.castShadow,false);
     assert.equal(near.count+far.count,near.instanceMatrix.count);
   }
@@ -164,28 +158,6 @@ test('Geländewagen (eigenes Modell): vier Räder, Vorderräder lenkbar, Rollach
   for (const w of wheels) assert.ok(w.spin.children.length <= 4, 'Rad: höchstens vier Netze');
 });
 
-test('Gegnerdarstellung: Wendigo läuft über Knochen, Wolf schaukelt, fehlende Gegnerart bleibt Platzhalter', async () => {
-  const models = api(); await models.ready;
-  const walker = new T.Group(), rest = new T.Group(), wolf = new T.Group(), hag = new T.Group();
-  models.decorateEnemy(walker, 'villager', { scale: 1 }); models.decorateEnemy(rest, 'villager', { scale: 1 });
-  models.decorateEnemy(wolf, 'wolf', { scale: 1 }); models.decorateEnemy(hag, 'hag', { scale: 1 });
-  assert.ok(walker.userData.imported && wolf.userData.imported); assert.equal(hag.userData.imported, undefined);
-  const heights = [walker, wolf].map(g => new T.Box3().setFromObject(g).getSize(new T.Vector3()).y);
-  assert.ok(heights[0] > 1.7 && heights[0] < 2.3, `Dorfbewohner ${heights[0]}`);
-  const thigh = g => g.userData.rig.bones.LeftUpLeg.quaternion;
-  assert.ok(walker.userData.rig.bones.LeftUpLeg && walker.userData.rig.bones.Spine1);
-  let spread = 0;
-  for (let i = 0; i < 30; i++) { models.updateEnemy(walker, .05, 0, 0, { speed: 3, state: 'walk' }); models.updateEnemy(rest, .05, 0, 0, { speed: 0, state: 'walk' }); spread = Math.max(spread, thigh(walker).angleTo(thigh(rest))); }
-  assert.ok(spread > .3, 'Gehender Gegner bewegt die Beine anders als stehender');
-  // Zuschlagen hebt die Arme: Armknochen weichen stark von der Ruhehaltung ab
-  const armBefore = walker.userData.rig.bones.LeftArm.quaternion.clone();
-  for (let i = 0; i < 20; i++) models.updateEnemy(walker, .05, 0, 0, { speed: 0, state: 'windup' });
-  assert.ok(walker.userData.rig.attack > .9);
-  assert.ok(walker.userData.rig.bones.LeftArm.quaternion.angleTo(armBefore) > .5);
-  models.updateEnemy(wolf, .1, 0, 0, { speed: 5, state: 'walk' });
-  assert.ok(wolf.userData.rig.holder.rotation.x < 0);
-});
-
 test('Gebirgskulisse: Skirt abgeschnitten, sechs Klone teilen ein Netz, Dunstfarbe wirkt auf alle', async () => {
   const models = api(); await models.ready;
   const scene = new T.Scene(), backdrop = models.buildBackdrop({ scene, count: 6 });
@@ -204,7 +176,7 @@ test('Gebirgskulisse: Skirt abgeschnitten, sechs Klone teilen ein Netz, Dunstfar
   for (const m of backdrop.root.children) assert.ok(Math.hypot(m.position.x, m.position.z) > 550);
 });
 
-test('Fernbäume: vereinfachte Fassungen derselben Modelle mit deutlich weniger Dreiecken, gleicher Fußpunkt', async () => {
+test('Fernbäume: vereinfachte Fassungen derselben Modelle mit deutlich weniger Dreiecken, gleicher Fußpunkt; nah höchstens 160 Dreiecke', async () => {
   const models = api(); await models.ready;
   const placements = Array.from({ length: 40 }, (_, i) => ({ x: i * 10, z: 0, height: 15, clearance: 4 }));
   const result = models.buildForest({ scene: new T.Scene(), placements, heightAt: () => 0, forest: new T.Group(), trunks: new T.Group() });
@@ -217,4 +189,6 @@ test('Fernbäume: vereinfachte Fassungen derselben Modelle mit deutlich weniger 
     assert.ok(Math.abs(b.boundingBox.min.y - a.boundingBox.min.y) < .05, 'Fernfassung steht auf demselben Boden');
   }
   assert.ok(far < near * 0.6, `Fern ${far} gegenüber nah ${near}`);
+  // Sparsam: je Variante (Stamm + Krone) höchstens 160 Dreiecke in der Nahfassung.
+  const variants = c => c; for (const v of globalThisTrees()) { let n = 0; v.traverse(o => { if (o.isMesh) n += o.geometry.attributes.position.count / 3; }); assert.ok(n <= 160, `Variante mit ${n} Dreiecken`); }
 });
