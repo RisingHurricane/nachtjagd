@@ -24,7 +24,7 @@ globalThis.NachtjagdInterface = (() => {
       const m=new T.Mesh(new T.CylinderGeometry(r,r,length,12),mat);m.rotation.x=Math.PI/2;m.position.set(x,y,z);g.add(m);return m;
     }
     for(let i=0;i<3;i++) {
-      const g=new T.Group();group.add(g);models.push(g);g.name=['Pistole','Schrotflinte','Jagdgewehr'][i];
+      const g=new T.Group();group.add(g);models.push(g);g.name=['Pistole','Schrotflinte','Scharfschützengewehr'][i];
       if(i===0) {
         // Moderne Pistole: Verschluss mit Griffrillen, Polymerrahmen mit Schiene, schräger Griff, Abzugsbügel, Magazinboden, Visierung.
         const slide=new T.MeshStandardMaterial({color:0x1d2124,metalness:.6,roughness:.38}),poly=new T.MeshStandardMaterial({color:0x111315,metalness:.1,roughness:.75});

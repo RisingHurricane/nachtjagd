@@ -262,7 +262,7 @@ test('snapshot with vehicles stays plain JSON and exposes eye height per vehicle
   assert.equal(JSON.stringify(s).includes('NaN'), false);
   assert.equal(s.player.eye, 1.75);
   game.interact();
-  assert.equal(game.snapshot().player.eye, 1.06);
+  assert.equal(game.snapshot().player.eye, 0.95);
 });
 
 test('jeep: Lenkeinschlag baut sich weich auf und schrumpft mit dem Tempo', () => {

@@ -25,7 +25,7 @@
     boat: [[0, -0.5, 0]]
   };
   const SEAT_NAMES = ['Fahrer', 'Beifahrer', 'Hinten links', 'Hinten rechts'];
-  const EYE = { jeep: 1.06, gondola: 1.06, cart: 1.7, boat: 1.7 };
+  const EYE = { jeep: 0.95, gondola: 1.06, cart: 1.7, boat: 1.7 }; // Geländewagen: tiefer sitzen, Blick über die Scheibe
   const JEEP = { wheelBase: 2.51, halfWidth: 0.96, front: 1.24, back: 1.27 };
   // Gondelfahrplan: 8 s Halt, 46 s Fahrt, 8 s Halt, 46 s zurück.
   const GONDOLA = { halt: 8, trip: 46, cycle: 108, steps: 80, lane: 2.15, arch: 9 };
@@ -153,7 +153,8 @@
       const yaw = v.yaw + v.yawRate * h;
       const nx = v.x + Math.sin(yaw) * v.sp * h, nz = v.z + Math.cos(yaw) * v.sp * h;
       const surface = floorAt(nx, nz, v.y), run = Math.hypot(nx - v.x, nz - v.z);
-      const steep = Math.abs(surface - v.y) > 0.9 * run + 0.02 && Math.abs(surface - v.y) > 0.05;
+      // Kleine Kanten (Fahrbahnrand, Bordstein bis 25 cm) überfährt der Wagen; nur echte Stufen und Steilhänge halten ihn auf.
+      const steep = Math.abs(surface - v.y) > 0.9 * run + 0.25;
       if (!finite(surface) || Math.abs(surface - v.y) > 1 || steep || jeepBlocked(world, nx, nz, yaw, surface)) {
         // Hindernis oder zu steil: nur drehen, wenn es dabei frei bleibt (Wegdrehen von Baum oder Wand), sonst Rückstoß.
         if (Math.abs(v.sp) > 2.5) v.bump = true;

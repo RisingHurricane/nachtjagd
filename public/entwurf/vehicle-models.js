@@ -131,10 +131,11 @@ globalThis.NachtjagdVehicleModels = (() => {
       part(1.7, 0.14, 0.16, m.iron, 0, 0.58, -1.86);
       for (const s of [-1, 1]) part(0.08, 0.16, 0.16, m.iron, s * 0.7, 0.66, 2.04);  // Zughaken
       // Windschutzscheibe (Rahmen + Glas) und Lenkrad
-      for (const s of [-1, 1]) part(0.06, 0.62, 0.06, m.trim, s * 0.78, 1.42, 0.42, -0.2);
-      part(1.62, 0.06, 0.06, m.trim, 0, 1.72, 0.36, -0.2);
+      // Niedrige Klappscheibe: Oberkante bei etwa 1,5 m, damit der Fahrer darüber hinwegsieht.
+      for (const s of [-1, 1]) part(0.06, 0.4, 0.06, m.trim, s * 0.78, 1.31, 0.44, -0.2);
+      part(1.62, 0.06, 0.06, m.trim, 0, 1.5, 0.4, -0.2);
       part(1.62, 0.06, 0.06, m.trim, 0, 1.12, 0.48, -0.2);
-      part(1.5, 0.54, 0.02, m.glass, 0, 1.42, 0.42, -0.2).castShadow = false;
+      part(1.5, 0.34, 0.02, m.glass, 0, 1.31, 0.44, -0.2).castShadow = false;
       add(G.wheelRim, m.iron, -0.43, 1.18, 0.22, -1.0, 0, 0, false);
       part(0.04, 0.04, 0.4, m.iron, -0.43, 1.06, 0.32, -1.0);
       // Sitze: Polster und Lehne
