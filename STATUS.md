@@ -236,6 +236,7 @@ Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` un
 
 ## Übergabe-Log
 
+- 2026-11-05, Claude Code: Burgberg als unregelmäßig gerundeter Felssporn statt Quadrat (`world-layout.js`). Viadukt mündet direkt vor dem Burgtor (a = [-230,-100], Deck 101,9 m → 79,4 m auf 136 m, Widerlagerhügel am Ostende 79 m); Burgweg ohne Schlenker. 223 Node-Tests, alle Gelände- und 166 Spielprüfungen grün. Nach gh-pages veröffentlicht.
 - 2026-11-04, Claude Code: Revolver durch moderne Pistole ersetzt (Modell in `play-ui.js`; Werte: 12 Schuss, 36 Schaden, Reserve 36, höchstens 120); Burgdächer schwarz (`models/kit.js` roofSlate/roofCopper) mit Schneeflecken aus `surface-style.js` (gilt für alle Dächer, auf hellen kaum sichtbar). Tests angepasst, 223 grün. Nach gh-pages veröffentlicht.
 - 2026-11-02, Claude Code: Entwurf 30 nach gh-pages veröffentlicht (`05e8377`, Fast-Forward von `6b178a8`, kein Force), `entwurf/` inhaltsgleich mit `public/entwurf/`. 220 Node-Tests, 23 Gelände- und 166 Spielprüfungen grün. Live-Seite aus der Agentenumgebung nicht erreichbar.
 - 2026-11-02, Claude Code: Entwurf 29 auf Wunsch des Besitzers nach gh-pages veröffentlicht (`6b178a8`, Fast-Forward von `45a9794`, kein Force): `entwurf/` inhaltsgleich mit `public/entwurf/`, neu `assets/opt/`, dazu `assets/church/church-adapter.js` und `models/kit.js`. Live-Seite aus der Agentenumgebung nicht erreichbar, daher nicht geprüft.

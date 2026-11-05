@@ -111,10 +111,12 @@ globalThis.NachtjagdLayout = (() => {
     }
     // Ein niedriger Widerlagerhügel erhält den bestehenden Brückenanschluss.
     const bridgeHill=Math.hypot((x+120)/55,(z+180)/55);
-    if(bridgeHill<1) h=Math.max(h,73.11111111111111*(1-smooth(0,1,bridgeHill)));
+    if(bridgeHill<1) h=Math.max(h,79*(1-smooth(0,1,bridgeHill)));
     // Freier Sporn mit steilen Flanken; ein schmaler Rücken verbindet ihn nach Osten.
     const dx = x - castle.x, dz = z - castle.z;
-    const spur = Math.max(Math.abs(dx) / 64, Math.abs(dz) / 58, Math.abs(dx + dz * .35) / 75);
+    // Unregelmäßig gerundeter Felssporn (vorher quadratisch aus der Maximumnorm): Ellipse mit welligem Rand.
+    const angle = Math.atan2(dz, dx), wobble = 1 + .1 * Math.sin(3 * angle + 1.3) + .06 * Math.sin(5 * angle + .4) + .04 * Math.sin(8 * angle + 2.1);
+    const spur = Math.hypot(dx / 62, dz / 56) / wobble;
     const shelf = castle.height - 3 + 3 * Math.sin(x / 13) * Math.cos(z / 17);
     h = Math.max(h, h + (shelf - h) * (1 - clamp((spur - .74) / .28, 0, 1)));
     const along = clamp((x + 221) / 128, 0, 1);
