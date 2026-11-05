@@ -15,7 +15,7 @@
   const WDEF = [
     { name: 'Pistole', mag: 12, dmg: 36, rate: 0.36, pellets: 1, spread: 0.006, reload: 2.1, range: 150, res: 36, max: 120, pick: 15 },
     { name: 'Schrotflinte', mag: 6, dmg: 11, rate: 0.85, pellets: 9, spread: 0.05, reload: 2.7, range: 70, res: 12, max: 48, pick: 6 },
-    { name: 'Jagdgewehr', mag: 5, dmg: 110, rate: 1.05, pellets: 1, spread: 0.0012, reload: 2.9, range: 240, res: 10, max: 40, pick: 5 }
+    { name: 'Scharfschützengewehr', mag: 5, dmg: 110, rate: 1.05, pellets: 1, spread: 0.0012, reload: 2.9, range: 240, res: 10, max: 40, pick: 5 }
   ];
 
   // Trefferkugeln in Modellkoordinaten (x seitlich, y oben, z vorn); `m` ist der Schadensfaktor, `h` markiert den Kopf.
@@ -130,7 +130,8 @@
     const state = {
       phase: 'ready', time: 0,
       player: { x: start[0], y: initialY, z: start[1], yaw: 0, pitch: 0, hp: 100, maxHp: 100, vx: 0, vy: 0, vz: 0, onGround: true, hurtT: 0, bless: 0, slowT: 0, frozen: false, gren: 2, molo: 2, ride: null, eye: 1.75 },
-      weapons: WDEF.map((w, i) => ({ ...w, owned: i === 0, ammo: w.mag, reserve: w.res, reloading: 0 })),
+      // Alle drei Waffen von Anfang an (Wunsch: Scharfschützengewehr schon in der ersten Runde).
+      weapons: WDEF.map((w, i) => ({ ...w, owned: true, ammo: w.mag, reserve: w.res, reloading: 0 })),
       current: 0, up: { dmg: 0, mag: 0, rel: 0, hp: 0, lamp: 0, silver: 0 },
       relics: { heart: false, compass: false, lamp: false, crown: false, circle: false, pearl: false, heartReady: 0 },
       waves: { n: 0, state: 'idle', timer: 3.5, toSpawn: 0, alive: 0, total: 0, spawnT: 0, finalT: 0, mod: 'normal' },
@@ -818,7 +819,7 @@
           spawnMonster(kind, x, z, false); state.waves.alive++;
         }
       } else if (l.special === 'shotgun') { state.weapons[1].owned = true; state.weapons[1].reserve += 12; emit('notice', { text: 'Schrotflinte gefunden' }); }
-      else if (l.special === 'rifle') { state.weapons[2].owned = true; state.weapons[2].reserve += 10; emit('notice', { text: 'Jagdgewehr gefunden' }); }
+      else if (l.special === 'rifle') { state.weapons[2].owned = true; state.weapons[2].reserve += 10; emit('notice', { text: 'Scharfschützenmunition gefunden' }); }
       else if (l.special === 'grenades') { P.gren = Math.min(9, P.gren + 4); P.molo = Math.min(9, P.molo + 2); state.stats.lei += 120; emit('notice', { text: 'Granaten, Molotows und 120 Lei' }); }
       else if (l.special === 'note') {
         state.stats.notes++;
@@ -955,9 +956,7 @@
     }
     function takeSeal(index, by = null) {
       const o = state.quest.objectives[index]; o.found = true; state.quest.got.push(o.id);
-      if (state.quest.got.length === 1) state.weapons[1].owned = true;
-      if (state.quest.got.length === 2) state.weapons[2].owned = true;
-      addReserve(1);
+      addReserve(2); // Siegel bringen jetzt Munition (alle Waffen sind von Anfang an da)
       emit('objective', { id: o.id, name: o.name, found: state.quest.got.length, by });
       sealGuard(o);
       if (state.quest.objectives.length && state.quest.objectives.every(x => x.found)) {

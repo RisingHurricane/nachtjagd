@@ -116,7 +116,10 @@ globalThis.NachtjagdPlay = {
       g.add(pole,flag); g.position.set(s.x,world.floor(s.x,s.z),s.z); props.add(g);
     }
     // --- Wurfgeschosse, Säure, Flammen
-    const nadeMeshes=[],acidMeshes=[],fireMeshes=[];
+    const nadeMeshes=[],acidMeshes=[];
+    // Partikelfeuer, Mündungsfeuer und leuchtende Vorräte (fx-items.js)
+    const fireFx=NachtjagdFx.createFire(THREE,scene),muzzleFx=NachtjagdFx.createMuzzle(THREE,scene),itemKit=NachtjagdFx.itemKit(THREE);
+    const MUZZLE=[new THREE.Vector3(0,.016,-.31),new THREE.Vector3(0,.015,-.75),new THREE.Vector3(0,.015,-.75)],muzzlePoint=new THREE.Vector3();
     const nadeMat=lam(0x22261d),moloMat=lam(0xb8742a),acidMat=new THREE.MeshBasicMaterial({color:0xb4ff3a}),fireMat=new THREE.MeshBasicMaterial({color:0xff7a22,transparent:true,opacity:.75});
     const boomFlash=new THREE.PointLight(0xffa24a,0,60); effects.add(boomFlash);
     // --- Umgebung: Nacht, Nebel, Schnee, Taschenlampe
@@ -505,16 +508,19 @@ globalThis.NachtjagdPlay = {
       });
       const bell=world.bell; bellMesh.visible=current.quest.stage==='bell'; bellMesh.position.set(bell.x,world.floor(bell.x,bell.z)+1.7,bell.z);
       lootMeshes.forEach(({l,g,baseY},i)=>{ g.visible=!current.loots[i].taken; if(l.relicId) { g.rotation.y+=dt*.65; g.position.y=baseY+Math.sin(clock*2.2+i)*.12; } });
-      while(itemMeshes.length<current.items.length) { const mesh=new THREE.Mesh(itemGeo,ammoMat); supplies.add(mesh); itemMeshes.push(mesh); }
-      itemMeshes.forEach((mesh,i)=>{
-        const item=current.items[i]; mesh.visible=Boolean(item)&&(item.life>8||Math.floor(item.life*4)%2===0); if(!item) return;
-        mesh.material=item.type==='health'?healthMat:ammoMat; mesh.position.set(item.x,item.y+.45+Math.sin(item.t*2.4)*.1,item.z); mesh.rotation.y=item.t*1.6;
+      // Vorräte: Verbandskasten mit rotem Kreuz oder Munitionskiste, beide leuchtend; Modell wechselt mit der Art.
+      current.items.forEach((item,i)=>{
+        let mesh=itemMeshes[i];
+        if(!mesh||mesh.userData.type!==item.type) { if(mesh) supplies.remove(mesh); mesh=item.type==='health'?itemKit.health():itemKit.ammo(); mesh.userData.type=item.type; supplies.add(mesh); itemMeshes[i]=mesh; }
+        mesh.visible=item.life>8||Math.floor(item.life*4)%2===0;
+        mesh.position.set(item.x,item.y+.15+Math.sin(item.t*2.4)*.08,item.z); mesh.rotation.y=item.t*1.2;
       });
+      for(let i=current.items.length;i<itemMeshes.length;i++) if(itemMeshes[i]) itemMeshes[i].visible=false;
       // Wurfgeschosse, Säure, Flammen
       const sync=(list,data,make,set)=>{ while(list.length<data.length) { const m=make(); effects.add(m); list.push(m); } list.forEach((m,i)=>{ m.visible=i<data.length; if(i<data.length) set(m,data[i]); }); };
       sync(nadeMeshes,current.nades,()=>new THREE.Mesh(sphereGeo,nadeMat),(m,n)=>{ m.scale.setScalar(n.molo?.1:.12); m.material=n.molo?moloMat:nadeMat; m.position.set(n.x,n.y,n.z); });
       sync(acidMeshes,current.acids,()=>{ const m=new THREE.Mesh(sphereGeo,acidMat); m.scale.setScalar(.22); return m; },(m,a)=>m.position.set(a.x,a.y,a.z));
-      sync(fireMeshes,current.fires,()=>new THREE.Mesh(new THREE.ConeGeometry(1,1,8),fireMat),(m,f)=>{ const k=.8+.25*Math.sin(clock*18+f.x); m.scale.set(f.r*.9,1.4*k,f.r*.9); m.position.set(f.x,f.y+.7*k,f.z); });
+      fireFx.update(current.fires,clock,innerHeight*Math.min(devicePixelRatio,1.25));
       // Ereignisse
       const outbox=[];
       for(const e of game.drainEvents()) {
@@ -551,6 +557,9 @@ globalThis.NachtjagdPlay = {
       while(feedLines.length&&feedLines[0].t<=0) feedLines.shift();
       noteT=Math.max(0,noteT-dt); if(noteT<=0) noteBox.style.opacity=0;
       bannerT=Math.max(0,bannerT-dt); if(bannerT<=0) banner.style.opacity=0;
+      // Mündungsfeuer an der Laufmündung der gehaltenen Waffe
+      if(flashT>0&&weapon.visible) { weapon.updateMatrixWorld(true); muzzlePoint.copy(MUZZLE[current.current]||MUZZLE[0]); weapon.localToWorld(muzzlePoint); }
+      muzzleFx.show(muzzlePoint,flashT>0&&weapon.visible?flashT:0,camera);
       flash.intensity=flashT>0?2:0; boomFlash.intensity=boomT>0?4*boomT/.35:0; tracer.visible=flashT>0;
       if(current.phase!=='ready') applyEnv(current,dt);
       hud.classList.toggle('hit',hitT>0);
