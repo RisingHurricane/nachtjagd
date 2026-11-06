@@ -72,6 +72,7 @@ li{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center}
       <div><b>Ausrichtung:</b> jedes Haus steht parallel oder rechtwinklig zum nächsten Weg, keine schiefen Spalten.</div>
       <div><b>Höhe:</b> im Zentrum ein Geschoss mehr.</div>
       <div><b>Dicht im Kern:</b> Häuser stehen Wand an Wand an Straße und Platz, dahinter Gassen mit Winkeln und kleinen Höfen.</div>
+      <div><b>Gassen im Kern:</b> beidseitig geschlossen bebaut, schmale tiefe Häuser direkt an der Gasse; wo der Platz knapp ist, wird das Haus schmaler und flacher statt eine Lücke zu lassen.</div>
       <div><b>Locker am Rand:</b> Höfe mit Scheune und Schuppen, Gärten dazwischen.</div>
       <div><b>Kleinere Häuser:</b> knapp die Hälfte ein- oder anderthalbstöckig.</div>
     </div>
@@ -135,26 +136,39 @@ const TYPES={
 function core(x,z){return Math.hypot(x-PLAZA.x,z-PLAZA.z)} // Abstand zum Platz
 // Ausrichtung nach dem nächsten Weg (parallel oder rechtwinklig): keine schiefen Spalten zwischen Nachbarhäusern
 function alignAt(x,z){let best=1e9,ang=0;for(const s of STREETS)for(let i=0;i<s.p.length-1;i++){const d=segDist(x,z,s.p[i],s.p[i+1]);if(d<best){best=d;ang=-Math.atan2(s.p[i+1][1]-s.p[i][1],s.p[i+1][0]-s.p[i][0])}}return ang+(rnd()<.5?0:Math.PI/2)}
-// Häuser entlang der Wege: im Kern Wand an Wand, nach außen lockerer
+// Häuser entlang der Wege: im Kern Wand an Wand, nach außen lockerer.
+// An Gassen im Kern stehen schmale Häuser ohne Abstand dicht an der Gasse; passt ein Haus nicht,
+// wird es schmaler und flacher, damit keine Lücken zwischen den Gebäuden bleiben.
 function lineHouses(s){
+  const lane=s.kind==='lane';
   for(let i=0;i<s.p.length-1;i++){
     const a=s.p[i],b=s.p[i+1],len=Math.hypot(b[0]-a[0],b[1]-a[1]),ux=(b[0]-a[0])/len,uz=(b[1]-a[1])/len;
     for(const side of[-1,1]){
-      let t=2;
-      while(t<len-2){
-        const mx=a[0]+ux*t,mz=a[1]+uz*t,d=core(mx,mz),dense=d<55,mid=d<95;
-        const type=dense?(rnd()<.45?'buerger':rnd()<.6?'haus':'klein'):mid?(rnd()<.5?'haus':'klein'):(rnd()<.4?'klein':'haus');
-        const w=type==='buerger'?between(8,11):type==='haus'?between(7,9):between(5,6.5);
-        const dep=type==='buerger'?between(9,12):type==='haus'?between(8,10):between(6,7.5);
-        const set=s.w/2+(dense?.5:between(1.2,3.5));
+      let t=lane?1:2;
+      while(t<len-(lane?1:2)){
+        const mx=a[0]+ux*t,mz=a[1]+uz*t,d=core(mx,mz),dense=d<(lane?72:55),mid=d<95;
+        let type,w,dep;
+        if(lane&&dense){
+          // Gassenhäuser: schmal und tief, wie gewachsene Altstadtparzellen
+          type=rnd()<.25?'buerger':rnd()<.55?'haus':'klein';
+          w=type==='buerger'?between(6.5,8):type==='haus'?between(5.5,7):between(4.5,5.5);
+          dep=type==='buerger'?between(9,11):type==='haus'?between(8,10):between(6.5,8);
+        }else{
+          type=dense?(rnd()<.45?'buerger':rnd()<.6?'haus':'klein'):mid?(rnd()<.5?'haus':'klein'):(rnd()<.4?'klein':'haus');
+          w=type==='buerger'?between(8,11):type==='haus'?between(7,9):between(5,6.5);
+          dep=type==='buerger'?between(9,12):type==='haus'?between(8,10):between(6,7.5);
+        }
+        const set=s.w/2+(dense?(lane?.45:.5):between(1.2,3.5));
         // Passt das Haus nicht, kleinere Maße versuchen, bevor die Stelle übersprungen wird.
+        const sizes=lane&&dense?[[1,1],[1,.75],[.8,.6],[.65,.5],[.5,.45]]:[[1,1],[.8,.85],[.62,.85]];
         let placed=null;
-        for(const k of [1,.8,.62]){
-          const W=w*k,D=dep*(k<1?.85:1);
-          const h={x:mx+ux*W/2-uz*side*(set+D/2),z:mz+uz*W/2+ux*side*(set+D/2),w:W,d:D,rot:-Math.atan2(uz,ux),type:k<.7&&type!=='klein'?'haus':type,floors:type==='buerger'?between(2.5,3):type==='haus'?2:between(1,1.5)};
+        for(const[k,kd]of sizes){
+          const W=w*k,D=Math.max(4,dep*kd);
+          if(W<3.5)continue;
+          const h={x:mx+ux*W/2-uz*side*(set+D/2),z:mz+uz*W/2+ux*side*(set+D/2),w:W,d:D,rot:-Math.atan2(uz,ux),type:W<5.2?'klein':k<.7&&type!=='klein'?'haus':type,floors:type==='buerger'?between(2.5,3):type==='haus'?2:between(1,1.5)};
           if(clearOf(h,dense?.05:1.2)){placed=h;break}
         }
-        if(placed){HOUSES.push(placed);t+=placed.w+(dense?between(0,.3):mid?between(1.5,3):between(5,10))}else t+=1;
+        if(placed){HOUSES.push(placed);t+=placed.w+(dense?(lane?0:between(0,.3)):mid?between(1.5,3):between(5,10))}else t+=lane&&dense?.5:1;
       }
     }
   }
