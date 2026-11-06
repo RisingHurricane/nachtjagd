@@ -3,7 +3,7 @@
 // Spielorte für die Bergdorf-Welt: Truhen, Händler, Schmied, Bildstöcke, Angelplätze, Notizen und Reliquien.
 // Die Lage folgt dem bestätigten Layout (world-layout.js); jeder Punkt wird auf den nächsten freien, begehbaren Boden gesetzt.
 globalThis.NachtjagdSpots = {
-  build({ layout, blocked, floor, boatOk, routes, mineRoutes }) {
+  build({ layout, blocked, floor, boatOk, routes, mineRoutes, mineCaches }) {
     const walkable = (x, z) => { const y = floor(x, z); return Number.isFinite(y) && !blocked(x, z, y); };
     // Nächster freier Punkt um (x,z): Spirale in 1-m-Schritten, deterministisch.
     function free(x, z, minR = 0) {
@@ -71,6 +71,8 @@ globalThis.NachtjagdSpots = {
     loots.push(at(village.x - 6, village.z - 12, { relicId: 'compass' }));
     loots.push(at(castle.x + 14, castle.z - 6, { relicId: 'heart' }));
     loots.push(at(mines[0].a[0] + 9, mines[0].a[1] - 3, { relicId: 'lamp' }));
+    // Truhen im erweiterten Stollennetz der Minen (mit Tunnelhöhe).
+    for (const c of mineCaches || []) loots.push({ x: c.x, z: c.z, y: c.y });
     // Besondere Ziele mit Wächtern: Gipfelkrone an der Bergstation der Gondel, Runenstein in der Mitte des Steinkreises,
     // Seeperle auf der Insel im See (nur mit dem Boot erreichbar).
     const summit = layout.gondolaCorridor ? layout.gondolaCorridor[1] : null;

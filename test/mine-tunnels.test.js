@@ -31,7 +31,7 @@ test('Die offene Mündung blockiert weder die Zufahrtsstraße noch entfernt sie 
 
 test('jeder Eingang führt über zusammenhängende Rampen in Hauptgang und zwei Kammern',()=>{
   const {world}=setup();
-  assert.equal(world.routes.length,6);
+  assert.equal(world.routes.length,12); // je Mine: Hauptgang, zwei Kammern, Seitenstollen, Halle, tiefer Gang
   for(const mine of mines) {
     const route=world.routes.find(r=>r.id===mine.id);
     assert.ok(route);
@@ -106,7 +106,7 @@ test('optionale Three-Geometrie baut geschlossene Gänge, Träger und Lampenstel
     raycaster.far=3;
     assert.equal(raycaster.intersectObject(world.root,true).length,0,'Kammeranschluss besitzt eine echte Wandöffnung');
   }
-  for(const path of world.routes) {
+  for(const path of world.routes.filter(r=>!r.openEnd)) { // Stollen, die in eine Halle münden, sind offen
     const end=path.points.at(-1),before=path.points.at(-2),dx=end.x-before.x,dz=end.z-before.z,length=Math.hypot(dx,dz);
     raycaster.set(new THREE.Vector3(end.x-dx/length*2,end.y+1.5,end.z-dz/length*2),new THREE.Vector3(dx/length,0,dz/length));
     raycaster.far=2.3;

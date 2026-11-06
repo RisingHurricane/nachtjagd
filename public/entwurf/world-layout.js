@@ -11,7 +11,7 @@ globalThis.NachtjagdLayout = (() => {
   const landmarkSites={ wind:[270,255],stones:[150,-90],ruin:[300,120] };
   const lakeHomes=[[-245,110,8,7,.2,5],[-228,113,9,7,-.3,5.5],[-211,126,7,8,.15,4.5],[-200,134,10,7,-.1,5]];
   const island={x:-258,z:198,rx:18,rz:14,height:5.5,trees:[[-7,-2],[5,-3],[1,5]]};
-  const mines=[{id:'mine-west',a:[-340,-15],b:[-355,-35],width:7},{id:'mine-north',a:[-55,-185],b:[-65,-215],width:7}];
+  const mines=[{id:'mine-west',a:[-340,-15],b:[-355,-35],width:7},{id:'mine-north',a:[-55,-185],b:[-65,-215],width:7,gallerySide:1}];
   const castle = { x: -265, z: -100, height: 102 };
   const lake = [[-418,312],[-405,242],[-375,168],[-334,115],[-317,69],[-293,82],[-268,116],[-213,147],[-149,170],[-81,194],[-12,218],[18,242],[-24,280],[-113,325],[-237,348],[-350,346],[-410,332]];
   const forestBands = [

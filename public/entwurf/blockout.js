@@ -54,7 +54,7 @@
   const edgeMaterial = new THREE.LineBasicMaterial({ color: '#526266', transparent: true, opacity: .3 });
   const colliders = [], anchors = [], roadMeshes = [], labelAnchors = [], treePlacements = [], coverPlacements=[];
   const roadVertices=[],roadIndices=[],roadRanges=[],roadInfo=[];
-  let groundReady=false, towerFloor=null, towerBlocked=null;
+  let groundReady=false, towerFloor=null, towerBlocked=null, watchtowers=null;
   const arcades=NachtjagdArcades.create({THREE}); // Säulen in Kirche und Burghof (eigene Kollision) // towerFloor: Wendeltreppe und Plattform des Wachturms (outdoor-details.js) // roadTop folgt dem Gelände erst, wenn das Höhenraster steht (Kirchenhöhe wird vorher bestimmt)
   const labels = new THREE.Group();
   scene.add(labels);
@@ -471,6 +471,8 @@
       return h.plan.volumes.some(v=>p.x>v.x0-1&&p.x<v.x1+1&&p.z>v.z0-1&&p.z<v.z1+1)||h.approaches.some(a=>Math.hypot(a.x-x,a.z-z)<2);
     })});
   towerFloor=outdoor.floor; towerBlocked=outdoor.blocked;
+  // Drei einfache Wachtürme nach Altay-Vorbild in den leeren Gegenden (watchtowers.js)
+  watchtowers=NachtjagdWatchtowers.create({THREE,scene,height:groundHeight,lamps:lampField,sites:[[-210,-145,.6],[-30,-62,2.2],[225,110,4.1]]});
   // Laternen an Wegen und im Dorf als Lampen des Lampenfelds (ersetzen die drei echten Nahlichter).
   const lanternLamps=()=>outdoor.lamps.map((l,i)=>({x:l.x,y:l.y,z:l.z,r:16,c:[1,.62,.3],k:.85,halo:4.6,a:.42,flick:i%7===3,kind:'laterne'}));
   lampField.add(lanternLamps());
@@ -714,6 +716,7 @@
     if (viaduct.collides(x,z,feet)) return true;
     if (towerBlocked && towerBlocked(x,z,feet)) return true;
     if (arcades.blocked(x,z,feet)) return true;
+    if (watchtowers && watchtowers.blocked(x,z,feet)) return true;
     if (mines && mines.blocked(x,z,feet)) return true;
     if (villageWall && villageWall.blocked(x,z,feet)) return true;
     if (castleSite.walk && castleSite.walk.blocked(x,z,feet)) return true;
@@ -1089,6 +1092,8 @@
     // Wachturm (Wendeltreppe, Plattform) vor allen Rampen und Schultern der Straßen.
     const tf=towerFloor && towerFloor(x,z,previousFeet);
     if(tf!==null && tf!==undefined) return tf;
+    const wt=watchtowers && watchtowers.floor(x,z,previousFeet);
+    if(wt!==null && wt!==undefined) return wt;
     const wf=villageWall && villageWall.floor(x,z,previousFeet);
     if(wf!==null && wf!==false)return wf;
     const bf=buildings && buildings.floor(x,z,previousFeet);
@@ -1165,7 +1170,7 @@
       return null;
     }
   };
-  Object.assign(world,NachtjagdSpots.build({layout,blocked,floor:gameFloor,boatOk,routes,mineRoutes:mines.points})); // Truhen, Händler, Schmied, Bildstöcke, Angelplätze, Notizen, Reliquien
+  Object.assign(world,NachtjagdSpots.build({layout,blocked,floor:gameFloor,boatOk,routes,mineRoutes:mines.points,mineCaches:mines.caches})); // Truhen, Händler, Schmied, Bildstöcke, Angelplätze, Notizen, Reliquien
   scene.updateMatrixWorld(true);
   world.checks=[{name:'Dorfstart frei',passed:!blocked(90,45,gameFloor(90,45))},...world.objectives.map(o=>({name:o.name+'-Siegel erreichbar',passed:!blocked(o.x,o.z,gameFloor(o.x,o.z))})),{name:'Glockenplatz frei',passed:!blocked(world.bell.x,world.bell.z,gameFloor(world.bell.x,world.bell.z))},{name:'Spielorte frei',passed:[...world.loots,...world.shrines,...world.fishSpots,world.merchant,world.smith].every(p=>!blocked(p.x,p.z,gameFloor(p.x,p.z)))}];
   world.checks.push(
