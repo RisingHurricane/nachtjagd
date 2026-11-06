@@ -1,0 +1,252 @@
+<title>Dorfplan Bergdorf</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Werkzeugseite: Plan füllt die Fläche, schmale Leiste mit Ansicht, Legende und Zahlen. */
+:root{
+  --bg:#eef0ec; --panel:#f8f9f6; --ink:#1f2622; --muted:#5f6b63; --line:#cfd6cf; --accent:#2f6b57;
+  --plaza:#c9b48a; --street:#b9b2a3; --lane:#cfc6b4;
+  --font-ui:"IBM Plex Sans",system-ui,sans-serif; --font-head:"Fraunces",Georgia,serif; --font-num:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#151a18;--panel:#1d2421;--ink:#e6ebe7;--muted:#9aa79f;--line:#2f3934;--accent:#7cc4a8;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#151a18;--panel:#1d2421;--ink:#e6ebe7;--muted:#9aa79f;--line:#2f3934;--accent:#7cc4a8;color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-ui);display:flex;flex-direction:column}
+header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:baseline;justify-content:space-between;padding-block:14px 10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line)}
+h1{font-family:var(--font-head);font-weight:600;font-size:clamp(20px,3vw,28px);margin:0;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:0;color:var(--muted);font-size:13px;max-width:62ch}
+.wrap{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 280px;min-height:0}
+@media (max-width:760px){.wrap{grid-template-columns:1fr;grid-template-rows:minmax(360px,60vh) auto}}
+#view{position:relative;min-width:0;min-height:0}
+canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+aside{background:var(--panel);border-left:1px solid var(--line);padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px;overflow:auto;min-width:0}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{flex:1;font:inherit;font-size:13px;padding:7px 8px;border:0;background:transparent;color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--panel)}
+.seg button:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h2{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:13px}
+li{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center}
+.sw{width:14px;height:14px;border-radius:3px;border:1px solid var(--line)}
+.n{font-family:var(--font-num);font-variant-numeric:tabular-nums;color:var(--muted)}
+.notes{font-size:13px;line-height:1.5;color:var(--ink);display:grid;gap:6px}
+.notes b{font-weight:600}
+.btn{font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--ink);cursor:pointer}
+#copied{font-size:12px;color:var(--accent)}
+.hint{position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--muted);background:var(--panel);padding:4px 8px;border-radius:4px;border:1px solid var(--line)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;600&display=swap">
+
+<header>
+  <h1>Dorfplan Bergdorf · Entwurf B</h1>
+  <p>Grobentwurf mit Quadern auf dem echten Dorfgelände: Marktplatz vor der Kirche, eine Hauptstraße von Tor zu Tor, dichter Kern mit Gassen, lockerer Rand.</p>
+</header>
+<div class="wrap">
+  <div id="view"><canvas id="c" aria-label="Dorfplan in 3D"></canvas><div class="hint">Ziehen: drehen · Rad: zoomen</div></div>
+  <aside>
+    <div>
+      <h2>Ansicht</h2>
+      <div class="seg" role="group" aria-label="Ansicht">
+        <button id="v-top" aria-pressed="true">Draufsicht</button>
+        <button id="v-obl" aria-pressed="false">Schräg</button>
+        <button id="v-street" aria-pressed="false">Straße</button>
+      </div>
+    </div>
+    <div>
+      <h2>Bauten</h2>
+      <ul id="legend"></ul>
+    </div>
+    <div>
+      <h2>Wege</h2>
+      <ul>
+        <li><span class="sw" style="background:var(--plaza)"></span>Marktplatz<span class="n">34 × 24 m</span></li>
+        <li><span class="sw" style="background:var(--street)"></span>Hauptstraße, Südstraße, Untere Straße<span class="n">5,5–6 m</span></li>
+        <li><span class="sw" style="background:var(--lane)"></span>Gassen<span class="n">2,5–3,5 m</span></li>
+      </ul>
+    </div>
+    <div class="notes">
+      <h2>Was sich ändert</h2>
+      <div><b>Platz:</b> Marktplatz mit Brunnen direkt vor dem Kirchportal, alle Wege laufen hier zusammen.</div>
+      <div><b>Hauptstraße:</b> vom Westtor über den Platz zum Osttor, leicht geknickt; keine Parallelstraße mehr.</div>
+      <div><b>Untere Straße:</b> zweite größere Achse vom Weg zum Südtor nach Westen.</div>
+      <div><b>Ausrichtung:</b> jedes Haus steht parallel oder rechtwinklig zum nächsten Weg, keine schiefen Spalten.</div>
+      <div><b>Höhe:</b> im Zentrum ein Geschoss mehr.</div>
+      <div><b>Dicht im Kern:</b> Häuser stehen Wand an Wand an Straße und Platz, dahinter Gassen mit Winkeln und kleinen Höfen.</div>
+      <div><b>Locker am Rand:</b> Höfe mit Scheune und Schuppen, Gärten dazwischen.</div>
+      <div><b>Kleinere Häuser:</b> knapp die Hälfte ein- oder anderthalbstöckig.</div>
+    </div>
+    <div>
+      <button class="btn" id="copy">Planungsdaten kopieren</button> <span id="copied" role="status"></span>
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ---------------------------------------------------------------- Dorfdaten (Spielkoordinaten, Meter)
+const OUTLINE=[[-5,51],[-5,39],[-15,15],[0,-14],[36,-30],[76,-26],[115,-18],[150,-28],[180,-10],[198,18],[185,39],[185,51],[198,76],[186,105],[150,124],[121,112],[109,112],[80,126],[42,118],[10,109],[-14,83]];
+const GATES=[[-5,45],[185,45],[115,112]];
+const ground=(x,z)=>40+(x-90)*.018+(z-45)*.022+.45*Math.sin(x/45)*Math.cos(z/50);
+const CHURCH={x:91,z:9,w:23,d:34};
+const PLAZA={x:91,z:39,w:34,d:24};
+const WELL={x:96,z:40};
+// Straßen und Gassen als Linienzüge mit Breite
+const STREETS=[
+  {kind:'street',w:6,p:[[-5,45],[22,46],[48,41],[74,40]]},
+  {kind:'street',w:6,p:[[108,40],[132,43],[158,48],[185,45]]},
+  {kind:'street',w:5.5,p:[[100,51],[104,66],[112,82],[111,98],[115,112]]},
+  // Zweite Straße: vom Südweg nach Westen durch den unteren Dorfteil
+  {kind:'street',w:5.5,p:[[104,66],[84,74],[60,80],[34,86],[8,90]]},
+  {kind:'lane',w:3.2,p:[[74,30],[66,22],[58,10],[52,-6]]},
+  {kind:'lane',w:3,p:[[108,30],[118,22],[124,8],[134,-4]]},
+  {kind:'lane',w:3,p:[[80,51],[74,60],[66,64],[58,74],[50,86]]},
+  {kind:'lane',w:2.8,p:[[48,41],[46,55],[40,64],[30,70]]},
+  {kind:'lane',w:3,p:[[132,43],[136,56],[130,68],[112,82]]},
+  {kind:'lane',w:2.6,p:[[66,22],[48,24],[34,30],[22,46]]},
+  {kind:'lane',w:2.6,p:[[118,22],[140,26],[150,36],[158,48]]},
+  {kind:'lane',w:2.6,p:[[86,74],[90,90],[100,98],[111,98]]}
+];
+// Zufall mit festem Startwert: der Entwurf bleibt bei jedem Laden gleich
+let seed=20261106;const rnd=()=>((seed=(seed*1664525+1013904223)>>>0)/4294967296);const between=(a,b)=>a+(b-a)*rnd();
+function inside(x,z){let c=false;for(let i=0,j=OUTLINE.length-1;i<OUTLINE.length;j=i++){const[a,b]=OUTLINE[i],[e,f]=OUTLINE[j];if((b>z)!==(f>z)&&x<(e-a)*(z-b)/(f-b)+a)c=!c}return c}
+function segDist(x,z,a,b){const dx=b[0]-a[0],dz=b[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz)));return Math.hypot(x-a[0]-t*dx,z-a[1]-t*dz)}
+function edgeDist(x,z){let m=1e9;for(let i=0,j=OUTLINE.length-1;i<OUTLINE.length;j=i++)m=Math.min(m,segDist(x,z,OUTLINE[i],OUTLINE[j]));return m}
+const corners=(h)=>{const c=Math.cos(h.rot),s=Math.sin(h.rot),o=[];for(const[a,b]of[[-1,-1],[1,-1],[1,1],[-1,1]]){const lx=a*h.w/2,lz=b*h.d/2;o.push([h.x+lx*c+lz*s,h.z-lx*s+lz*c])}return o};
+function rectDist(px,pz,r){const c=Math.cos(r.rot),s=Math.sin(r.rot),dx=px-r.x,dz=pz-r.z,lx=dx*c-dz*s,lz=dx*s+dz*c;const qx=Math.max(0,Math.abs(lx)-r.w/2),qz=Math.max(0,Math.abs(lz)-r.d/2);return Math.hypot(qx,qz)}
+function clearOf(h,pad){
+  const pts=corners(h).concat([[h.x,h.z]]);
+  for(const[x,z]of pts){if(!inside(x,z)||edgeDist(x,z)<2.2)return false}
+  for(const s of STREETS)for(let i=0;i<s.p.length-1;i++)for(const[x,z]of pts.concat(mids(h)))if(segDist(x,z,s.p[i],s.p[i+1])<s.w/2+.4)return false;
+  for(const r of[{...CHURCH,rot:0},{...PLAZA,rot:0}])for(const[x,z]of pts.concat(mids(h)))if(rectDist(x,z,r)<1)return false;
+  for(const o of HOUSES){for(const[x,z]of pts.concat(mids(h)))if(rectDist(x,z,o)<pad)return false;for(const[x,z]of corners(o))if(rectDist(x,z,h)<pad)return false}
+  return true;
+}
+function mids(h){const c=corners(h),o=[];for(let i=0;i<4;i++){const a=c[i],b=c[(i+1)%4];o.push([(a[0]+b[0])/2,(a[1]+b[1])/2])}return o}
+const HOUSES=[];
+// Bauarten: Höhe in Geschossen, Grundmaße
+const TYPES={
+  buerger:{name:'Bürgerhaus, 2½–3 Geschosse',color:'#c8a27a'},
+  haus:{name:'Wohnhaus, 2 Geschosse',color:'#d9c3a0'},
+  klein:{name:'Kleines Haus, 1–1½ Geschosse',color:'#e6d9bf'},
+  schuppen:{name:'Schuppen, Werkstatt',color:'#9c8a72'},
+  scheune:{name:'Scheune',color:'#7f6a55'},
+  kirche:{name:'Kirche (bestehend)',color:'#8f9aa3'}
+};
+function core(x,z){return Math.hypot(x-PLAZA.x,z-PLAZA.z)} // Abstand zum Platz
+// Ausrichtung nach dem nächsten Weg (parallel oder rechtwinklig): keine schiefen Spalten zwischen Nachbarhäusern
+function alignAt(x,z){let best=1e9,ang=0;for(const s of STREETS)for(let i=0;i<s.p.length-1;i++){const d=segDist(x,z,s.p[i],s.p[i+1]);if(d<best){best=d;ang=-Math.atan2(s.p[i+1][1]-s.p[i][1],s.p[i+1][0]-s.p[i][0])}}return ang+(rnd()<.5?0:Math.PI/2)}
+// Häuser entlang der Wege: im Kern Wand an Wand, nach außen lockerer
+function lineHouses(s){
+  for(let i=0;i<s.p.length-1;i++){
+    const a=s.p[i],b=s.p[i+1],len=Math.hypot(b[0]-a[0],b[1]-a[1]),ux=(b[0]-a[0])/len,uz=(b[1]-a[1])/len;
+    for(const side of[-1,1]){
+      let t=2;
+      while(t<len-2){
+        const mx=a[0]+ux*t,mz=a[1]+uz*t,d=core(mx,mz),dense=d<55,mid=d<95;
+        const type=dense?(rnd()<.45?'buerger':rnd()<.6?'haus':'klein'):mid?(rnd()<.5?'haus':'klein'):(rnd()<.4?'klein':'haus');
+        const w=type==='buerger'?between(8,11):type==='haus'?between(7,9):between(5,6.5);
+        const dep=type==='buerger'?between(9,12):type==='haus'?between(8,10):between(6,7.5);
+        const set=s.w/2+(dense?.5:between(1.2,3.5));
+        // Passt das Haus nicht, kleinere Maße versuchen, bevor die Stelle übersprungen wird.
+        let placed=null;
+        for(const k of [1,.8,.62]){
+          const W=w*k,D=dep*(k<1?.85:1);
+          const h={x:mx+ux*W/2-uz*side*(set+D/2),z:mz+uz*W/2+ux*side*(set+D/2),w:W,d:D,rot:-Math.atan2(uz,ux),type:k<.7&&type!=='klein'?'haus':type,floors:type==='buerger'?between(2.5,3):type==='haus'?2:between(1,1.5)};
+          if(clearOf(h,dense?.05:1.2)){placed=h;break}
+        }
+        if(placed){HOUSES.push(placed);t+=placed.w+(dense?between(0,.3):mid?between(1.5,3):between(5,10))}else t+=1;
+      }
+    }
+  }
+}
+// Platzrand: geschlossene Häuserzeilen, nur Wege bleiben offen
+function plazaHouses(){
+  const sides=[[PLAZA.x,PLAZA.z+PLAZA.d/2,0,1],[PLAZA.x-PLAZA.w/2,PLAZA.z,Math.PI/2,-1],[PLAZA.x+PLAZA.w/2,PLAZA.z,Math.PI/2,1]];
+  for(const[cx,cz,rot,dir]of sides){
+    const along=rot?PLAZA.d:PLAZA.w;
+    for(let t=-along/2;t<along/2-3;){
+      const w=between(7,10),dep=between(9,12),off=dep/2+.4;
+      const x=rot?cx+dir*off:cx+t+w/2,z=rot?cz+t+w/2:cz+dir*off;
+      const h={x,z,w,d:dep,rot:rot?Math.PI/2:0,type:rnd()<.7?'buerger':'haus',floors:between(2.5,3)};
+      if(clearOf(h,.1)){HOUSES.push(h)}t+=w+.1;
+    }
+  }
+}
+// Hinterhöfe im Kern: kleine Häuser und Schuppen in den Blöcken, über Winkel erreichbar
+function infill(){
+  for(let k=0;k<260;k++){
+    const x=between(10,180),z=between(-20,115),d=core(x,z);
+    if(d>65)continue;
+    const type=rnd()<.55?'schuppen':'klein',w=type==='schuppen'?between(4,6):between(5,6.5),dep=type==='schuppen'?between(3.5,5):between(6,7);
+    const h={x,z,w,d:dep,rot:alignAt(x,z),type,floors:type==='schuppen'?.8:between(1,1.5)};
+    if(clearOf(h,1.8))HOUSES.push(h);
+  }
+}
+// Rand: Höfe mit Wohnhaus und Scheune, Abstand dazwischen
+function farms(){
+  for(let k=0;k<700;k++){
+    const x=between(-15,198),z=between(-30,126);
+    if(core(x,z)<70||edgeDist(x,z)<8||!inside(x,z))continue;
+    const rot=alignAt(x,z),house={x,z,w:between(7,9),d:between(8,10),rot,type:'haus',floors:between(1.5,2)};
+    if(!clearOf(house,4))continue;
+    HOUSES.push(house);
+    const bx=x+Math.cos(rot)*11,bz=z-Math.sin(rot)*11,barn={x:bx,z:bz,w:between(9,12),d:between(12,15),rot,type:'scheune',floors:1.6};
+    if(clearOf(barn,2))HOUSES.push(barn);
+    const sx=x-Math.sin(rot)*9,sz=z-Math.cos(rot)*9,shed={x:sx,z:sz,w:4,d:4.5,rot,type:'schuppen',floors:.8};
+    if(clearOf(shed,1.5))HOUSES.push(shed);
+  }
+}
+plazaHouses();
+// Erst Hauptstraßen, dann Gassen bebauen, danach Höfe am Rand, zuletzt wenige Hinterhofbauten.
+for(const s of STREETS.filter(s=>s.kind==='street'))lineHouses(s);
+for(const s of STREETS.filter(s=>s.kind==='lane'))lineHouses(s);
+farms();infill();
+
+// ---------------------------------------------------------------- Darstellung (Three.js r128)
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const canvas=document.getElementById('c'),view=document.getElementById('view');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(40,1,1,3000);
+scene.add(new THREE.HemisphereLight(0xffffff,0x8a8a7a,.75));
+const sun=new THREE.DirectionalLight(0xffffff,.7);sun.position.set(-120,220,140);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-160,right:160,top:160,bottom:-160,near:10,far:600});sun.target.position.set(90,40,45);scene.add(sun,sun.target);
+// Gelände: Dorffläche
+{const g=new THREE.PlaneGeometry(320,250,160,125);g.rotateX(-Math.PI/2);g.translate(90,0,45);const p=g.attributes.position;for(let i=0;i<p.count;i++)p.setY(i,ground(p.getX(i),p.getZ(i))-.05);g.computeVertexNormals();
+ const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:0xe9ede8}));m.receiveShadow=true;scene.add(m);}
+const flat=(x,z,w,d,color,y=.06,rot=0)=>{const g=new THREE.PlaneGeometry(w,d,Math.ceil(w/4),Math.ceil(d/4));g.rotateX(-Math.PI/2);const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color}));m.position.set(x,0,z);m.rotation.y=rot;m.updateMatrixWorld();const p=g.attributes.position,v=new THREE.Vector3();for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i).applyMatrix4(m.matrixWorld);p.setY(i,ground(v.x,v.z)+y)}g.computeVertexNormals();m.receiveShadow=true;scene.add(m);return m};
+flat(PLAZA.x,PLAZA.z,PLAZA.w,PLAZA.d,css('--plaza'),.08);
+for(const s of STREETS)for(let i=0;i<s.p.length-1;i++){const a=s.p[i],b=s.p[i+1],len=Math.hypot(b[0]-a[0],b[1]-a[1]);flat((a[0]+b[0])/2,(a[1]+b[1])/2,s.w,len+s.w*.9,css(s.kind==='street'?'--street':'--lane'),s.kind==='street'?.1:.09,Math.atan2(b[0]-a[0],b[1]-a[1]))}
+// Mauer mit Toren
+{const mat=new THREE.MeshLambertMaterial({color:0x8d908c});for(let i=0,j=OUTLINE.length-1;i<OUTLINE.length;j=i++){const a=OUTLINE[j],b=OUTLINE[i],len=Math.hypot(b[0]-a[0],b[1]-a[1]),n=Math.ceil(len/2);for(let k=0;k<n;k++){const t=(k+.5)/n,x=a[0]+(b[0]-a[0])*t,z=a[1]+(b[1]-a[1])*t;if(GATES.some(([gx,gz])=>Math.hypot(gx-x,gz-z)<4))continue;const m=new THREE.Mesh(new THREE.BoxGeometry(len/n+.05,4,1.2),mat);m.position.set(x,ground(x,z)+1.6,z);m.rotation.y=-Math.atan2(b[1]-a[1],b[0]-a[0]);m.castShadow=m.receiveShadow=true;scene.add(m)}}}
+// Häuser als Quader, Höhe nach Geschossen (3 m je Geschoss)
+const box=new THREE.BoxGeometry(1,1,1),mats={};
+for(const k in TYPES)mats[k]=new THREE.MeshLambertMaterial({color:new THREE.Color(TYPES[k].color)});
+function addBox(h,mat){const H=h.floors*3,y=Math.min(...corners(h).map(([x,z])=>ground(x,z)));const m=new THREE.Mesh(box,mat);m.scale.set(h.w,H+.6,h.d);m.position.set(h.x,y+H/2-.3,h.z);m.rotation.y=h.rot;m.castShadow=m.receiveShadow=true;scene.add(m)}
+// Im Zentrum ein Geschoss mehr (Schuppen ausgenommen)
+for(const h of HOUSES)if(core(h.x,h.z)<60&&h.type!=='schuppen'&&h.type!=='scheune')h.floors+=1;
+for(const h of HOUSES)addBox(h,mats[h.type]);
+addBox({...CHURCH,rot:0,floors:5},mats.kirche);addBox({x:91,z:21,w:7,d:7,rot:0,floors:11},mats.kirche);
+{const w=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.6,1,16),new THREE.MeshLambertMaterial({color:0x6f7a80}));w.position.set(WELL.x,ground(WELL.x,WELL.z)+.5,WELL.z);w.castShadow=true;scene.add(w)}
+// Legende mit Zahlen
+const counts={};for(const h of HOUSES)counts[h.type]=(counts[h.type]||0)+1;counts.kirche=1;
+document.getElementById('legend').innerHTML=Object.keys(TYPES).map(k=>`<li><span class="sw" style="background:${TYPES[k].color}"></span>${TYPES[k].name}<span class="n">${counts[k]||0}</span></li>`).join('');
+
+// ---------------------------------------------------------------- Kamera: drehen, zoomen, drei Ansichten
+const target=new THREE.Vector3(90,40,45);let yaw=0,pitch=1.45,dist=270,street=false;
+const views={top:{yaw:0,pitch:1.45,dist:270},obl:{yaw:-.7,pitch:.62,dist:210},street:null};
+function place(){if(street){camera.position.set(30,ground(30,46)+1.7,46);camera.lookAt(74,ground(74,40)+3,40);return}
+ camera.position.set(target.x+dist*Math.cos(pitch)*Math.sin(yaw),target.y+dist*Math.sin(pitch),target.z+dist*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(target)}
+function setView(k){street=k==='street';if(!street)({yaw,pitch,dist}=views[k]);for(const id of['top','obl','street'])document.getElementById('v-'+id).setAttribute('aria-pressed',String(id===k));draw()}
+document.getElementById('v-top').onclick=()=>setView('top');document.getElementById('v-obl').onclick=()=>setView('obl');document.getElementById('v-street').onclick=()=>setView('street');
+let drag=null;canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId)});
+canvas.addEventListener('pointermove',e=>{if(!drag||street)return;yaw-=(e.clientX-drag.x)*.006;pitch=Math.max(.15,Math.min(1.5,pitch+(e.clientY-drag.y)*.005));drag={x:e.clientX,y:e.clientY};draw()});
+canvas.addEventListener('pointerup',()=>drag=null);
+canvas.addEventListener('wheel',e=>{if(street)return;e.preventDefault();dist=Math.max(60,Math.min(420,dist*(1+Math.sign(e.deltaY)*.1)));draw()},{passive:false});
+function draw(){const w=view.clientWidth,h=view.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();scene.background=new THREE.Color(css('--bg'));place();renderer.render(scene,camera)}
+new ResizeObserver(draw).observe(view);matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);
+draw();
+
+// Planungsdaten zum Übernehmen ins Spiel
+document.getElementById('copy').onclick=()=>{const data=JSON.stringify({plaza:PLAZA,streets:STREETS,houses:HOUSES.map(h=>({x:+h.x.toFixed(1),z:+h.z.toFixed(1),w:+h.w.toFixed(1),d:+h.d.toFixed(1),rot:+h.rot.toFixed(3),type:h.type,floors:+h.floors.toFixed(1)}))});const out=document.getElementById('copied');
+ navigator.clipboard.writeText(data).then(()=>out.textContent='Kopiert',()=>{out.textContent='Kopieren nicht möglich'})};
+</script>
