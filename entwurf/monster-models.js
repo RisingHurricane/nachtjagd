@@ -26,7 +26,10 @@ globalThis.NachtjagdMonsterModels = (() => {
     if (G) return G;
     G = {
       box: new THREE.BoxGeometry(1, 1, 1), ball: new THREE.SphereGeometry(.5, 8, 6), ballLow: new THREE.SphereGeometry(.5, 6, 4),
-      cone: new THREE.ConeGeometry(.5, 1, 6), cyl: new THREE.CylinderGeometry(.5, .5, 1, 6), robe: new THREE.ConeGeometry(.5, 1, 8, 1, true)
+      cone: new THREE.ConeGeometry(.5, 1, 6), cyl: new THREE.CylinderGeometry(.5, .5, 1, 6), robe: new THREE.ConeGeometry(.5, 1, 8, 1, true),
+      // Fledermausflügel: Haut zwischen Arm und Fingern, Hinterkante gezackt; nach +x, flach in der Ebene y = 0.
+      wing: (() => { const s = new THREE.Shape(); s.moveTo(0, .06); s.lineTo(.22, .12); s.lineTo(.5, .1); s.lineTo(.42, -.06); s.lineTo(.36, -.02); s.lineTo(.3, -.16);
+        s.lineTo(.22, -.06); s.lineTo(.14, -.18); s.lineTo(.07, -.07); s.lineTo(0, -.12); s.closePath(); const g = new THREE.ShapeGeometry(s); g.rotateX(-Math.PI / 2); return g; })()
     };
     return G;
   }
@@ -103,15 +106,17 @@ globalThis.NachtjagdMonsterModels = (() => {
       { name: 'wingL', at: [-.3, .2, 0], parts: [P('box', 'bone', -.9, 0, 0, 1.8, .05, .08), P('cone', 'skin', -.95, -.02, -.3, 1.7, .03, .7, 0, 0, Math.PI / 2)] },
       { name: 'wingR', at: [.3, .2, 0], parts: [P('box', 'bone', .9, 0, 0, 1.8, .05, .08), P('cone', 'skin', .95, -.02, -.3, 1.7, .03, .7, 0, 0, -Math.PI / 2)] }
     ],
-    // Fledermaus: kleiner Körper, Ohren, häutige Flügel (Ursprung in der Körpermitte)
+    // Fledermaus (groß genug, um sie nachts zu sehen): pelziger Körper, Kopf mit spitzen Ohren und Schnauze, Hautflügel
+    // mit gezackter Hinterkante und Armknochen, große rot glühende Augen (Ursprung in der Körpermitte).
     bat: [
-      { name: 'body', at: [0, 0, 0], parts: [P('ball', 'skin', 0, 0, 0, .12, .1, .2), P('ball', 'skin', 0, .03, .12, .09, .08, .09), P('cone', 'skin', -.03, .09, .1, .03, .06, .03), P('cone', 'skin', .03, .09, .1, .03, .06, .03), ...eyes(.04, .16, .025, .018)] },
-      { name: 'wingL', at: [-.05, 0, 0], parts: [P('cone', 'skin', -.15, 0, -.02, .3, .012, .2, 0, 0, Math.PI / 2)] },
-      { name: 'wingR', at: [.05, 0, 0], parts: [P('cone', 'skin', .15, 0, -.02, .3, .012, .2, 0, 0, -Math.PI / 2)] }
+      { name: 'body', at: [0, 0, 0], parts: [P('ball', 'skin', 0, 0, -.02, .2, .17, .32), P('ball', 'skin', 0, .05, .2, .15, .14, .15), P('cone', 'skin', 0, .03, .29, .06, .08, .06, Math.PI / 2),
+        P('cone', 'skin', -.05, .16, .17, .05, .12, .04, -.2), P('cone', 'skin', .05, .16, .17, .05, .12, .04, -.2), ...eyes(.08, .27, .04, .032), P('cone', 'skin', 0, -.02, -.22, .05, .14, .05, -Math.PI / 2)] },
+      { name: 'wingL', at: [-.08, .02, 0], parts: [P('wing', 'skin', 0, 0, 0, -1.6, 1, 1.6), P('box', 'dark', -.4, .01, .05, .8, .015, .015)] },
+      { name: 'wingR', at: [.08, .02, 0], parts: [P('wing', 'skin', 0, 0, 0, 1.6, 1, 1.6), P('box', 'dark', .4, .01, .05, .8, .015, .015)] }
     ]
   };
   PLANS.samca = PLANS.lycan; // Alpha-Lykaner: Gestalt des Lykaners, größer (spec.scale) und mit eigener Fellfarbe
-  const SKIN = { villager: '#7d6a62', lycan: '#5c5243', samca: '#6e3c22', wolf: '#59616c', hag: '#3f3048', spitter: '#5e7445', bloater: '#9a6f58', brute: '#7c6a62', reaper: '#2b2328', bat: '#2a2226' };
+  const SKIN = { villager: '#7d6a62', lycan: '#5c5243', samca: '#6e3c22', wolf: '#59616c', hag: '#3f3048', spitter: '#5e7445', bloater: '#9a6f58', brute: '#7c6a62', reaper: '#2b2328', bat: '#4a3a36' };
 
   // Geometrie eines Gelenks je Material zusammenfassen (einmal je Art).
   function mergedJoint(THREE, joint) {
@@ -142,6 +147,8 @@ globalThis.NachtjagdMonsterModels = (() => {
   function build(THREE, kind, skin) {
     const mats = materials(THREE), model = new THREE.Group(), parts = {};
     skin.color.set(SKIN[kind] || SKIN.villager).convertSRGBToLinear();
+    // Fledermäuse leicht glimmend und beidseitig sichtbar (dünne Flügelhaut), damit man sie im Nachtnebel erkennt.
+    if (kind === 'bat') { skin.side = THREE.DoubleSide; skin.emissive.set('#3a1612'); }
     for (const joint of plan(THREE, kind)) {
       const pivot = new THREE.Group(); pivot.position.fromArray(joint.at); pivot.name = joint.name;
       for (const { mat, geometry } of joint.meshes) {

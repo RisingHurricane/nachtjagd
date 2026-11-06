@@ -6,10 +6,10 @@
 // Nur die Grundfarbe wird verändert; Licht, Schatten, Nebel und das Lampenfeld bleiben unberührt.
 // Vertrag: style(material, kind) bzw. styleScene(scene) mit Zuordnung über material.name.
 globalThis.NachtjagdSurface = (() => {
-  const KINDS = { stone: 1, plaster: 2, wood: 3, roof: 4, path: 5, snow: 6, water: 7, rock: 8 };
+  const KINDS = { stone: 1, plaster: 2, wood: 3, roof: 4, path: 5, snow: 6, water: 7, rock: 8, ashlar: 9 };
   // Materialnamen aus blockout.js, village-houses.js, village-wall.js, building-site.js, mine-tunnels.js und models/kit.js.
   const BY_NAME = {
-    castle: 'stone', viaduct: 'stone', 'kit-stone': 'stone', 'kit-stoneDark': 'stone', 'kit-stoneLight': 'stone', 'kit-reveal': 'stone',
+    castle: 'stone', viaduct: 'stone', 'kit-stone': 'ashlar', 'kit-stoneDark': 'ashlar', 'kit-stoneLight': 'ashlar', 'kit-reveal': 'ashlar',
     'wall-stone': 'stone', 'wall-stairs': 'stone', 'wall-deck': 'stone', foundation: 'stone', 'mine-rock': 'stone',
     house: 'plaster', plaster: 'plaster',
     wood: 'wood', darkWood: 'wood', landmark: 'wood', board: 'wood', floor: 'wood', 'mine-timber': 'wood', 'kit-wood': 'wood',
@@ -124,6 +124,14 @@ vec3 sfSurface(vec3 base) {
   vec3 sheet = vec3(0.74, 0.8, 0.85) * (0.9 + 0.12 * fine);
   c = mix(deep, sheet, ice);
   c = mix(c, vec3(0.5, 0.58, 0.64), rim * 0.6);
+#elif SURF_KIND == 9
+  // Burg: feines Quadermauerwerk, schwache Fugen, wenig Tonwechsel (die Burg trägt eigene Form und Fenster).
+  vec2 cell, f;
+  float e = sfBond(uv + vec2(0.0, 0.07), top ? vec2(0.9, 0.8) : vec2(1.1, 0.5), 0.5, cell, f);
+  float h = sfHash(cell);
+  float joint = 1.0 - smoothstep(0.01, 0.035, e);
+  vec3 block = base * (0.94 + 0.1 * h + (fine - 0.5) * 0.06);
+  c = mix(far, mix(block, base * 0.8, joint * 0.45), fade);
 #elif SURF_KIND == 8
   // Rauer Fels (Menhire): fleckig, Flechten, Schnee obenauf, keine Fugen.
   float lichen = smoothstep(0.62, 0.75, mid + (fine - 0.5) * 0.3);

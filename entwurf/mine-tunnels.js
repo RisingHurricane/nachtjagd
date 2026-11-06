@@ -3,7 +3,7 @@
 // Begehbare Minengänge mit unabhängiger Laufplanung und optionalem Three.js-Modell.
 globalThis.NachtjagdMines = {
   create({THREE,scene,mines=[],heightAt=()=>0,entranceHeight=null}) {
-    const routes=[],targets=[],tubes=[],lampSites=[],pointLights=[];
+    const routes=[],targets=[],tubes=[],lampSites=[],pointLights=[],caches=[];
     const root=THREE&&scene?new THREE.Group():null;
     if(root)scene.add(root);
     const materials=THREE?{
@@ -51,6 +51,21 @@ globalThis.NachtjagdMines = {
         const start=at(station,0),elbow=at(station+6,side*5),end=at(station+10,side*11),baseY=y0-station*.12;
         addRoute({id:mine.id+'-abzweig-'+index,name:mine.id+'-kammer-'+index,type:'chamber',width:4.2,
           points:[{...start,y:baseY},{...elbow,y:baseY-.55},{...end,y:baseY-1.05}]});
+      }
+      // Erweitertes Stollennetz: langer Seitenstollen zu einer großen Halle, aus der ein weiterer Gang abgeht.
+      // Gänge fallen leicht ab und bleiben damit tief unter dem Berg; Truhen liegen in Halle und Gang.
+      {
+        const side=mine.gallerySide||-1,station=length+26,baseY=y0-station*.12;
+        const g0=at(station,0),g1=at(station+8,side*14),g2=at(station+4,side*30),g3=at(station-2,side*42);
+        addRoute({id:mine.id+'-stollen',name:mine.id+'-seitenstollen',type:'gallery',width:4,openEnd:true,
+          points:[{...g0,y:baseY},{...g1,y:baseY-1.2},{...g2,y:baseY-2.6},{...g3,y:baseY-3.4}]});
+        // Halle: breiter, kurzer Gang am Ende des Seitenstollens
+        const h0=at(station-2,side*41),h1=at(station-16,side*44);
+        addRoute({id:mine.id+'-halle',name:mine.id+'-halle',type:'hall',width:9,points:[{...h0,y:baseY-3.4},{...h1,y:baseY-3.6}]});
+        // Weiterer Gang aus der Halle, mit Biegung
+        const k0=at(station-12,side*44),k1=at(station-14,side*56),k2=at(station-26,side*68);
+        addRoute({id:mine.id+'-gang',name:mine.id+'-tiefer-gang',type:'gallery',width:3.8,points:[{...k0,y:baseY-3.55},{...k1,y:baseY-4.4},{...k2,y:baseY-5.6}]});
+        for(const [p,y] of [[at(station-9,side*44),baseY-3.5],[at(station+5,side*24),baseY-2.1],[at(station-24,side*66.5),baseY-5.4]]) caches.push({x:p.x,y,z:p.z});
       }
       const final=points[points.length-1],targetDistance=1.1;
       targets.push({id:mine.id+'-siegel',mine:mine.id,x:final.x-ux*targetDistance,y:final.y+1.05,z:final.z-uz*targetDistance});
@@ -108,6 +123,8 @@ globalThis.NachtjagdMines = {
         }
       });
       // Seitenflächen, Decke und Boden schließen jedes Tunnelende; nur der Start bleibt offen.
+      // Offenes Ende (Stollen mündet in eine Halle): keine Stirnwand.
+      if(route.openEnd)return;
       const last=route.points[route.points.length-1],prev=route.points[route.points.length-2];
       const angle=Math.atan2(last.x-prev.x,last.z-prev.z);
       addBox(last.x,last.y+1.6,last.z,route.width,3.3,.28,angle,materials.rock);
@@ -155,9 +172,12 @@ globalThis.NachtjagdMines = {
       if(!hit)return false;
       if(entryDistance(hit,x,z)<-.05)return false;
       if(feet>hit.y+3.2)return false;
-      if(hit.distance+margin>hit.route.width/2-.12)return true;
+      // Übergänge (Stollen → Halle, Halle → Gang): frei, sobald der Punkt im Inneren irgendeines Gangs liegt.
+      const insideOther=()=>tubes.some(route=>route!==hit.route&&x>=route.bounds.minX&&x<=route.bounds.maxX&&z>=route.bounds.minZ&&z<=route.bounds.maxZ&&routePoint(route,x,z).distance+margin<=route.width/2-.12);
+      if(hit.distance+margin>hit.route.width/2-.12&&!insideOther())return true;
       if(feet<hit.y-.08)return true;
       if(feet+1.75>hit.y+3.2)return true;
+      if(hit.route.openEnd)return false;
       const end=hit.route.points[hit.route.points.length-1],prev=hit.route.points[hit.route.points.length-2];
       const dx=end.x-prev.x,dz=end.z-prev.z,len=Math.hypot(dx,dz),along=(x-end.x)*dx/len+(z-end.z)*dz/len;
       const lateral=Math.abs((x-end.x)*(-dz/len)+(z-end.z)*(dx/len));
@@ -189,6 +209,6 @@ globalThis.NachtjagdMines = {
       });
     }
     return {routes,points:routes.map(route=>({id:route.id,type:route.type,points:route.points.map(p=>({...p}))})),targets,
-      floor,blocked,indoor,cutTerrain,terrainClearance,entrance,seal,update,root,lamps:lampSites};
+      floor,blocked,indoor,cutTerrain,terrainClearance,entrance,seal,update,root,lamps:lampSites,caches};
   }
 };
