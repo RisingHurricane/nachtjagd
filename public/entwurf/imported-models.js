@@ -48,8 +48,7 @@ globalThis.NachtjagdImportedModels = (() => {
     return new Promise((resolve, reject) => loader.parse(bytes.buffer, new URL('.', url).href, resolve, reject));
   }
   const files = {
-    // Gegner kommen aus monster-models.js; geladen wird nur noch die Gebirgskulisse.
-    mountain: 'mountain_low_poly.glb'
+    // Gegner kommen aus monster-models.js, Bäume aus tree-models.js; die Gebirgskulisse entfällt. Nichts mehr zu laden.
   };
   const meshes = object => {
     const result = [];

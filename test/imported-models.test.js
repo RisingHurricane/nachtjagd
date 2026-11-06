@@ -17,7 +17,7 @@ T.TextureLoader.prototype.load = function (url, onLoad) {
 };
 vm.runInContext(read('public/entwurf/vendor/GLTFLoader.js').toString(), context);
 const Loader = T.GLTFLoader;
-const names = ['mountain_low_poly.glb'];
+const names = [];
 const loaded = new Map(await Promise.all(names.map(async name => {
   // Das Spiel lädt die verkleinerten Fassungen (tools/optimize-models.mjs).
   const bytes = read('public/assets/opt/' + name);
@@ -58,12 +58,12 @@ test('Gebirgs-GLB lädt; acht eigene Baumvarianten bleiben nach Geländeänderun
   }
 });
 
-test('Fehlende Gebirgsdatei: Wald steht trotzdem aus eigenen Bäumen', async () => {
+test('Ohne Downloads: Wald steht aus eigenen Bäumen', async () => {
   const missing = api(true); await missing.ready;
   const forest = new T.Group(), trunks = new T.Group();
   const fallback = missing.buildForest({ scene: new T.Scene(), placements: [{ x: 0, z: 0, height: 15, clearance: 4 }], heightAt: () => 0, forest, trunks });
   await missing.ready;
-  assert.equal(missing.errors.length, 1);
+  assert.equal(missing.errors.length, 0); // nichts mehr zu laden
   // Die Bäume hängen nicht mehr an Downloads: Auch ohne GLBs steht der eigene Wald.
   await fallback.ready; assert.ok(fallback.root.children.length > 0);
   assert.equal(forest.visible, false); assert.equal(trunks.visible, false);
@@ -156,24 +156,6 @@ test('Geländewagen (eigenes Modell): vier Räder, Vorderräder lenkbar, Rollach
   assert.equal(new Set(bodies(jeep).map(m => m.material)).size, bodies(jeep).length);
   assert.equal(bodies(other)[0].geometry, bodies(jeep)[0].geometry);
   for (const w of wheels) assert.ok(w.spin.children.length <= 4, 'Rad: höchstens vier Netze');
-});
-
-test('Gebirgskulisse: Skirt abgeschnitten, sechs Klone teilen ein Netz, Dunstfarbe wirkt auf alle', async () => {
-  const models = api(); await models.ready;
-  const scene = new T.Scene(), backdrop = models.buildBackdrop({ scene, count: 6 });
-  await models.ready;
-  assert.equal(backdrop.root.children.length, 6);
-  const geometries = new Set(backdrop.root.children.map(m => m.geometry));
-  assert.equal(geometries.size, 1);
-  const geometry = [...geometries][0], box = geometry.boundingBox;
-  assert.ok(box.max.y > 300 && geometry.index.count / 3 < 5000, `Höhe ${box.max.y}, Dreiecke ${geometry.index.count / 3}`);
-  assert.ok(geometry.index.count < 15000 && geometry.index.count > 3000);
-  backdrop.setMood(new T.Color(0.2, 0.1, 0.3));
-  assert.ok(backdrop.root.children[0].material.color.b > 0.25);
-  backdrop.setMood(null);
-  assert.ok(Math.abs(backdrop.root.children[3].material.color.r - 0.7) < 1e-6);
-  // Der Ring liegt außerhalb der Spielwelt (mindestens 600 m von der Mitte)
-  for (const m of backdrop.root.children) assert.ok(Math.hypot(m.position.x, m.position.z) > 550);
 });
 
 test('Fernbäume: vereinfachte Fassungen derselben Modelle mit deutlich weniger Dreiecken, gleicher Fußpunkt; nah höchstens 160 Dreiecke', async () => {
