@@ -54,7 +54,7 @@
   const edgeMaterial = new THREE.LineBasicMaterial({ color: '#526266', transparent: true, opacity: .3 });
   const colliders = [], anchors = [], roadMeshes = [], labelAnchors = [], treePlacements = [], coverPlacements=[];
   const roadVertices=[],roadIndices=[],roadRanges=[],roadInfo=[];
-  let groundReady=false, towerFloor=null, towerBlocked=null, watchtowers=null;
+  let groundReady=false, towerFloor=null, towerBlocked=null, watchtowers=null, gondolaPads=null;
   const arcades=NachtjagdArcades.create({THREE}); // Säulen in Kirche und Burghof (eigene Kollision) // towerFloor: Wendeltreppe und Plattform des Wachturms (outdoor-details.js) // roadTop folgt dem Gelände erst, wenn das Höhenraster steht (Kirchenhöhe wird vorher bestimmt)
   const labels = new THREE.Group();
   scene.add(labels);
@@ -570,7 +570,8 @@
     if(slope<.7) plantTree(x,z,true,true);
   }
   forest.count = trunks.count = treeCount; forest.castShadow = trunks.castShadow = true; scene.add(forest, trunks);
-  const backdrop = NachtjagdImportedModels.buildBackdrop({scene});
+  // Keine weißen Kulissenberge mehr (passten nicht zu den modellierten Bergen); setMood bleibt als leerer Haken.
+  const backdrop = { root: null, setMood() {} };
   const importedForest = NachtjagdImportedModels.buildForest({scene, placements:[...treePlacements,...landmarks.islandTrees], heightAt:groundHeight, forest, trunks});
   importedForest.ready.then(()=>{
     if(importedForest.root.userData.treeCount)for(const tree of landmarks.islandTrees)tree.crown.visible=tree.trunk.visible=false;
@@ -1094,6 +1095,11 @@
     if(tf!==null && tf!==undefined) return tf;
     const wt=watchtowers && watchtowers.floor(x,z,previousFeet);
     if(wt!==null && wt!==undefined) return wt;
+    // Bohlenboden der Gondelstationen (9,6 × 7,2 m, 0,44 m über dem Sockelpunkt, um die Seilrichtung gedreht)
+    if(gondolaPads) for(const g of gondolaPads) {
+      const dx=x-g.x,dz=z-g.z,lx=dx*g.c-dz*g.s,lz=dx*g.s+dz*g.c;
+      if(Math.abs(lx)<4.8&&Math.abs(lz)<3.6&&(previousFeet===undefined||previousFeet>g.y-1.2)) return g.y+.44;
+    }
     const wf=villageWall && villageWall.floor(x,z,previousFeet);
     if(wf!==null && wf!==false)return wf;
     const bf=buildings && buildings.floor(x,z,previousFeet);
@@ -1170,7 +1176,8 @@
       return null;
     }
   };
-  Object.assign(world,NachtjagdSpots.build({layout,blocked,floor:gameFloor,boatOk,routes,mineRoutes:mines.points,mineCaches:mines.caches})); // Truhen, Händler, Schmied, Bildstöcke, Angelplätze, Notizen, Reliquien
+  Object.assign(world,NachtjagdSpots.build({layout,blocked,floor:gameFloor,boatOk,routes,mineRoutes:mines.points,mineCaches:mines.caches}));
+  if(world.gondola) { const [a,b]=world.gondola.stations,yaw=Math.atan2(b.x-a.x,b.z-a.z); gondolaPads=world.gondola.stations.map(s=>({x:s.x,z:s.z,y:Number.isFinite(s.y)?s.y:groundHeight(s.x,s.z),c:Math.cos(yaw),s:Math.sin(yaw)})); } // Truhen, Händler, Schmied, Bildstöcke, Angelplätze, Notizen, Reliquien
   scene.updateMatrixWorld(true);
   world.checks=[{name:'Dorfstart frei',passed:!blocked(90,45,gameFloor(90,45))},...world.objectives.map(o=>({name:o.name+'-Siegel erreichbar',passed:!blocked(o.x,o.z,gameFloor(o.x,o.z))})),{name:'Glockenplatz frei',passed:!blocked(world.bell.x,world.bell.z,gameFloor(world.bell.x,world.bell.z))},{name:'Spielorte frei',passed:[...world.loots,...world.shrines,...world.fishSpots,world.merchant,world.smith].every(p=>!blocked(p.x,p.z,gameFloor(p.x,p.z)))}];
   world.checks.push(

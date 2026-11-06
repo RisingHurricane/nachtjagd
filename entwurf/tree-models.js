@@ -93,8 +93,54 @@ globalThis.NachtjagdTreeModels = (() => {
   ];
   const DEAD = [{ branches: 7, bark: '#5d5047' }, { branches: 5, bark: '#4f453e' }, { branches: 9, bark: '#665a50' }];
 
+  // Sternbaum (nach Lights Tannenstudie): acht gekreuzte, senkrechte Flächen mit gemalter Textur, dazu ein Stamm.
+  function cardTexture(THREE, initialSeed, dead) {
+    let seed = initialSeed; const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }, between = (a, b) => a + (b - a) * random();
+    const c = document.createElement('canvas'); c.width = c.height = 512; const x = c.getContext('2d'), k = .5;
+    x.scale(k, k);
+    x.fillStyle = '#554735'; x.beginPath(); x.moveTo(501, 1000); x.lineTo(505, 110); x.lineTo(517, 110); x.lineTo(526, 1000); x.fill();
+    for (let i = 0; i < 42; i++) {
+      const y = 190 + i * 17, t = (y - 120) / 850, width = 20 + 385 * Math.pow(t, .85);
+      for (const side of [-1, 1]) {
+        const len = width * between(.72, 1.06), lift = between(14, 42);
+        x.strokeStyle = '#514d35'; x.lineWidth = between(3, 5); x.beginPath(); x.moveTo(512, y); x.quadraticCurveTo(512 + side * len * .63, y + 30, 512 + side * len, y - lift); x.stroke();
+        if (dead) continue;
+        for (let n = 0; n < Math.floor(len / 6); n++) {
+          const q = between(.03, 1), px = 512 + side * len * q, py = y + 2 * (1 - q) * q * 30 - q * q * lift, r = between(9, 22) * (1 - q * .28);
+          x.fillStyle = random() < .14 ? '#dfe7ec' : ['#294b32', '#355c3a', '#426c44', '#537a4e', '#294b35', '#66875b'][Math.floor(random() * 6)];
+          x.beginPath(); x.ellipse(px, py + between(-6, 6), r * between(1, 1.6), r * between(.35, .6), side * between(-.3, .2), 0, Math.PI * 2); x.fill();
+        }
+      }
+    }
+    const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding; return tex;
+  }
+  function cardVariants(THREE) {
+    const textures = [cardTexture(THREE, 43817), cardTexture(THREE, 94621), cardTexture(THREE, 7713, true)];
+    const mats = textures.map(map => new THREE.MeshLambertMaterial({ map, alphaTest: .35, side: THREE.DoubleSide, name: 'treeCard' }));
+    const bark = new THREE.MeshLambertMaterial({ color: new THREE.Color('#594a36').convertSRGBToLinear() });
+    // Eine Fläche 0,77 × 1 (Seitenverhältnis der Studie), Fuß bei y = 0; acht Drehungen in einem Netz.
+    function cross(planes) {
+      const parts = [];
+      for (let i = 0; i < planes; i++) { const g = new THREE.PlaneGeometry(.77, 1).toNonIndexed(); g.translate(0, .5, 0); g.rotateY(i * Math.PI / planes); parts.push(g); }
+      const count = parts.reduce((n, g) => n + g.attributes.position.count, 0), out = new THREE.BufferGeometry();
+      for (const [name, size] of [['position', 3], ['normal', 3], ['uv', 2]]) {
+        const v = new Float32Array(count * size); let at = 0; for (const g of parts) { v.set(g.attributes[name].array, at); at += g.attributes[name].array.length; }
+        out.setAttribute(name, new THREE.BufferAttribute(v, size));
+      }
+      out.computeBoundingSphere(); return out;
+    }
+    const near = cross(8), far = cross(4), trunkGeo = new THREE.CylinderGeometry(.006, .03, .87, 6); trunkGeo.translate(0, .435, 0);
+    const list = [];
+    for (let i = 0; i < 8; i++) {
+      const g = new THREE.Group(), mat = i >= 5 ? mats[2] : mats[i % 2];
+      for (const geo of [trunkGeo, near]) { const m = new THREE.Mesh(geo, geo === trunkGeo ? bark : mat); m.castShadow = m.receiveShadow = true; g.add(m); }
+      g.userData.far = [trunkGeo, far]; list.push(g);
+    }
+    return list;
+  }
   function variants(THREE) {
     if (cache) return cache;
+    if (typeof location !== 'undefined' && /[?&]baum=karte\b/.test(location.search) && typeof document !== 'undefined') return (cache = cardVariants(THREE));
     const material = new THREE.MeshLambertMaterial({ vertexColors: true, name: 'treeProcedural' });
     const make = (meshes, far) => {
       const g = new THREE.Group();
