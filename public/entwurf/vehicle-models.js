@@ -207,7 +207,7 @@ globalThis.NachtjagdVehicleModels = (() => {
       box(THREE, g, dark, 1.2, 0.12, 3.2, 0, 0.12, 0);                      // Boden
       for (const s of [-1, 1]) {
         box(THREE, g, wood, 0.1, 0.55, 3.0, s * 0.62, 0.38, -0.1);          // Bordwand
-        box(THREE, g, wood, 0.1, 0.55, 1.1, s * 0.4, 0.38, 1.85, 0, s * 0.55, 0); // Bug
+        box(THREE, g, wood, 0.1, 0.55, 1.1, s * 0.4, 0.38, 1.85, 0, -s * 0.55, 0); // Bug: Planken laufen zur Spitze zusammen
       }
       box(THREE, g, wood, 1.15, 0.5, 0.1, 0, 0.36, -1.62);                  // Heck
       box(THREE, g, wood2, 1.1, 0.07, 0.3, 0, 0.55, -0.1);                  // Ruderbank

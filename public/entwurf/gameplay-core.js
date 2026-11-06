@@ -36,7 +36,7 @@
       spheres: [{ y: 1.76, z: 0.26, r: 0.27, m: 2.2, h: 1 }, { y: 1.15, z: 0.12, r: 0.62, m: 1 }, { y: 0.5, z: 0, r: 0.5, m: 0.8 }] },
     brute: { name: 'Schlächter', hp: 380, speed: 2.3, turn: 3, damage: 34, range: 3.0, wind: 0.95, cd: 2.2, scale: 1.4, score: 520, lei: 95, rad: 0.7, emerge: 1.4, heavy: true,
       spheres: [{ y: 1.8, z: 0.28, r: 0.3, m: 2.2, h: 1 }, { y: 1.25, z: 0.12, r: 0.55, m: 0.6 }, { y: 0.5, z: 0, r: 0.5, m: 0.48 }] },
-    reaper: { name: 'Sensenschwinge', hp: 170, speed: 7.5, dive: 15, turn: 3, damage: 16, range: 2.6, wind: 0, cd: 4.6, scale: 0.85, score: 450, lei: 75, rad: 0.8, emerge: 1.2, air: true, alt: 11, orb: 19, cr: 0.9, unholy: true,
+    reaper: { name: 'Sensenschwinge', hp: 170, speed: 7.5, dive: 15, turn: 3, damage: 16, range: 2.6, wind: 0, cd: 4.6, scale: 0.85, score: 450, lei: 75, rad: 0.8, emerge: 1.2, air: true, alt: 11, orb: 19, cr: 1.1, unholy: true,
       spheres: [{ x: 0, y: 0.22, z: 1.0, r: 0.5, m: 2.2, h: 1 }, { x: 0, y: 0.1, z: 0.5, r: 0.7, m: 1 }, { x: 0, y: 0, z: -0.2, r: 0.65, m: 1 }, { x: 0, y: -0.05, z: -0.9, r: 0.4, m: 0.9 }, ...wings(1), ...wings(-1)] },
     bat: { name: 'Fledermaus', hp: 16, speed: 6.5, dive: 10, turn: 5, damage: 3, range: 1.2, wind: 0, cd: 3.4, scale: 0.12, score: 35, lei: 4, rad: 0.3, emerge: 0.4, air: true, alt: 3.2, orb: 6, cr: 0.42, unholy: true,
       spheres: [{ x: 0, y: 0, z: 0.2, r: 5.2, m: 1 }, { x: 0, y: 0.1, z: 0.9, r: 2.6, m: 1.6, h: 1 }] }
@@ -263,11 +263,11 @@
       const w = {
         villager: Math.max(2.5, 9 - n * 1.1), lycan: n >= 2 ? 1.4 + n * 0.6 : 0, wolf: n >= 3 ? 1.2 + n * 0.3 : 0, hag: n >= 4 ? 1.2 + n * 0.3 : 0,
         samca: n >= 5 && live('samca') < 1 + Math.floor((n - 5) / 3) ? 0.5 : 0, spitter: n >= 3 ? 0.8 + n * 0.22 : 0, bloater: n >= 4 ? 0.7 + n * 0.18 : 0,
-        brute: n >= 6 && live('brute') < 1 + Math.floor((n - 6) / 4) ? 0.45 : 0, reaper: n >= 4 && live('reaper') < 1 + Math.floor((n - 4) / 3) ? 0.55 + n * 0.14 : 0, bat: n >= 2 ? 0.5 + n * 0.12 : 0
+        brute: n >= 6 && live('brute') < 1 + Math.floor((n - 6) / 4) ? 0.45 : 0, reaper: n >= 4 && live('reaper') < 1 + Math.floor((n - 4) / 3) ? 0.55 + n * 0.14 : 0, bat: n >= 3 ? 0.3 + n * 0.06 : 0
       };
       if (md === 'fog') { w.hag = w.hag * 2.5 + (n >= 3 ? 2 : 0); w.villager *= 0.7; }
       if (md === 'blood') { w.lycan *= 2; w.samca *= 2.5; w.wolf *= 1.6; w.brute *= 2; }
-      if (md === 'bats') { w.bat = w.bat * 5 + 3; w.reaper = w.reaper * 2.2 + (n >= 3 ? 0.8 : 0); w.villager *= 0.6; }
+      if (md === 'bats') { w.bat = w.bat * 3 + 1.5; w.reaper = w.reaper * 2.2 + (n >= 3 ? 0.8 : 0); w.villager *= 0.6; }
       let sum = 0; for (const k in w) sum += w[k];
       let r = random() * sum;
       for (const k in w) { r -= w[k]; if (r <= 0 && w[k] > 0) return k; }
@@ -279,7 +279,7 @@
       if (!p) return false;
       const kind = pickType();
       if (kind === 'bat') {
-        const c = 2 + Math.floor(random() * 3);
+        const c = 2 + Math.floor(random() * 2); // kleine Schwärme (2–3)
         for (let i = 0; i < c; i++) spawnMonster('bat', p[0] + (random() - 0.5) * 6, p[1] + (random() - 0.5) * 6);
         state.waves.alive += c;
       } else { spawnMonster(kind, p[0], p[1]); state.waves.alive++; }
@@ -434,7 +434,8 @@
     function startWave() {
       const w = state.waves;
       w.n++;
-      w.mod = w.n % 5 === 0 ? 'blood' : w.n % 4 === 2 ? 'bats' : w.n % 3 === 0 ? 'fog' : 'normal';
+      // Fledermausnächte erst ab Welle 6 (vorher war schon Welle 2 eine).
+      w.mod = w.n % 5 === 0 ? 'blood' : w.n % 4 === 2 && w.n >= 6 ? 'bats' : w.n % 3 === 0 ? 'fog' : 'normal';
       w.total = Math.min(Math.round((9 + w.n * 4) * (w.mod === 'blood' ? 1.25 : 1)), 58);
       w.toSpawn = w.total; w.alive = 0; w.state = 'active'; w.spawnT = 1;
       for (const s of state.shrines) s.used = false;

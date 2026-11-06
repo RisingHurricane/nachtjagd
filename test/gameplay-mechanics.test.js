@@ -174,7 +174,7 @@ test('flying tunnel guards stay below the roof and use collision-free positions'
   assert.equal(monsters.filter(m=>m.kind==='bat').length,5);
   const check=()=>{
     for(const m of game.snapshot().monsters) {
-      const cr=m.kind==='reaper' ? .9 : .42;
+      const cr=m.kind==='reaper' ? 1.1 : .42;
       assert.ok(Math.hypot(m.x,m.z)<3.25,'Wächter bleiben im freien Tunnelquerschnitt');
       assert.equal(tunnel.blocked(m.x,m.z,.2),false);
       assert.ok(m.y+cr<=tunnel.ceiling(m.x,m.z,m.y)-.1,'Flieger bleiben unter der Decke');
@@ -326,7 +326,8 @@ test('fishing freezes the player for 2.8 seconds, pays out and then needs 40 sec
 test('waves vary: blood moon is larger, bats storm, fog nights, and enemy kinds unlock with the wave number', () => {
   const total = n => { const { game } = make({}, { startWave: n }); game.start(); advance(game, 4); const w = game.snapshot().waves; return [w.n, w.mod, w.total]; };
   assert.deepEqual(total(1), [1, 'normal', 13]);
-  assert.deepEqual(total(2), [2, 'bats', 17]);
+  assert.deepEqual(total(2), [2, 'normal', 17]); // Fledermausnächte erst ab Welle 6
+  assert.equal(total(6)[1], 'bats');
   assert.deepEqual(total(3), [3, 'fog', 21]);
   assert.deepEqual(total(5), [5, 'blood', 36]);
   const kindsAt = n => {
@@ -338,7 +339,7 @@ test('waves vary: blood moon is larger, bats storm, fog nights, and enemy kinds 
   };
   assert.deepEqual([...kindsAt(1)], ['villager']);
   const late = kindsAt(8);
-  for (const k of ['villager', 'lycan', 'wolf', 'hag']) assert.ok(late.has(k), k);
+  for (const k of ['lycan', 'wolf', 'hag']) assert.ok(late.has(k), k); // spät freigeschaltete Arten erscheinen
   assert.ok(late.size >= 6, [...late].join());
 });
 

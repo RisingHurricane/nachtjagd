@@ -64,10 +64,13 @@ globalThis.NachtjagdOutdoor = {
       }
     }
     // Plattform 8,4 m breit mit Luke (4,6 m) für die Wendeltreppe, Brüstung am Außenrand.
+    // Bohlen rundum bis an die Treppe; die Luke ist nur so groß wie die Wendeltreppe (4,7 m).
     for(const side of [-1,1]) {
-      box(tx+side*3.5,tz,1.4,8.4,.4,'landmark',0,top,false);
-      box(tx,tz+side*3.5,5.6,1.4,.4,'landmark',0,top,false);
+      box(tx+side*3.275,tz,1.85,8.4,.4,'landmark',0,top,false);
+      box(tx,tz+side*3.275,4.7,1.85,.4,'landmark',0,top,false);
     }
+    // Eckbohlen in der Luke: rund um die Treppe begehbar, sichtbar wie der Boden.
+    for(const sx of [-1,1]) for(const sz of [-1,1]) box(tx+sx*1.95,tz+sz*1.95,.8,.8,.4,'landmark',0,top,false);
     for(const side of [-1,1]) {
       box(tx+side*4.1,tz,.18,8.2,1.1,'landmark',0,top+.4,false);
       box(tx,tz+side*4.1,8.2,.18,1.1,'landmark',0,top+.4,false);
