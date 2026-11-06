@@ -38,7 +38,7 @@ li{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center}
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;600&display=swap">
 
 <header>
-  <h1>Dorfplan Bergdorf · Entwurf D</h1>
+  <h1>Dorfplan Bergdorf · Entwurf E</h1>
   <p>Grobentwurf mit Quadern auf dem echten Dorfgelände: Marktplatz vor der Kirche, eine Hauptstraße von Tor zu Tor, dichter Kern mit Gassen, lockerer Rand.</p>
 </header>
 <div class="wrap">
@@ -70,6 +70,7 @@ li{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center}
       <div><b>Hauptstraße:</b> vom Westtor über den Platz zum Osttor, leicht geknickt; keine Parallelstraße mehr.</div>
       <div><b>Untere Straße:</b> zweite größere Achse vom Weg zum Südtor nach Westen.</div>
       <div><b>Schiefe Grundrisse:</b> jedes zweite Haus einer Zeile ist ein unregelmäßiges Viereck. Steht der Nachbar im Winkel, reicht die Seitenwand bis an ihn heran und füllt den Spalt; sonst ist die Rückwand versetzt. Keine eigenen Zwischenbauten mehr.</div>
+      <div><b>Keine Spalten:</b> zwischen zwei Häusern ist entweder nichts, ein Durchgang ab 3 m oder eine Gasse. Engere Lücken schließen sich, indem die Wand oder Ecke bis an das Nachbarhaus wächst; geht das nicht, entfällt der kleinere Bau.</div>
       <div><b>Höhe:</b> im Zentrum ein Geschoss mehr.</div>
       <div><b>Dicht im Kern:</b> Häuser stehen Wand an Wand an Straße und Platz, dahinter Gassen mit Winkeln und kleinen Höfen.</div>
       <div><b>Locker am Rand:</b> Höfe mit Scheune und Schuppen, Gärten dazwischen.</div>
@@ -154,9 +155,9 @@ function lineHouses(s){
         for(const k of [1,.8,.62]){
           const W=w*k,D=dep*(k<1?.85:1);
           const h={x:mx+ux*W/2-uz*side*(set+D/2),z:mz+uz*W/2+ux*side*(set+D/2),w:W,d:D,rot:-Math.atan2(uz,ux),type:k<.7&&type!=='klein'?'haus':type,floors:type==='buerger'?between(2.5,3):type==='haus'?2:between(1,1.5)};
-          if(clearOf(h,dense?.05:1.2)){placed=h;break}
+          if(clearOf(h,dense||mid?.05:1.2)){placed=h;break}
         }
-        if(placed){HOUSES.push(placed);if(++QN%2===0)quad(placed,prev,side);prev=placed;t+=placed.w+(dense?between(0,.3):mid?between(1.5,3):between(5,10))}else{t+=1;}
+        if(placed){placed.side=side;HOUSES.push(placed);quad(placed,prev,side,++QN%2===0);prev=placed;t+=placed.w+(dense?(rnd()<.85?0:between(3,4)):mid?(rnd()<.55?0:between(3,4.5)):between(6,10))}else{t+=.5;}
       }
     }
   }
@@ -164,25 +165,74 @@ function lineHouses(s){
 // Jedes zweite Haus einer Zeile bekommt einen schiefen Viereck-Grundriss: steht ein Nachbar im Winkel daneben,
 // läuft die Seitenwand bis an ihn heran und schließt den Spalt; sonst wird die Rückwand verschoben (Trapez, Parallelogramm).
 let QN=0;
-function quad(h,prev,side){
+function quad(h,prev,side,skewIt){
   const c=corners(h),[FL,FR,BR,BL]=side>0?[c[0],c[1],c[2],c[3]]:[c[3],c[2],c[1],c[0]];
   const ux=Math.cos(h.rot),uz=-Math.sin(h.rot),cand=[];
   if(prev){const p=corners(prev),pFR=side>0?p[1]:p[2],pBR=side>0?p[2]:p[1];
-    if(Math.hypot(pFR[0]-FL[0],pFR[1]-FL[1])<6&&Math.hypot(pBR[0]-BL[0],pBR[1]-BL[1])<8)cand.push([pFR,FR,BR,pBR])}
-  for(let k=0;k<4;k++){const a=between(-2.4,2.4),b=between(-2.4,2.4);cand.push([FL,FR,[BR[0]+ux*b,BR[1]+uz*b],[BL[0]+ux*a,BL[1]+uz*a]])}
-  for(const q of cand){
+    const g=Math.hypot(pFR[0]-FL[0],pFR[1]-FL[1]);if(g>.05&&g<3&&Math.hypot(pBR[0]-BL[0],pBR[1]-BL[1])<6)cand.push([pFR,FR,BR,pBR])}
+  const attach=cand.length;
+  if(skewIt)
+  {for(let k=0;k<4;k++){const a=between(-2.4,2.4),b=between(-2.4,2.4);cand.push([FL,FR,[BR[0]+ux*b,BR[1]+uz*b],[BL[0]+ux*a,BL[1]+uz*a]])}}
+  for(const[qi,q]of cand.entries()){
     const cr=[];for(let i=0;i<4;i++){const a=q[i],b=q[(i+1)%4],d=q[(i+2)%4];cr.push((b[0]-a[0])*(d[1]-b[1])-(b[1]-a[1])*(d[0]-b[0]))}
     if(!(cr.every(v=>v>.5)||cr.every(v=>v<-.5)))continue;                       // nur konvexe Vierecke
     if(Math.hypot(q[2][0]-q[3][0],q[2][1]-q[3][1])<3)continue;
     const skew=q.some((p,i)=>{const a=q[(i+3)%4],b=q[(i+1)%4],v1=[a[0]-p[0],a[1]-p[1]],v2=[b[0]-p[0],b[1]-p[1]];return Math.abs(v1[0]*v2[0]+v1[1]*v2[1])/(Math.hypot(...v1)*Math.hypot(...v2))>.1});
-    if(!skew)continue;
+    if(!skew&&qi>=attach)continue;
     const cx=q.reduce((n,p)=>n+p[0],0)/4,cz=q.reduce((n,p)=>n+p[1],0)/4;
     const probes=q.map(p=>[(p[0]*4+cx)/5,(p[1]*4+cz)/5]).concat(q.map((p,i)=>[(p[0]+q[(i+1)%4][0]+cx*.2)/2.2,(p[1]+q[(i+1)%4][1]+cz*.2)/2.2]));
     let ok=probes.every(([x,z])=>inside(x,z));
     for(const st of STREETS)for(let i=0;ok&&i<st.p.length-1;i++)for(const[x,z]of probes)if(segDist(x,z,st.p[i],st.p[i+1])<st.w/2+.2){ok=false;break}
     for(const o of HOUSES)if(ok&&o!==h&&o!==prev)for(const[x,z]of probes)if(rectDist(x,z,o)<.05){ok=false;break}
-    if(ok){h.poly=q;return}
+    if(ok){if(skew){h.poly=q;h.skew=true}else{h.x=(q[0][0]+q[1][0]+q[2][0]+q[3][0])/4;h.z=(q[0][1]+q[1][1]+q[2][1]+q[3][1])/4;h.w=Math.hypot(q[1][0]-q[0][0],q[1][1]-q[0][1])}return}
   }
+}
+// Spalten schließen: liegt neben oder hinter einem Haus ein anderes näher als 3 m, wächst die Wand bis an dessen Wand.
+// So bleibt zwischen Häusern entweder nichts oder ein Durchgang von mindestens 3 m.
+function inPoly(x,z,q){let c=false;for(let i=0,j=q.length-1;i<q.length;j=i++){const[a,b]=q[i],[e,f]=q[j];if((b>z)!==(f>z)&&x<(e-a)*(z-b)/(f-b)+a)c=!c}return c}
+const hits=(x,z,o)=>o.poly?inPoly(x,z,o.poly):rectDist(x,z,o)<.01;
+function onStreet(x,z){return STREETS.some(st=>st.p.some((p,i)=>i<st.p.length-1&&segDist(x,z,p,st.p[i+1])<st.w/2+.2))}
+function closeGaps(){
+  for(const h of HOUSES){
+    if(!h.side)continue;
+    const c=corners(h);
+    if(!h.poly)h.poly=h.side>0?[c[0],c[1],c[2],c[3]]:[c[3],c[2],c[1],c[0]];
+    const ux=Math.cos(h.rot),uz=-Math.sin(h.rot),nx=-uz*h.side,nz=ux*h.side;
+    // Kanten: hinten (2,3), links (3,0), rechts (1,2), jeweils mit Richtung nach außen
+    for(const[i,j,dx,dz]of[[2,3,nx,nz],[3,0,-ux,-uz],[1,2,ux,uz]]){
+      const q=h.poly,A=q[i],B=q[j],pts=[A,B,[(A[0]+B[0])/2,(A[1]+B[1])/2],[(A[0]*3+B[0])/4,(A[1]*3+B[1])/4],[(A[0]+B[0]*3)/4,(A[1]+B[1]*3)/4]];
+      let gap=null;
+      for(let e=.2;e<=3&&gap===null;e+=.2)for(const[x,z]of pts){const X=x+dx*e,Z=z+dz*e;if(HOUSES.some(o=>o!==h&&hits(X,Z,o))||rectDist(X,Z,{...CHURCH,rot:0})<.01){gap=e;break}}
+      if(gap===null||gap<.3)continue;
+      const nA=[A[0]+dx*gap,A[1]+dz*gap],nB=[B[0]+dx*gap,B[1]+dz*gap];
+      if([nA,nB].some(([x,z])=>!inside(x,z)||onStreet(x,z)))continue;
+      q[i]=nA;q[j]=nB;
+    }
+  }
+}
+// Restspalten: Ecken, die näher als 3,5 m an einem Nachbarhaus liegen, rücken auf dessen Wand.
+// Danach berühren sich die Häuser oder es bleibt ein Durchgang von mindestens 3 m.
+function polyOf(h){if(!h.poly)h.poly=corners(h);return h.poly}
+function nearestOn(p,q){let best=null,bd=1e9;for(let i=0;i<q.length;i++){const a=q[i],b=q[(i+1)%q.length],dx=b[0]-a[0],dz=b[1]-a[1],t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dz)/(dx*dx+dz*dz))),x=a[0]+t*dx,z=a[1]+t*dz,d=Math.hypot(p[0]-x,p[1]-z);if(d<bd){bd=d;best=[x,z]}}return{p:best,d:bd}}
+function polyGap(A,B){let m=1e9;for(const p of A)m=Math.min(m,nearestOn(p,B).d);for(const p of B)m=Math.min(m,nearestOn(p,A).d);return m}
+function convex(q){const cr=q.map((a,i)=>{const b=q[(i+1)%q.length],d=q[(i+2)%q.length];return(b[0]-a[0])*(d[1]-b[1])-(b[1]-a[1])*(d[0]-b[0])});return cr.every(v=>v>.01)||cr.every(v=>v<-.01)}
+function snap(A,B){ // Ecken von A auf B schieben
+  const q=A.poly.map(p=>p.slice());let moved=false;
+  for(let i=0;i<q.length;i++){if(inPoly(q[i][0],q[i][1],B.poly))continue;const n=nearestOn(q[i],B.poly);if(n.d>.15&&n.d<3.5&&!onStreet(n.p[0],n.p[1])&&inside(n.p[0],n.p[1])){q[i]=n.p;moved=true}}
+  if(!moved||!convex(q))return false;
+  if(HOUSES.some(o=>o!==A&&o!==B&&o.poly&&q.some(([x,z])=>inPoly(x,z,o.poly))))return false;
+  A.poly=q;return true;
+}
+function closeSlits(){
+  for(const h of HOUSES)polyOf(h);
+  for(let round=0;round<3;round++)for(const a of HOUSES)for(const b of HOUSES){
+    if(a===b||a.drop||b.drop||Math.hypot(a.x-b.x,a.z-b.z)>30)continue;
+    const g=polyGap(a.poly,b.poly);if(g<=.15||g>=2.8)continue;
+    // kleinere Bauten wachsen zuerst an die größeren heran
+    const [s,l]=a.w*a.d<=b.w*b.d?[a,b]:[b,a];
+    if(!snap(s,l)&&!snap(l,s)&&round===2)s.drop=true;   // lässt sich nichts anlehnen, fällt der kleinere Bau weg
+  }
+  for(let i=HOUSES.length-1;i>=0;i--)if(HOUSES[i].drop)HOUSES.splice(i,1);
 }
 // Platzrand: geschlossene Häuserzeilen, nur Wege bleiben offen
 function plazaHouses(){
@@ -204,7 +254,7 @@ function infill(){
     if(d>65)continue;
     const type=rnd()<.55?'schuppen':'klein',w=type==='schuppen'?between(4,6):between(5,6.5),dep=type==='schuppen'?between(3.5,5):between(6,7);
     const h={x,z,w,d:dep,rot:alignAt(x,z),type,floors:type==='schuppen'?.8:between(1,1.5)};
-    if(clearOf(h,1.8))HOUSES.push(h);
+    if(clearOf(h,3))HOUSES.push(h);
   }
 }
 // Rand: Höfe mit Wohnhaus und Scheune, Abstand dazwischen
@@ -225,7 +275,7 @@ plazaHouses();
 // Erst Hauptstraßen, dann Gassen bebauen, danach Höfe am Rand, zuletzt wenige Hinterhofbauten.
 for(const s of STREETS.filter(s=>s.kind==='street'))lineHouses(s);
 for(const s of STREETS.filter(s=>s.kind==='lane'))lineHouses(s);
-farms();infill();
+closeGaps();closeGaps();farms();infill();closeSlits();
 
 // ---------------------------------------------------------------- Darstellung (Three.js r128)
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -255,7 +305,7 @@ addBox({...CHURCH,rot:0,floors:5},mats.kirche);addBox({x:91,z:21,w:7,d:7,rot:0,f
 {const w=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.6,1,16),new THREE.MeshLambertMaterial({color:0x6f7a80}));w.position.set(WELL.x,ground(WELL.x,WELL.z)+.5,WELL.z);w.castShadow=true;scene.add(w)}
 // Legende mit Zahlen
 const counts={};for(const h of HOUSES)counts[h.type]=(counts[h.type]||0)+1;counts.kirche=1;
-document.getElementById('legend').innerHTML=Object.keys(TYPES).map(k=>`<li><span class="sw" style="background:${TYPES[k].color}"></span>${TYPES[k].name}<span class="n">${counts[k]||0}</span></li>`).join('')+`<li><span class="sw" style="background:linear-gradient(135deg,#d9c3a0 50%,transparent 50%)"></span>davon schiefes Viereck<span class="n">${HOUSES.filter(h=>h.poly).length}</span></li>`;
+document.getElementById('legend').innerHTML=Object.keys(TYPES).map(k=>`<li><span class="sw" style="background:${TYPES[k].color}"></span>${TYPES[k].name}<span class="n">${counts[k]||0}</span></li>`).join('')+`<li><span class="sw" style="background:linear-gradient(135deg,#d9c3a0 50%,transparent 50%)"></span>davon schiefes Viereck<span class="n">${HOUSES.filter(h=>h.skew).length}</span></li>`;
 
 // ---------------------------------------------------------------- Kamera: drehen, zoomen, drei Ansichten
 const target=new THREE.Vector3(90,40,45);let yaw=0,pitch=1.45,dist=270,street=false;
