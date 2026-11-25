@@ -58,8 +58,11 @@ li{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center}
     <div class="notes">
       <h2>Wie der Block aufgebaut ist</h2>
       <div><b>Hausreihen:</b> an jeder Blockseite eine Reihe Häuser gleicher Tiefe. Die Trennwände stehen senkrecht zur Gasse, deshalb sind alle Häuser einer Reihe echte Rechtecke.</div>
-      <div><b>Eckhäuser:</b> wo zwei Reihen im Winkel aufeinandertreffen, nimmt ein Eckhaus den Winkel auf. Es hat zwei Fassaden und zwei rechte Winkel, nur die Hofecke ist schräg.</div>
-      <div><b>Dächer:</b> Satteldächer. Schmale Häuser stehen giebelständig mit dem Giebel zur Gasse, breite traufständig. Eckhäuser richten ihr Dach an der längeren Fassade aus. Keine Walmdächer.</div>
+      <div><b>Eckhäuser:</b> wo zwei Reihen im Winkel aufeinandertreffen, nimmt ein Eckhaus den Winkel auf. Es hat zwei Fassaden und zwei rechte Winkel, nur die Hofecke ist schräg. Drei Spielarten im Wechsel:</div>
+      <div><b>· Eckturm:</b> eckiger Turm genau an der Straßenecke, folgt beiden Fassaden, mit spitzem Turmhelm.</div>
+      <div><b>· Mansarde:</b> Pariser Art, steile dunkle Zinkfläche mit Dachfenstern, darüber flach mit Schnee, helles Gesims.</div>
+      <div><b>· Dach um die Ecke:</b> das Satteldach läuft entlang beider Gassen und knickt an der Ecke mit Kehle und Grat um.</div>
+      <div><b>Dächer:</b> Satteldächer. Schmale Häuser stehen giebelständig mit dem Giebel zur Gasse, breite traufständig. Keine Walmdächer.</div>
       <div><b>Hof:</b> innen ein Hof mit Baum, von der Gasse über eine Tordurchfahrt erreichbar.</div>
       <div><b>Blockform:</b> kurze Blockkanten (unter 13 m) entfallen, die abgeschnittene Ecke wird zur kleinen Aufweitung der Gasse. So gibt es weniger Ecken und längere Reihen.</div>
       <div><b>Umgebung:</b> Nachbarblöcke nur als grauer Umriss, die Kirche als Block.</div>
@@ -121,13 +124,14 @@ E.forEach((e,i)=>{
     HOUSES.push({q:[a,b,add(b,e.n,D),add(a,e.n,D)],front:0,kind:tor?'tor':'reihe',floors:tor?2.5:[2,2.5,3,3,3.5][Math.floor(rnd()*5)]});
   }
 });
-// Eckhäuser: Fassade an beiden Gassen, Hofseiten senkrecht dazu
+// Eckhäuser: Fassade an beiden Gassen, Hofseiten senkrecht dazu. Drei Spielarten im Wechsel:
+// Eckturm mit Turmhelm, Mansarddach (Pariser Art) oder ein Satteldach, das um die Ecke herumläuft.
+const CORNER_STYLES=['turm','mansarde','herum','turm','mansarde','herum'];
 inner.forEach((A,i)=>{
   const e=E[i],p=E[(i+inner.length-1)%inner.length];
   const P=add(A,e.u,e.ty0),Q=add(p.A,p.u,p.ty1),Y=yard[i];
   const q=[Q,A,P,Y];if(Math.abs(area(q))<4)return;
-  const front=Math.hypot(A[0]-Q[0],A[1]-Q[1])>Math.hypot(P[0]-A[0],P[1]-A[1])?0:1;
-  HOUSES.push({q:ccw(q),frontPts:front===0?[Q,A]:[A,P],kind:'ecke',floors:[3,3.5,3.5][Math.floor(rnd()*3)]});
+  HOUSES.push({q:ccw(q),Q,A,P,Y,nQA:p.n,nAP:e.n,kind:'ecke',style:CORNER_STYLES[i%CORNER_STYLES.length],floors:[3,3.5,3.5][Math.floor(rnd()*3)]});
 });
 
 // ---------------------------------------------------------------- Darstellung
@@ -147,40 +151,100 @@ function wall(a,b,ya0,yb0,ya1,yb1,out,col){tri([a[0],ya0,a[1]],[b[0],yb0,b[1]],[
 function rectOn(a,b,out,t,w,y0,y1,col){const l=Math.hypot(b[0]-a[0],b[1]-a[1]),u=[(b[0]-a[0])/l,(b[1]-a[1])/l],o=[out[0]*.05,out[2]*.05];
   const p0=[a[0]+u[0]*(t-w/2)+o[0],a[1]+u[1]*(t-w/2)+o[1]],p1=[a[0]+u[0]*(t+w/2)+o[0],a[1]+u[1]*(t+w/2)+o[1]];wall(p0,p1,y0,y0,y1,y1,out,col)}
 const triangulate=q=>THREE.ShapeUtils.triangulateShape(q.map(p=>new THREE.Vector2(p[0],p[1])),[]);
-const counts={reihe:0,ecke:0,tor:0};
-HOUSES.forEach((h,hi)=>{
-  counts[h.kind]++;
-  const q=ccw(h.q),ys=q.map(([x,z])=>ground(x,z)),g=Math.max(...ys),base=Math.min(...ys)-.5,eave=g+h.floors*3.1+.2,col=PLASTER[hi%PLASTER.length];
-  // Dach: an der Gassenfassade ausgerichtet; schmale Häuser giebelständig, breite traufständig
-  const [fa,fb]=h.frontPts||[h.q[0],h.q[1]],fl=Math.hypot(fb[0]-fa[0],fb[1]-fa[1]),u=[(fb[0]-fa[0])/fl,(fb[1]-fa[1])/fl];
-  const cen=[q.reduce((n,p)=>n+p[0],0)/4,q.reduce((n,p)=>n+p[1],0)/4];let n=[-u[1],u[0]];if((cen[0]-fa[0])*n[0]+(cen[1]-fa[1])*n[1]<0)n=[-n[0],-n[1]];
-  const dep=Math.max(...q.map(p=>(p[0]-fa[0])*n[0]+(p[1]-fa[1])*n[1])),al=q.map(p=>(p[0]-fa[0])*u[0]+(p[1]-fa[1])*u[1]),tmin=Math.min(...al),tmax=Math.max(...al);
-  const giebel=h.kind!=='ecke'&&(tmax-tmin)<dep*.95;
-  const c=giebel?add(fa,u,(tmin+tmax)/2):add(fa,n,dep/2),nrm=giebel?u:n;
-  const dist=p=>(p[0]-c[0])*nrm[0]+(p[1]-c[1])*nrm[1],half=Math.max(...q.map(p=>Math.abs(dist(p)))),rise=Math.min(5.2,half*.95),s=rise/half,ridge=eave+rise;
-  const roofY=p=>ridge-s*Math.abs(dist(p));
-  for(const part of[clip(q,c,nrm),clip(q,c,[-nrm[0],-nrm[1]])])if(part.length>=3)for(const[i,j,k]of triangulate(part))tri([part[i][0],roofY(part[i])+.02,part[i][1]],[part[j][0],roofY(part[j])+.02,part[j][1]],[part[k][0],roofY(part[k])+.02,part[k][1]],[0,1,0],SNOW);
-  const low=h.kind==='tor'?g+3.6:base;
-  if(h.kind==='tor')for(const[i,j,k]of triangulate(q))tri([q[i][0],low,q[i][1]],[q[j][0],low,q[j][1]],[q[k][0],low,q[k][1]],[0,-1,0],SOFFIT);
+const counts={reihe:0,ecke:0,tor:0,turm:0,mansarde:0,herum:0};
+const TOWER=C('#c4b49a'),HELM=C('#3a3f47'),ZINC=C('#55606a'),CORNICE=C('#efe6d4');
+const clipF=(q,g)=>{const out=[];for(let i=0;i<q.length;i++){const a=q[i],b=q[(i+1)%q.length],fa=g(a),fb=g(b);if(fa>=0)out.push(a);if((fa>=0)!==(fb>=0))out.push(lerp(a,b,fa/(fa-fb)))}return out};
+const lin=(o,n)=>p=>(p[0]-o[0])*n[0]+(p[1]-o[1])*n[1];
+// Dachfläche aus Höhenfunktion f; kinks sind lineare Funktionen, an deren Nulllinie die Fläche abknickt (First, Kehle, Grat)
+function roofSurface(q,f,kinks){
+  let pieces=[q];
+  for(const g of kinks){const next=[];for(const pc of pieces)for(const sg of[1,-1]){const c=clipF(pc,p=>sg*g(p));if(c.length>=3&&Math.abs(area(c))>.01)next.push(c)}pieces=next}
+  for(const pc of pieces)for(const[i,j,k]of triangulate(pc))tri([pc[i][0],f(pc[i])+.02,pc[i][1]],[pc[j][0],f(pc[j])+.02,pc[j][1]],[pc[k][0],f(pc[k])+.02,pc[k][1]],[0,1,0],SNOW);
+}
+// Wand eines Hauses bis unter die Dachkante, an Knicklinien geteilt
+function wallsUnder(q,f,kinks,low,col,fasciaCol){
   for(let i=0;i<q.length;i++){
     const a0=q[i],b0=q[(i+1)%q.length],l=Math.hypot(b0[0]-a0[0],b0[1]-a0[1]);if(l<.05)continue;
-    const out=[(b0[1]-a0[1])/l,0,-(b0[0]-a0[0])/l],da=dist(a0),db=dist(b0),pieces=da*db<0?(()=>{const m=lerp(a0,b0,da/(da-db));return[[a0,m],[m,b0]]})():[[a0,b0]];
-    for(const[a,b]of pieces){const ya=roofY(a),yb=roofY(b);wall(a,b,low,low,ya-.3,yb-.3,out,col);wall(a,b,ya-.3,yb-.3,ya,yb,out,FASCIA)}
-    // Fenster und Tür an Gassen- und Hoffassaden (nicht an Brandwänden zum Nachbarn)
-    const facing=[out[0],out[2]],toYard=(cx-(a0[0]+b0[0])/2)*facing[0]+(cz-(a0[1]+b0[1])/2)*facing[1]>0;
+    const out=[(b0[1]-a0[1])/l,0,-(b0[0]-a0[0])/l],ts=[0,1];
+    for(const g of kinks){const ga=g(a0),gb=g(b0);if(ga*gb<0)ts.push(ga/(ga-gb))}
+    ts.sort((x,y)=>x-y);
+    for(let k=0;k<ts.length-1;k++){const a=lerp(a0,b0,ts[k]),b=lerp(a0,b0,ts[k+1]),ya=f(a),yb=f(b);wall(a,b,low,low,ya-.3,yb-.3,out,col);wall(a,b,ya-.3,yb-.3,ya,yb,out,fasciaCol)}
+  }
+}
+// Fenster und Türen an freien Fassaden (nicht an Brandwänden), unterhalb der Dachkante top(p)
+function openings(h,q,g,top){
+  for(let i=0;i<q.length;i++){
+    const a0=q[i],b0=q[(i+1)%q.length],l=Math.hypot(b0[0]-a0[0],b0[1]-a0[1]);
+    const out=[(b0[1]-a0[1])/l,0,-(b0[0]-a0[0])/l],toYard=(cx-(a0[0]+b0[0])/2)*out[0]+(cz-(a0[1]+b0[1])/2)*out[2]>0;
     const shared=HOUSES.some(o=>o!==h&&o.q.some(p=>Math.hypot(p[0]-a0[0],p[1]-a0[1])<.05)&&o.q.some(p=>Math.hypot(p[0]-b0[0],p[1]-b0[1])<.05));
     if(shared||l<2.2)continue;
-    const nw=Math.max(1,Math.floor(l/2.3)),floors=Math.floor(h.floors+.25);
+    const nw=Math.max(1,Math.floor(l/2.3)),floors=Math.floor(h.floors+.25)+1;
     for(let f=0;f<floors;f++)for(let k=0;k<nw;k++){
       const t=(k+.5)*l/nw,y=g+f*3.1+1.4;if(h.kind==='tor'&&f===0)continue;
-      if(y+1>Math.min(roofY(lerp(a0,b0,t/l)),eave)-.2)continue;
+      const pt=lerp(a0,b0,t/l);if(y+1>Math.min(top(lerp(a0,b0,Math.max(0,t-.6)/l)),top(lerp(a0,b0,Math.min(l,t+.6)/l)))-.25)continue;
+      if(h.tower&&inPolyS(pt,h.tower))continue;
       if(f===0&&k===Math.floor(nw/2)&&!toYard)rectOn(a0,b0,out,t,1.15,g,g+2.3,DOOR);else rectOn(a0,b0,out,t,.95,y-.7,y+.65,WIN);
     }
   }
-  // Kamin
-  if(rnd()<.45){const p=add(add(cen,nrm,(rnd()<.5?-1:1)*half*.45),giebel?n:u,0);const y0=roofY(p)-.5,y1=Math.max(roofY(p)+.9,ridge+.3),r=.28;
-    const cs=[[-r,-r],[r,-r],[r,r],[-r,r]].map(([a,b])=>[p[0]+a,p[1]+b]);for(let k=0;k<4;k++){const a=cs[k],b=cs[(k+1)%4];wall(a,b,y0,y0,y1,y1,[(a[0]+b[0])/2-p[0],0,(a[1]+b[1])/2-p[1]],CHIMNEY)}
-    tri([cs[0][0],y1,cs[0][1]],[cs[1][0],y1,cs[1][1]],[cs[2][0],y1,cs[2][1]],[0,1,0],SNOW);tri([cs[0][0],y1,cs[0][1]],[cs[2][0],y1,cs[2][1]],[cs[3][0],y1,cs[3][1]],[0,1,0],SNOW)}
+}
+function inPolyS(p,q){let c=false;for(let i=0,j=q.length-1;i<q.length;j=i++){const[a,b]=q[i],[e,f]=q[j];if((b>p[1])!==(f>p[1])&&p[0]<(e-a)*(p[1]-b)/(f-b)+a)c=!c}return c}
+function chimneyAt(p,y0,y1){const r=.28,cs=[[-r,-r],[r,-r],[r,r],[-r,r]].map(([a,b])=>[p[0]+a,p[1]+b]);for(let k=0;k<4;k++){const a=cs[k],b=cs[(k+1)%4];wall(a,b,y0,y0,y1,y1,[(a[0]+b[0])/2-p[0],0,(a[1]+b[1])/2-p[1]],CHIMNEY)}
+  tri([cs[0][0],y1,cs[0][1]],[cs[1][0],y1,cs[1][1]],[cs[2][0],y1,cs[2][1]],[0,1,0],SNOW);tri([cs[0][0],y1,cs[0][1]],[cs[2][0],y1,cs[2][1]],[cs[3][0],y1,cs[3][1]],[0,1,0],SNOW)}
+
+HOUSES.forEach((h,hi)=>{
+  counts[h.kind]++;if(h.style)counts[h.style]++;
+  const q=ccw(h.q),ys=q.map(([x,z])=>ground(x,z)),g=Math.max(...ys),base=Math.min(...ys)-.5,eave=g+h.floors*3.1+.2,col=PLASTER[hi%PLASTER.length];
+  const low=h.kind==='tor'?g+3.6:base;
+  if(h.kind==='tor')for(const[i,j,k]of triangulate(q))tri([q[i][0],low,q[i][1]],[q[j][0],low,q[j][1]],[q[k][0],low,q[k][1]],[0,-1,0],SOFFIT);
+  if(h.kind!=='ecke'){
+    // Reihenhaus: Satteldach an der Gassenfassade ausgerichtet; schmal = giebelständig, breit = traufständig
+    const [fa,fb]=[h.q[0],h.q[1]],fl=Math.hypot(fb[0]-fa[0],fb[1]-fa[1]),u=[(fb[0]-fa[0])/fl,(fb[1]-fa[1])/fl];
+    const cen=[q.reduce((n,p)=>n+p[0],0)/4,q.reduce((n,p)=>n+p[1],0)/4];let n=[-u[1],u[0]];if(lin(fa,n)(cen)<0)n=[-n[0],-n[1]];
+    const dep=Math.max(...q.map(lin(fa,n))),giebel=fl<dep*.95;
+    const c=giebel?add(fa,u,fl/2):add(fa,n,dep/2),nrm=giebel?u:n,dist=lin(c,nrm);
+    const half=Math.max(...q.map(p=>Math.abs(dist(p)))),rise=Math.min(5.2,half*.95),s=rise/half,ridge=eave+rise,f=p=>ridge-s*Math.abs(dist(p));
+    roofSurface(q,f,[dist]);wallsUnder(q,f,[dist],low,col,FASCIA);openings(h,q,g,f);
+    if(rnd()<.45){const p=add(cen,nrm,(rnd()<.5?-1:1)*half*.45);chimneyAt(p,f(p)-.5,Math.max(f(p)+.9,ridge+.3))}
+    return;
+  }
+  if(h.style==='mansarde'){
+    // Mansarddach: steile untere Fläche aus dunklem Zink mit Dachfenstern, darüber flach geneigt mit Schnee; Gesims an der Traufe
+    const flat=p=>eave;
+    wallsUnder(q,flat,[],low,col,CORNICE);openings(h,q,g,flat);
+    const q1=inset(q,q.map(()=>1.3)),top=eave+2.9;if(!q1||!q1.full)return;
+    const cen=[q1.reduce((n,p)=>n+p[0],0)/q1.length,q1.reduce((n,p)=>n+p[1],0)/q1.length];
+    for(let i=0;i<q.length;i++){
+      const a=q[i],b=q[(i+1)%q.length],a1=q1[i],b1=q1[(i+1)%q.length],out=[(b[1]-a[1]),.4,-(b[0]-a[0])];
+      tri([a[0],eave,a[1]],[b[0],eave,b[1]],[b1[0],top,b1[1]],out,ZINC);tri([a[0],eave,a[1]],[b1[0],top,b1[1]],[a1[0],top,a1[1]],out,ZINC);
+      tri([a1[0],top,a1[1]],[b1[0],top,b1[1]],[cen[0],top+.7,cen[1]],[0,1,0],SNOW);
+      // Dachgauben als Fenster in der steilen Fläche
+      const l=Math.hypot(b[0]-a[0],b[1]-a[1]),shared=HOUSES.some(o=>o!==h&&o.q.some(p=>Math.hypot(p[0]-a[0],p[1]-a[1])<.05)&&o.q.some(p=>Math.hypot(p[0]-b[0],p[1]-b[1])<.05));
+      if(shared||l<3)continue;
+      const nw=Math.max(1,Math.floor(l/2.6));
+      for(let k=0;k<nw;k++){const t0=(k+.5)/nw-.45/l,t1=(k+.5)/nw+.45/l,s0=.25,s1=.75;
+        const P=(t,s)=>{const lo=lerp(a,b,t),hi=lerp(a1,b1,t),pp=lerp(lo,hi,s);return[pp[0]+out[0]/l*.04,eave+(top-eave)*s,pp[1]+out[2]/l*.04]};
+        tri(P(t0,s0),P(t1,s0),P(t1,s1),out,WIN);tri(P(t0,s0),P(t1,s1),P(t0,s1),out,WIN)}
+    }
+    chimneyAt(lerp(cen,q1[0],.5),top-.2,top+1.4);
+    return;
+  }
+  // um die Ecke laufendes Satteldach: zwei Flügel entlang beider Gassen, die sich an der Ecke durchdringen (Kehle und Grat)
+  const gA=p=>lin(h.Q,h.nQA)(p)-D/2,gB=p=>lin(h.A,h.nAP)(p)-D/2;
+  const rise=Math.min(4.6,D/2*1.05),s=rise/(D/2),ridge=eave+rise,f=p=>ridge-s*Math.min(Math.abs(gA(p)),Math.abs(gB(p)));
+  const kinks=[gA,gB,p=>gA(p)-gB(p),p=>gA(p)+gB(p)];
+  if(h.style==='turm'){
+    // eckiger Eckturm, den Fassaden beider Gassen folgend, mit spitzem Turmhelm
+    const uQ=[(h.Q[0]-h.A[0]),(h.Q[1]-h.A[1])],uP=[(h.P[0]-h.A[0]),(h.P[1]-h.A[1])],lQ=Math.hypot(...uQ),lP=Math.hypot(...uP);
+    const ts=Math.min(4.4,lQ*.8,lP*.8),a=h.A,b=add(a,uQ,ts/lQ),d=add(a,uP,ts/lP),c=add(b,uP,ts/lP);
+    const tc0=[(a[0]+c[0])/2,(a[1]+c[1])/2],tq=ccw([a,b,c,d].map(p=>add(tc0,[p[0]-tc0[0],p[1]-tc0[1]],1.07)));h.tower=tq;   // leicht vor die Fassade gesetzt
+    const ttop=ridge+3.2,apex=ttop+ts*1.5;
+    for(let i=0;i<4;i++){const p0=tq[i],p1=tq[(i+1)%4],l=Math.hypot(p1[0]-p0[0],p1[1]-p0[1]),out=[(p1[1]-p0[1])/l,0,-(p1[0]-p0[0])/l];
+      wall(p0,p1,base,base,ttop-.35,ttop-.35,out,TOWER);wall(p0,p1,ttop-.35,ttop-.35,ttop,ttop,out,FASCIA);
+      const tc=[(tq[0][0]+tq[2][0])/2,(tq[0][1]+tq[2][1])/2],o1=add(p0,[p0[0]-tc[0],p0[1]-tc[1]],.12),o2=add(p1,[p1[0]-tc[0],p1[1]-tc[1]],.12);
+      tri([o1[0],ttop,o1[1]],[o2[0],ttop,o2[1]],[tc[0],apex,tc[1]],[out[0],.5,out[2]],HELM);
+      for(let f2=0;f2<Math.floor((ttop-g)/3.1);f2++){const y=g+f2*3.1+1.4;if(f2===0)continue;rectOn(p0,p1,out,l/2,.8,y-.65,y+.65,WIN)}}
+  }
+  roofSurface(q,f,kinks);wallsUnder(q,f,kinks,low,col,FASCIA);openings(h,q,g,f);
 });
 {const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(B.pos,3));geo.setAttribute('color',new THREE.Float32BufferAttribute(B.col,3));geo.computeVertexNormals();
  const m=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({vertexColors:true}));m.castShadow=m.receiveShadow=true;scene.add(m)}
@@ -196,7 +260,7 @@ function massing(q,h,color){q=ccw(q);const y0=Math.min(...q.map(([x,z])=>ground(
 for(const q of DATA.nb)flat(q,0xc3c7c6,.25);
 massing(DATA.church,15,0x9aa4ab);
 // Legende
-document.getElementById('legend').innerHTML=[['#d9c09a','Reihenhaus, rechteckig',counts.reihe],['#c9b79a','Eckhaus (zwei Fassaden)',counts.ecke],['#8c7d6a','Haus mit Tordurchfahrt',counts.tor],['#b9ae96','Innenhof',Math.round(Math.abs(area(yard)))+' m²'],['#c3c7c6','Nachbarblöcke (nur Umriss)','']]
+document.getElementById('legend').innerHTML=[['#d9c09a','Reihenhaus, rechteckig',counts.reihe],['#c4b49a','Eckhaus mit Eckturm',counts.turm],['#55606a','Eckhaus mit Mansarddach',counts.mansarde],['#c9b79a','Eckhaus, Dach um die Ecke',counts.herum],['#8c7d6a','Haus mit Tordurchfahrt',counts.tor],['#b9ae96','Innenhof',Math.round(Math.abs(area(yard)))+' m²'],['#c3c7c6','Nachbarblöcke (nur Umriss)','']]
   .map(([c,t,n])=>`<li><span class="sw" style="background:${c}"></span>${t}<span class="n">${n}</span></li>`).join('');
 
 // ---------------------------------------------------------------- Kamera
