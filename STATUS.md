@@ -1,6 +1,6 @@
 # STATUS
 
-Letzte Aktualisierung: 2026-11-25 (Claude, Entwurf 32 auf `claude/grafik-laden`)
+Letzte Aktualisierung: 2026-11-04 (Claude, Entwurf 31 auf `claude/grafik-laden`)
 
 ## Nächste Schritte (Stand 2026-11-04, Wunsch von Light)
 
@@ -8,15 +8,6 @@ Letzte Aktualisierung: 2026-11-25 (Claude, Entwurf 32 auf `claude/grafik-laden`)
 - Bäume überzeugen Light noch nicht (`tree-models.js`). Als Erstes eine Baum-Vorschauseite mit mehreren Entwürfen bauen und Light auswählen lassen.
 - Danach dasselbe Vorgehen für die Gegner (`monster-models.js`).
 - Arbeitszweig: `claude/grafik-laden`. Veröffentlichung auf gh-pages: `public/entwurf/` nach `entwurf/`, `public/assets/opt/` nach `assets/opt/`, dazu `assets/church/church-adapter.js` und `models/kit.js`.
-
-## Entwurf 32 · Neues Dorf aus dem Dorfplan
-
-- Grundlage ist der von Light freigegebene Dorfplan Entwurf G (`planung/dorfplan.html`, Artefakt „Dorfplan Bergdorf“). Export der Plandaten nach `public/entwurf/village-plan.js` (Blockhäuser als Grundriss-Vielecke mit Geschossen, Straßen, Plätze, Höfe).
-- `public/entwurf/village-blocks.js` baut die 168 Blockhäuser des Kerns als wenige zusammengeführte Meshes: Wände über dem Grundriss, Walmdach mit Schnee (First entlang der Längsachse, bei quadratischen Häusern Zeltdach), Fenster nur an freien Wänden, ein Teil leuchtet nachts. Nicht begehbar; `blocked()` für Spieler, Gegner und Fahrzeuge, `targets()` für Schüsse, `occupied()` für Laternen. Häuser, die in eine Fahrbahn ragen, werden an der Straßenkante abgeschnitten.
-- Begehbare Häuser sind jetzt die 12 freistehenden Höfe am Rand (`world-layout.js`, `farmSites`); Drehung so gewählt, dass alle Eingänge frei liegen.
-- Straßen (`road-layout.js`): Burgstraße, Oststraße und Südweg folgen den geschwungenen Planstraßen, neue Untere Straße; alte Gassen und beide Dorftreppen entfallen. Brunnenblock an den Marktplatz verlegt, Ansicht „Dorftreppe“ heißt jetzt „Marktplatz“.
-- Tests angepasst (12 Hausplätze, 15 Routen, keine Dorftreppen). `npm test` 222 grün, Browserprüfungen 23 und 86 grün.
-- Offen: Dachvarianten (Satteldach mit Giebel, Krüppelwalm, Gauben, Kamine), Pflaster für Gassen und zweiten Platz, Brunnen am zweiten Platz, Minikarte mit Blockhäusern.
 
 ## Entwurf 31 · Nebelnacht, Gegner, neue Ziele
 
@@ -244,8 +235,6 @@ Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` un
 - Die Berge am Kartenrand ragen stellenweise ein Stück auf die Karte hinein (Kulisse). Das lässt sich verschieben, wenn es stört.
 
 ## Übergabe-Log
-
-- 2026-11-25 · Claude · Dorfplan in Entwurf G (Voronoi-Blöcke, Innenhöfe, zweiter Platz) von Light freigegeben und als Entwurf 32 ins Spiel übernommen (`village-plan.js`, `village-blocks.js`). Tests grün.
 
 - 2026-11-06, Claude Code: Dorflayout-Grobentwurf getrennt vom Spiel in `planung/dorfplan.html` (Entwurf B, siehe `planung/README.md`). Am Spiel nichts geändert. Lights Wünsche: zentraler Platz, eine Hauptstraße statt Parallelstraßen, zweite größere Straße, dichter und im Kern ein Geschoss höher, weniger massive Häuser, keine schiefen Spalten zwischen Häusern.
 - 2026-11-06, Claude Code: Weiße Kulissenberge entfernt (`buildBackdrop` nicht mehr aufgerufen, kein GLB mehr geladen). Gondelstationen mit begehbarem Bohlenboden (`gondolaPads` in `gameFloor`). Sternbäume nach Lights Studie als Schalter `&baum=karte` in `tree-models.js`; Messung (Software-Grafik): Wald 468 ms gegenüber 191 ms mit den eigenen Modellbäumen, ganzes Bild 2335 gegenüber 1987 ms, also langsamer (Überzeichnung durch durchsichtige Flächen); Standard bleibt bei den Modellbäumen. Der Wald macht jetzt nur noch etwa 10 % der Zeichenzeit aus. Dorf-Neugestaltung als eigene Aufgabe vorgeschlagen. 222 Node-Tests grün. Nach gh-pages veröffentlicht.

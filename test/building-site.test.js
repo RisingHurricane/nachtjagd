@@ -8,8 +8,8 @@ const ctx={Math};ctx.globalThis=ctx;
 for(const file of ['world-layout.js','village-houses.js','building-site.js'])vm.runInNewContext(fs.readFileSync(new URL('../public/entwurf/'+file,import.meta.url),'utf8'),ctx);
 const specs=ctx.NachtjagdBuildings.describe(ctx.NachtjagdLayout.houses),builder=ctx.NachtjagdVillageHouses.create(THREE);
 
-test('Alle 12 Weltplatzierungen teilen Türen, Mauern und gedrehte Gehflächen mit dem Hausmodell',()=>{
-  assert.equal(specs.length,12);
+test('Alle 28 Weltplatzierungen teilen Türen, Mauern und gedrehte Gehflächen mit dem Hausmodell',()=>{
+  assert.equal(specs.length,28);
   for(const spec of specs) {
     spec.y=60;
     const model=builder.build(spec.w,spec.d,spec.height,spec.type),data=model.userData.house,walk=ctx.NachtjagdBuildings.spatial(spec,data);

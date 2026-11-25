@@ -27,7 +27,7 @@ test('Skizzenanordnung: See südwestlich, Burg westlich, Gebirge nördlich des D
 });
 test('Dorfgrund besitzt ein sanftes Gefälle und mehr als eine Gebäudeform', () => {
   const heights = layout.houses.map(h => layout.naturalHeight(h[0],h[1]));
-  assert.ok(layout.houses.length >= 10);
+  assert.ok(layout.houses.length >= 28);
   const span=Math.max(...heights)-Math.min(...heights);
   assert.ok(span > 1 && span < 10, `Dorfgefälle ${span} m`);
   assert.equal(new Set(layout.houses.map(h => h[6])).size, 4);
@@ -81,7 +81,7 @@ test('Mittelberge stehen vor einem höheren äußeren Gipfelring; Vorberge füll
   const heights=[[110,-100],[180,-150],[60,-190]].map(p=>layout.naturalHeight(...p));
   assert.ok(Math.min(...heights)>38);
   assert.ok(Math.max(...heights)-Math.min(...heights)>12);
-  assert.ok(new Set(layout.houses.map(h=>h[1])).size>10);
+  assert.ok(new Set(layout.houses.map(h=>h[1])).size>15);
 });
 
 test('Beide Bergtypen besitzen unterschiedliche Gipfelhöhen und breite sowie schmale Fußabdrücke',()=>{

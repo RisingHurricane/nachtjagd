@@ -22,8 +22,14 @@ test('Treppen sind in beiden Richtungen lückenlos begehbar und begrenzen die St
   }
 });
 
-test('Das neue Dorf kommt ohne Treppen aus: Straßen folgen dem flachen Dorfgelände',()=>{
-  for(const file of ['world-layout','road-layout']) vm.runInContext(fs.readFileSync(new URL('../public/entwurf/'+file+'.js',import.meta.url),'utf8'),context);
+test('Beide Dorftreppen schließen ohne Absatz über eine Stufe an die Gassen an',()=>{
+  for(const file of ['world-layout','road-layout','road-profile']) vm.runInContext(fs.readFileSync(new URL('../public/entwurf/'+file+'.js',import.meta.url),'utf8'),context);
   const layout=context.NachtjagdLayout,definition=context.NachtjagdRoadLayout({height:layout.naturalHeight,castle:layout.castle});
-  assert.equal(definition.routes.filter(r=>r.stairs).length,0);
+  const network=context.NachtjagdRoads.create({...definition,height:layout.naturalHeight});
+  const stairs=create(network);
+  assert.equal(definition.routes.filter(r=>r.stairs).length,2);
+  for(const route of definition.routes.filter(r=>r.stairs)) for(const [x,z] of route.points) {
+    const node=network.nodes.find(n=>Math.hypot(n.x-x,n.z-z)<.001);
+    assert.ok(Math.abs(stairs.floor(x,z)-(node.y+.4))<=.200001);
+  }
 });

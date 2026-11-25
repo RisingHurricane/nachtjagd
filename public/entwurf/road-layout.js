@@ -6,17 +6,19 @@ globalThis.NachtjagdRoadLayout = ({ height,castle }) => {
   const bridgeSpec={ a:[-230,-100],b:[-120,-180],width:8,arches:7 };
   const bridgeDx=bridgeSpec.b[0]-bridgeSpec.a[0],bridgeDz=bridgeSpec.b[1]-bridgeSpec.a[1],bridgeLength=Math.hypot(bridgeDx,bridgeDz);
   const bridgePoint=s=>[bridgeSpec.a[0]+bridgeDx*s/bridgeLength,bridgeSpec.a[1]+bridgeDz*s/bridgeLength];
-  const castleRoute=[[90,45],[72,40],[58,41],[44,48],[28,44],[12,49],[-5,45],[-50,30],[-65,-20],[-55,-95],[-65,-145],bridgePoint(bridgeLength+10),bridgeSpec.b,bridgeSpec.a,[-248,-100]]; // vom Viaduktende geradeaus durch das Tor
-  const southRoad=[[90,45],[104,52],[106,67],[113,86],[109,100],[115,112],[110,143],[140,174],[200,185]];
+  const castleRoute=[[90,45],[-5,45],[-50,30],[-65,-20],[-55,-95],[-65,-145],bridgePoint(bridgeLength+10),bridgeSpec.b,bridgeSpec.a,[-248,-100]]; // vom Viaduktende geradeaus durch das Tor
+  const southRoad=[[90,45],[115,45],[115,112],[110,143],[140,174],[200,185]];
   const southLoop=[[200,185],[215,240],[175,275],[80,265],[55,225],[15,180],[-45,150],[-90,162],[-110,170]];
   const shoreRoute=[...southRoad,...southLoop.slice(1)];
   const routes=[
-    { id:'castle',points:castleRoute,width:6,bridge:castleRoute.indexOf(bridgeSpec.b) },
-    { id:'east',points:[[90,45],[111,40],[124,44],[138,37],[154,41],[170,48],[185,45],[221,60],[245,99]],width:7 },
+    { id:'castle',points:castleRoute,width:6,bridge:7 },
+    { id:'east',points:[[90,45],[125,41],[156,47],[185,45],[221,60],[245,99]],width:7 },
     { id:'church',points:[[90,45],[90,25]],width:5 },
     { id:'south',points:southRoad,width:5 },
-    // Zweite Dorfstraße aus dem Dorfplan: vom Weg zum Südtor nach Westen
-    { id:'lower-street',points:[[106,67],[88,76],[70,79],[52,88],[34,85],[14,92]],width:5.5 },
+    { id:'lane-north',points:[[40,45],[40,34],[60,33],[78,28.2],[90,25],[110,31],[110,43]],width:3.5 },
+    { id:'lane-south',points:[[12,45],[18,58],[45,61],[72,55],[90,45],[115,57],[145,60],[172,54],[185,45]],width:3.5 },
+    { id:'stairs-north',stairs:true,points:[[78,28.2],[78,2]],width:2.8 },
+    { id:'stairs-south',stairs:true,points:[[120,57],[120,87]],width:3 },
     { id:'south-loop',points:southLoop,width:5 },
     { id:'lake-loop',points:[[-190,0],[-270,-20],[-290,25],[-275,70],[-215,108],[-140,130],[-65,135],[-45,150]],width:4 },
     { id:'lower-forest',points:[[-50,30],[-120,25],[-190,0]],width:4 },
