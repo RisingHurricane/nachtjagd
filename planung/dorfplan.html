@@ -72,7 +72,7 @@ li{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center}
       <div><b>Innenhöfe:</b> große Blöcke bekommen einen Hof; die Trennwände um ihn laufen strahlenförmig.</div>
       <div><b>Zwei Plätze:</b> der Marktplatz vor der Kirche und ein kleiner Platz mit Brunnen südöstlich davon, an dem mehrere Gassen enden.</div>
       <div><b>Höhe:</b> am Marktplatz 3–3½ Geschosse, nach außen abnehmend.</div>
-      <div><b>Dächer:</b> keine Walmdächer. Satteldach mit Giebel, der First läuft entlang der längeren Seite, so zeigen schmale Häuser den Giebel zur Gasse. Sehr kleine Häuser haben ein Pultdach, etwa jedes dritte Haus einen Kamin.</div>
+      <div><b>Dächer:</b> keine Walmdächer. Satteldach, ausgerichtet an der längsten Hauswand (meist die Straßenseite): dort läuft die Traufe waagerecht. Flache Häuser stehen traufständig, tiefe Häuser giebelständig mit dem Giebel zur Gasse. Sehr kleine Häuser haben ein Pultdach, etwa jedes dritte Haus einen Kamin.</div>
       <div><b>Türme:</b> an den Plätzen und an Straßenecken einzelne Ecktürme, achteckig mit Schieferhelm oder rund mit Kupferhelm.</div>
       <div><b>Rand:</b> außerhalb der Blöcke einzelne Höfe.</div>
     </div>
@@ -354,11 +354,24 @@ const towerHouses=new Set(TOWER_SPOTS.map(([x,z])=>HOUSES.filter(h=>h.type!=='sc
 function roofHouse(h){
   let q=h.poly||corners(h);if(area(q)<0)q=q.slice().reverse();
   const ys=q.map(([x,z])=>ground(x,z)),base=Math.min(...ys)-.6,eave=Math.max(...ys)+h.floors*3+.3,col=C(TYPES[h.type].color);
-  const{ax,c,len}=axisOf(q),nrm=[-ax[1],ax[0]],dist=p=>(p[0]-c[0])*nrm[0]+(p[1]-c[1])*nrm[1];
-  const ds=q.map(dist),dmin=Math.min(...ds),dmax=Math.max(...ds),shed=Math.abs(area(q))<34||q.length===3||!convex(q);
+  // Ausrichtung an der längsten Wand (meist die Straßenseite): dort läuft die Traufe waagerecht.
+  let fi=0,fl=0;q.forEach((a,i)=>{const b=q[(i+1)%q.length],l=Math.hypot(b[0]-a[0],b[1]-a[1]);if(l>fl){fl=l;fi=i}});
+  const fa=q[fi],fb=q[(fi+1)%q.length],u=[(fb[0]-fa[0])/fl,(fb[1]-fa[1])/fl],cen=[q.reduce((n,p)=>n+p[0],0)/q.length,q.reduce((n,p)=>n+p[1],0)/q.length];
+  let n=[-u[1],u[0]];if((cen[0]-fa[0])*n[0]+(cen[1]-fa[1])*n[1]<0)n=[-n[0],-n[1]];
+  const dep=p=>(p[0]-fa[0])*n[0]+(p[1]-fa[1])*n[1],along=p=>(p[0]-fa[0])*u[0]+(p[1]-fa[1])*u[1];
+  const D=Math.max(...q.map(dep)),tmin=Math.min(...q.map(along)),tmax=Math.max(...q.map(along));
+  const shed=Math.abs(area(q))<34||q.length===3;
+  // traufständig (First parallel zur Straße) oder giebelständig (Giebel zur Straße), je nach Tiefe des Hauses
+  const gable=!shed&&D>(tmax-tmin)*1.15;
+  let c,nrm,ax,len;
+  if(shed){c=fa;nrm=n;ax=u;len=tmax-tmin}
+  else if(gable){const mid=(tmin+tmax)/2;c=[fa[0]+u[0]*mid,fa[1]+u[1]*mid];nrm=u;ax=n;len=D}
+  else{c=[fa[0]+n[0]*D/2,fa[1]+n[1]*D/2];nrm=n;ax=u;len=tmax-tmin}
+  const dist=p=>(p[0]-c[0])*nrm[0]+(p[1]-c[1])*nrm[1];
+  const ds=q.map(dist),dmin=Math.min(...ds),dmax=Math.max(...ds);
   let roofY,parts,ridgeY;
-  if(shed){const s=.35,flip=hashP(c[1],c[0])<.5;roofY=p=>eave+s*(flip?dmax-dist(p):dist(p)-dmin);ridgeY=eave+s*(dmax-dmin);parts=[q]}
-  else{const D=Math.max(-dmin,dmax),rise=Math.min(4.5,D*(h.floors>=3?.8:.9)),s=rise/Math.max(D,.1);ridgeY=eave+rise;roofY=p=>ridgeY-s*Math.abs(dist(p));
+  if(shed){const s=.35;roofY=p=>eave+s*dist(p);ridgeY=eave+s*dmax;parts=[q]}
+  else{const half=Math.max(-dmin,dmax),rise=Math.min(4.5,half*(h.floors>=3?.8:.9)),s=rise/Math.max(half,.1);ridgeY=eave+rise;roofY=p=>ridgeY-s*Math.abs(dist(p));
     parts=[clip(q,c,nrm),clip(q,c,[-nrm[0],-nrm[1]])].filter(p=>p.length>=3)}
   for(const part of parts)for(const[i,j,k]of triangulate(part))tri([part[i][0],roofY(part[i]),part[i][1]],[part[j][0],roofY(part[j]),part[j][1]],[part[k][0],roofY(part[k]),part[k][1]],[0,1,0],SNOW);
   for(let i=0;i<q.length;i++){const a0=q[i],b0=q[(i+1)%q.length],l=Math.hypot(b0[0]-a0[0],b0[1]-a0[1]);if(l<.05)continue;
