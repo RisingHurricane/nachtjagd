@@ -38,10 +38,9 @@ globalThis.NachtjagdLayout = (() => {
   const clearings=[[-95,-105,27,22],[220,120,24,29],[90,255,29,23]];
   const treeGroups = [[-345,-170,24],[-320,20,23],[-235,75,28],[-35,105,24],[15,-65,22],[70,240,30],[210,315,27],[300,-135,30],[320,20,23]];
   const allTreeGroups=[...treeGroups,...foothillGroups,...ridgeGroups];
-  // Begehbare Häuser: die freistehenden Höfe am Dorfrand aus dem Dorfplan (planung/dorfplan.html, Entwurf G).
-  // Der dichte Kern aus Blockhäusern steht in village-plan.js und wird von village-blocks.js gebaut.
-  const farmSites = [[50.99,112.12,8.39,9.19,1.281],[-1.95,69.03,7.69,8.58,2.991],[151.23,106.03,7.75,9.7,6.472],[134.6,106,8.22,9.28,4.492],[172.78,91.82,8.92,8.35,1.721],[10.33,-7.78,7.88,8.31,-0.26],[181.38,11.79,7.69,9.09,4.522],[141.14,-15.04,8.71,9.49,4.642],[185.56,76.96,7.61,8.72,3.202],[15.24,101.01,7.21,9.29,4.842],[158.95,-10.57,8.16,8.71,4.772],[35.7,-20.26,7.02,9.13,1.84]];  // Drehung so gewählt, dass alle Eingänge zum Dorf hin frei liegen
-  const houses = farmSites.map(([x,z,w,d,r],i)=>[x,z,w,d,r,6+i%3,i%4]);
+  // Kleine Hausgruppen und versetzte Höfe statt gleichmäßiger Zeilen.
+  const houseSites = [[19,-5],[41,-9],[63,0],[11,12],[24,17],[48,19],[66,18],[119,-5],[141,-13],[165,-4],[115,16],[141,18],[166,17],[16,76],[37,72],[58,77],[82,74],[102,76],[133,75],[157,74],[182,85],[10,89],[39,99],[68,106],[95,98],[130,100],[147,108],[171,96]];
+  const houses = houseSites.map(([x,z],i)=>[x,z,7.5+i%3*1.2,8+i%4,(i%5-2)*.12,6+i%5,i%4]);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   function smooth(a, b, v) { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
   function segmentDistance(x, z, a, b) {

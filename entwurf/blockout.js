@@ -59,7 +59,7 @@
   const labels = new THREE.Group();
   scene.add(labels);
   const layout = NachtjagdLayout;
-  let landmarks = null, buildings = null, mines = null, villageWall = null, villageBlocks = null;
+  let landmarks = null, buildings = null, mines = null, villageWall = null;
   const { houses, village, castle, naturalHeight } = layout;
   function smooth(a, b, value) {
     const t = THREE.MathUtils.clamp((value - a) / (b - a), 0, 1);
@@ -310,9 +310,6 @@
   // Türlaternen wirken als Lichtquelle, erleuchtete Fenster nur mit einem kleinen Lichthof.
   lampField.add(buildings.nightLamps);
   lampField.add(buildings.windows.map(w=>({...w,shade:false,halo:1.7,a:.17,c:[1,.66,.34],kind:'fenster'})));
-  // Dichter Dorfkern aus dem Dorfplan: nicht begehbare Blockhäuser (village-blocks.js)
-  villageBlocks=NachtjagdVillageBlocks.create({THREE,scene,plan:NachtjagdVillagePlan,height:groundHeight});
-  lampField.add(villageBlocks.windows.map(w=>({...w,shade:false,halo:1.7,a:.17,c:[1,.66,.34],kind:'fenster'})));
   const houseMeshes=buildings.houses.map(h=>h.model);
   const viaductGroup = new THREE.Group();
   viaductGroup.position.set(viaduct.a[0],0,viaduct.a[1]);
@@ -405,9 +402,9 @@
     }
   }
   refreshStairs();
-  box(95.5, 34, 2.5, 2.5, 1.2, 'castle'); // Brunnen am Marktplatz
+  box(82, 41, 2.5, 2.5, 1.2, 'castle');
   // Die beiden Kirchenquader sind durch das begehbare Kirchenmodell ersetzt.
-  villageWall=NachtjagdVillageWall.create({THREE,scene,walls:layout.villageWalls,heightAt:groundHeight,village,houses:buildingSpecs.concat(villageBlocks.houses.map(h=>({bounds:h})))});
+  villageWall=NachtjagdVillageWall.create({THREE,scene,walls:layout.villageWalls,heightAt:groundHeight,village,houses:buildingSpecs});
   mines=NachtjagdMines.create({THREE,scene,mines:layout.mines,heightAt:groundHeight,entranceHeight:(id,x,z)=>streetHeight(x,z)??groundHeight(x,z)+.4});
   // Nur die Mündungen öffnen: unterirdische Dächer behalten das Gelände darüber.
   const originalTerrainIndex=groundGeometry.index.array.slice();
@@ -469,7 +466,7 @@
   label('Hochgebirge · Norden', -20, -300, 28, 100);
   landmarks=NachtjagdLandmarks.create({THREE,scene,materials,box,label,groundHeight,streetHeight,layout});
   const outdoor=NachtjagdOutdoor.create({THREE,scene,layout,routes,height:groundHeight,clearance:(x,z)=>roadNetwork.clearance(x,z),box,label,houses:[],lightCount:0,
-    occupied:(x,z)=>(x>77&&x<105&&z>-9&&z<28)||villageBlocks.occupied(x,z,1.5)||buildingSpecs.some(h=>{
+    occupied:(x,z)=>(x>77&&x<105&&z>-9&&z<28)||buildingSpecs.some(h=>{
       const p=h.toLocal(x,z);
       return h.plan.volumes.some(v=>p.x>v.x0-1&&p.x<v.x1+1&&p.z>v.z0-1&&p.z<v.z1+1)||h.approaches.some(a=>Math.hypot(a.x-x,a.z-z)<2);
     })});
@@ -628,7 +625,7 @@
   brushCursor.visible = false; brushCursor.renderOrder = 10; scene.add(brushCursor);
   const keys = new Set();
   const views = {
-    village: { target: [90,groundHeight(90,45),45], distance: 230, yaw: .38, polar: .92, name: 'Bergdorf · dichter Kern mit Gassen · zwei Plätze · drei Tore' },
+    village: { target: [90,groundHeight(90,45),45], distance: 230, yaw: .38, polar: .92, name: 'Bergdorf am Hang · 28 Häuser · drei Tore' },
     world: { target: [-25,75,5], distance: 1570, yaw: 0, polar: .62, name: 'Mittelberge und äußerer Hochgebirgsring · lockerer Wald' },
     map: { target: [-25,45,5], distance: 1650, yaw: 0, polar: .12, name: 'Draufsicht · Norden oben · Berge ringsum' },
     castle: { target: [castle.x,castle.height,castle.z], distance: 205, yaw: -.65, polar: 1.05, name: 'Burg auf freiem Felssporn · Zugang über das Viadukt' },
@@ -652,12 +649,12 @@
     if (walking) {
       const entry=sampleHouse.data.entries[0].inside,houseStart=sampleHouse.spec.toWorld(entry.x,entry.z);
       const mineEntry=mines.entrance('mine-west'),wallEntry=villageWall.stairs[0].start;
-      const start = view==='minewalk' ? [mineEntry.x,mineEntry.z] : view==='wallwalk' ? [wallEntry.x,wallEntry.z] : view === 'churchwalk' ? [91,21.5] : view === 'housewalk' ? [houseStart.x,houseStart.z] : view === 'bridgewalk' ? viaduct.point(viaduct.length-4) : view === 'forest' ? [221,60] : view === 'stairswalk' ? [99,49] : [90,45];
+      const start = view==='minewalk' ? [mineEntry.x,mineEntry.z] : view==='wallwalk' ? [wallEntry.x,wallEntry.z] : view === 'churchwalk' ? [91,21.5] : view === 'housewalk' ? [houseStart.x,houseStart.z] : view === 'bridgewalk' ? viaduct.point(viaduct.length-4) : view === 'forest' ? [221,60] : view === 'stairswalk' ? [120,58] : [90,45];
       const [x,z] = start;
-      camera.position.set(x, gameFloor(x,z) + 1.75, z); walkingYaw = view === 'housewalk' ? Math.PI+sampleHouse.spec.rotation : view === 'bridgewalk' ? Math.atan2(-viaduct.cosine,-viaduct.sine) : view === 'forest' ? .55 : view === 'stairswalk' ? 3.34 : Math.PI; pitch = 0;
+      camera.position.set(x, gameFloor(x,z) + 1.75, z); walkingYaw = view === 'housewalk' ? Math.PI+sampleHouse.spec.rotation : view === 'bridgewalk' ? Math.atan2(-viaduct.cosine,-viaduct.sine) : view === 'forest' ? .55 : view === 'stairswalk' ? 0 : Math.PI; pitch = view === 'stairswalk' ? -.24 : 0;
       if(view==='minewalk')walkingYaw=mineEntry.yaw;
       if(view==='wallwalk')walkingYaw=Math.atan2(villageWall.stairs[0].end.x-x,villageWall.stairs[0].end.z-z);
-      status.textContent = view === 'stairswalk' ? 'Auf dem Marktplatz · Blick zur Kirche · Augenhöhe 1,75 m' : view === 'bridgewalk' ? 'Auf dem Viadukt · zur Burg · Augenhöhe 1,75 m' : view === 'forest' ? 'Im Wald · unter den Baumkronen · Augenhöhe 1,75 m' : 'Im Dorf · Augenhöhe 1,75 m';
+      status.textContent = view === 'stairswalk' ? 'Auf der Dorftreppe · begehbare Stufen · Augenhöhe 1,75 m' : view === 'bridgewalk' ? 'Auf dem Viadukt · zur Burg · Augenhöhe 1,75 m' : view === 'forest' ? 'Im Wald · unter den Baumkronen · Augenhöhe 1,75 m' : 'Im Dorf · Augenhöhe 1,75 m';
       if(view==='minewalk')status.textContent='Westmine · Abstieg zu Hauptgang, Kammern und Siegel';
       if(view==='wallwalk')status.textContent='Dorfmauer · vier Treppen und begehbarer Wehrgang';
       help.textContent = 'WASD / Pfeiltasten: gehen · Ziehen: umsehen · Shift: schneller · Esc: Übersicht';
@@ -725,7 +722,6 @@
     if (villageWall && villageWall.blocked(x,z,feet)) return true;
     if (castleSite.walk && castleSite.walk.blocked(x,z,feet)) return true;
     if (buildings && buildings.blocked(x,z,feet)) return true;
-    if (villageBlocks && villageBlocks.blocked(x,z,feet)) return true;
     return (collisionBuckets.get(Math.floor(x/16)+','+Math.floor(z/16))||[]).some(c => {
       const dx = x - c.x, dz = z - c.z, cosine = Math.cos(c.rotation), sine = Math.sin(c.rotation);
       return Math.abs(cosine * dx - sine * dz) < c.w + .45 && Math.abs(sine * dx + cosine * dz) < c.d + .45;
@@ -954,7 +950,7 @@
     if(now-lampPatchTime>1500){NachtjagdSurface.styleScene(THREE,scene);lampField.patchScene();lampPatchTime=now;}
     lampField.update(camera,dt,{k:nightK,scale:renderer.domElement.height*.66,fogDensity:scene.fog?.density||0});
     lampField.setVisible(nightK>.01);
-    buildings.setNight(nightK);villageBlocks.setNight(nightK);
+    buildings.setNight(nightK);
     postFx.set({enabled:!noPost&&(!!gameplay?.active||document.body.classList.contains('in-menu')),bloom:perf.level<3});
     postFx.render(scene, camera, dt);
     if (perfReport && !document.hidden) {
@@ -973,7 +969,7 @@
     const heightValues = Array.from(positions.array).filter((value, i) => i % 3 === 1);
     check('Gelände hat Höhenunterschiede', Math.max(...heightValues) - Math.min(...heightValues) > 100, [Math.min(...heightValues), Math.max(...heightValues)]);
     const villageHeights = houses.map(h => groundHeight(h[0],h[1]));
-    check('Dorf am sanften Hang mit mehr Hausformen', houses.length >= 10 && villageBlocks.houses.length >= 150 && Math.max(...villageHeights) - Math.min(...villageHeights) < 10, { houses: houses.length, blocks: villageBlocks.houses.length, heightSpan: Math.max(...villageHeights) - Math.min(...villageHeights) });
+    check('Dorf am sanften Hang mit mehr Hausformen', houses.length >= 28 && Math.max(...villageHeights) - Math.min(...villageHeights) < 10, { houses: houses.length, heightSpan: Math.max(...villageHeights) - Math.min(...villageHeights) });
     check('Burghof auf Felssporn', Math.abs(groundHeight(castle.x,castle.z) - castle.height) < .01, groundHeight(castle.x,castle.z));
     check('Großer See im Südwesten mit abgesenktem Bett', groundHeight(-210,220) < -4 && layout.lakeDistance(-310,130) < 0, groundHeight(-210,220));
     check('Aufgelichteter Wald mit freiem Raum unter den Kronen', treeCount > 2500 && treeCount <= 3480 && treePlacements.every(t => t.clearance >= 4), treeCount);
@@ -991,7 +987,7 @@
     check('Seesteg besitzt eine begehbare Fläche über Wasser',landmarks.floor(-212,147)===2.3 && !blocked(-212,147,2.3),landmarks.floor(-212,147));
     check('Kleine Seeinsel trägt drei Bäume und bleibt von Wasser umgeben',landmarks.islandTreeCount===3 && groundHeight(layout.island.x,layout.island.z)>3 && [[-30,0],[30,0],[0,-25],[0,25]].every(([dx,dz])=>groundHeight(layout.island.x+dx,layout.island.z+dz)<-.5),{trees:landmarks.islandTreeCount,height:groundHeight(layout.island.x,layout.island.z)});
     const stairBlocked=stairs.treads.filter(t=>blocked(t.x,t.z,t.top));
-    check('Dorfkern kommt ohne Treppenwege aus',stairs.treads.length===0 && stairBlocked.length===0,{treads:stairs.treads.length,blocked:stairBlocked.slice(0,4)});
+    check('Zwei Treppenwege haben freie waagerechte Trittflächen',stairs.treads.length>30 && stairBlocked.length===0,{treads:stairs.treads.length,blocked:stairBlocked.slice(0,4)});
     let crossSlope=0;
     // Querneigung am Fahrbahnprofil; die sichtbare Fläche folgt bewusst dem Gelände (roadTop).
     const rp=roadGeometry.attributes.position,profileAt=(s,i)=>roadNetwork.project(s,rp.getX(i),rp.getZ(i)).y;
@@ -1158,7 +1154,7 @@
       const castleHits=castleSite.walk && castleSite.walk.near(origin.x,origin.z)?castleSite.targets():[];
       const terrainHit=terrainRay.distance(origin,shotRay.ray.direction,maxRange);
       shotRay.far=terrainHit;
-      return shotRay.intersectObjects(shotMeshes.concat(castleHits,buildings.targets(),villageBlocks.targets(),mines.root.children.filter(o=>o.isMesh),villageWall.targets()),false)[0]?.distance ?? terrainHit;
+      return shotRay.intersectObjects(shotMeshes.concat(castleHits,buildings.targets(),mines.root.children.filter(o=>o.isMesh),villageWall.targets()),false)[0]?.distance ?? terrainHit;
     },
     spawnEnemy(p,random) {
       if(mines.indoor(p.x,p.y,p.z)) {
@@ -1265,14 +1261,14 @@
       buildingChecks.push({name:`Haus ${h.spec.id+1}: obere Etagen über Treppe erreichbar`,...result,passed:result.passed&&Math.abs(result.y-(h.spec.y+.3+st.flights*3.15))<.1});
     }
     world.checks.push(...buildingChecks);
-    for(const [name,start,end] of [['Spielfigur geht die Untere Straße durch den Dorfkern',[88,76],[70,79]],['Spielfigur überquert das Viadukt',viaduct.b,viaduct.a]]) {
+    for(const [name,start,end] of [['Spielfigur steigt die Dorftreppe hinauf',[120,57],[120,87]],['Spielfigur überquert das Viadukt',viaduct.b,viaduct.a]]) {
       const probe=NachtjagdGame.create({world:{...world,spawn:start,spawnEnemy:()=>null}}); probe.start();
       let p=probe.snapshot().player;
       for(let i=0;i<2500 && Math.hypot(p.x-end[0],p.z-end[1])>.5;i++) { probe.setLook(Math.atan2(end[0]-p.x,end[1]-p.z),0); p=probe.step(.1,{forward:1}).player; }
       world.checks.push({name,passed:Math.hypot(p.x-end[0],p.z-end[1])<.5});
     }
     world.checks.push({name:'Kirchenmauer hält Schüsse auf',passed:world.rayDistance({x:91,y:churchOrigin.y+2,z:10},{x:1,y:0,z:0},30)<8});
-    globalThis.NachtjagdDebug={colliders,villageWall,villageBlocks,mines,landmarks,buildings,buildingSpecs,churchOrigin,castleSite,renderer,sky,world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
+    globalThis.NachtjagdDebug={colliders,villageWall,mines,landmarks,buildings,buildingSpecs,churchOrigin,castleSite,renderer,sky,world,THREE,scene,camera,roadNetwork,clearWalk,gameFloor,groundHeight,streetHeight,stairs,viaduct,surfaceHeight,get gameplay(){return gameplay;}}; // Prüfhaken für automatische Durchläufe (nur mit ?test)
     const report=document.createElement('pre'); report.id='game-tests'; report.hidden=true; report.textContent=JSON.stringify({checks:world.checks}); document.body.append(report);
   }
   if(new URLSearchParams(location.search).get('play')==='1') gameplay.start();
