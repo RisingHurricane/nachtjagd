@@ -38,7 +38,7 @@ li{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center}
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;600&display=swap">
 
 <header>
-  <h1>Dorfplan Bergdorf · Entwurf G</h1>
+  <h1>Dorfplan Bergdorf · Entwurf H</h1>
   <p>Grobentwurf mit Quadern auf dem echten Dorfgelände: Marktplatz vor der Kirche, eine Hauptstraße von Tor zu Tor, dichter Kern mit Gassen, lockerer Rand.</p>
 </header>
 <div class="wrap">
@@ -72,6 +72,8 @@ li{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center}
       <div><b>Innenhöfe:</b> große Blöcke bekommen einen Hof; die Trennwände um ihn laufen strahlenförmig.</div>
       <div><b>Zwei Plätze:</b> der Marktplatz vor der Kirche und ein kleiner Platz mit Brunnen südöstlich davon, an dem mehrere Gassen enden.</div>
       <div><b>Höhe:</b> am Marktplatz 3–3½ Geschosse, nach außen abnehmend.</div>
+      <div><b>Dächer:</b> keine Walmdächer. Satteldach mit Giebel, der First läuft entlang der längeren Seite, so zeigen schmale Häuser den Giebel zur Gasse. Sehr kleine Häuser haben ein Pultdach, etwa jedes dritte Haus einen Kamin.</div>
+      <div><b>Türme:</b> an den Plätzen und an Straßenecken einzelne Ecktürme, achteckig mit Schieferhelm oder rund mit Kupferhelm.</div>
       <div><b>Rand:</b> außerhalb der Blöcke einzelne Höfe.</div>
     </div>
     <div>
@@ -327,12 +329,59 @@ const box=new THREE.BoxGeometry(1,1,1),mats={};
 for(const k in TYPES)mats[k]=new THREE.MeshLambertMaterial({color:new THREE.Color(TYPES[k].color)});
 function addPoly(h,mat){const H=h.floors*3,y=Math.min(...h.poly.map(([x,z])=>ground(x,z)));const sh=new THREE.Shape(h.poly.map(([x,z])=>new THREE.Vector2(x,z)));const g=new THREE.ExtrudeGeometry(sh,{depth:H+.6,bevelEnabled:false});g.rotateX(Math.PI/2);g.translate(0,H+.6,0);const m=new THREE.Mesh(g,mat);m.position.y=y-.3;m.castShadow=m.receiveShadow=true;scene.add(m)}
 function addBox(h,mat){if(h.poly)return addPoly(h,mat);const H=h.floors*3,y=Math.min(...corners(h).map(([x,z])=>ground(x,z)));const m=new THREE.Mesh(box,mat);m.scale.set(h.w,H+.6,h.d);m.position.set(h.x,y+H/2-.3,h.z);m.rotation.y=h.rot;m.castShadow=m.receiveShadow=true;scene.add(m)}
-for(const h of HOUSES)addBox(h,mats[h.type]);
+// Dächer (keine Walmdächer): Satteldach mit Giebel, kleine Häuser Pultdach, Kamine, einige Türme mit Spitzhelm.
+// Das Dach ist eine Höhenfunktion über dem Grundriss; die Wände laufen bis unter die Dachkante, Giebel entstehen von selbst.
+const RB={pos:[],col:[]},TOWERS=[];
+const hashP=(x,z)=>Math.abs(Math.sin(x*12.9898+z*78.233)*43758.5453)%1;
+const C=c=>new THREE.Color(c);
+const SNOW=C('#f1f4f6'),FASCIA=C('#4a3a2c'),CHIMNEY=C('#8a847c'),SLATE=C('#3a3f47'),COPPER=C('#5f8a7c'),TSTONE=C('#b9ad99');
+const _a=new THREE.Vector3(),_b=new THREE.Vector3(),_n=new THREE.Vector3();
+function tri(a,b,c,hint,col){_a.set(b[0]-a[0],b[1]-a[1],b[2]-a[2]);_b.set(c[0]-a[0],c[1]-a[1],c[2]-a[2]);_n.crossVectors(_a,_b);if(_n.x*hint[0]+_n.y*hint[1]+_n.z*hint[2]<0)[b,c]=[c,b];RB.pos.push(...a,...b,...c);for(let i=0;i<3;i++)RB.col.push(col.r,col.g,col.b)}
+function quadUp(a,b,ya0,yb0,ya1,yb1,out,col){tri([a[0],ya0,a[1]],[b[0],yb0,b[1]],[b[0],yb1,b[1]],out,col);tri([a[0],ya0,a[1]],[b[0],yb1,b[1]],[a[0],ya1,a[1]],out,col)}
+function axisOf(q){const cx=q.reduce((n,p)=>n+p[0],0)/q.length,cz=q.reduce((n,p)=>n+p[1],0)/q.length;let best=-1,ax=[1,0];
+  for(let k=0;k<18;k++){const t=k*Math.PI/18,u=[Math.cos(t),Math.sin(t)],pr=q.map(p=>(p[0]-cx)*u[0]+(p[1]-cz)*u[1]),e=Math.max(...pr)-Math.min(...pr);if(e>best){best=e;ax=u}}
+  const pa=q.map(p=>(p[0]-cx)*ax[0]+(p[1]-cz)*ax[1]),mid=(Math.max(...pa)+Math.min(...pa))/2;return{ax,c:[cx+ax[0]*mid,cz+ax[1]*mid],len:best}}
+const triangulate=q=>THREE.ShapeUtils.triangulateShape(q.map(p=>new THREE.Vector2(p[0],p[1])),[]);
+function addTower(cx,cz,r,base,top,spire,sides,roofCol){
+  const ring=[],ring2=[];for(let k=0;k<sides;k++){const a=k/sides*Math.PI*2+.3;ring.push([cx+Math.cos(a)*r,cz+Math.sin(a)*r]);ring2.push([cx+Math.cos(a)*r*1.18,cz+Math.sin(a)*r*1.18])}
+  for(let k=0;k<sides;k++){const a=ring[k],b=ring[(k+1)%sides],o=[(a[0]+b[0])/2-cx,0,(a[1]+b[1])/2-cz];quadUp(a,b,base,base,top,top,o,TSTONE);
+    const c=ring2[k],d=ring2[(k+1)%sides];tri([c[0],top,c[1]],[d[0],top,d[1]],[cx,top+spire,cz],[o[0],.6,o[2]],roofCol);
+    tri([a[0],top-.01,a[1]],[d[0],top-.01,d[1]],[c[0],top-.01,c[1]],[0,-1,0],FASCIA);tri([a[0],top-.01,a[1]],[b[0],top-.01,b[1]],[d[0],top-.01,d[1]],[0,-1,0],FASCIA)}
+  TOWERS.push({x:cx,z:cz});
+}
+const TOWER_SPOTS=[[72,27],[112,52],[127,58],[153,67],[42,60],[128,22],[60,92],[16,40],[168,30]];
+const towerHouses=new Set(TOWER_SPOTS.map(([x,z])=>HOUSES.filter(h=>h.type!=='scheune').reduce((b,h)=>{const d=Math.hypot(h.x-x,h.z-z);return!b||d<b.d?{h,d}:b},null).h));
+function roofHouse(h){
+  let q=h.poly||corners(h);if(area(q)<0)q=q.slice().reverse();
+  const ys=q.map(([x,z])=>ground(x,z)),base=Math.min(...ys)-.6,eave=Math.max(...ys)+h.floors*3+.3,col=C(TYPES[h.type].color);
+  const{ax,c,len}=axisOf(q),nrm=[-ax[1],ax[0]],dist=p=>(p[0]-c[0])*nrm[0]+(p[1]-c[1])*nrm[1];
+  const ds=q.map(dist),dmin=Math.min(...ds),dmax=Math.max(...ds),shed=Math.abs(area(q))<34||q.length===3||!convex(q);
+  let roofY,parts,ridgeY;
+  if(shed){const s=.35,flip=hashP(c[1],c[0])<.5;roofY=p=>eave+s*(flip?dmax-dist(p):dist(p)-dmin);ridgeY=eave+s*(dmax-dmin);parts=[q]}
+  else{const D=Math.max(-dmin,dmax),rise=Math.min(4.5,D*(h.floors>=3?.8:.9)),s=rise/Math.max(D,.1);ridgeY=eave+rise;roofY=p=>ridgeY-s*Math.abs(dist(p));
+    parts=[clip(q,c,nrm),clip(q,c,[-nrm[0],-nrm[1]])].filter(p=>p.length>=3)}
+  for(const part of parts)for(const[i,j,k]of triangulate(part))tri([part[i][0],roofY(part[i]),part[i][1]],[part[j][0],roofY(part[j]),part[j][1]],[part[k][0],roofY(part[k]),part[k][1]],[0,1,0],SNOW);
+  for(let i=0;i<q.length;i++){const a0=q[i],b0=q[(i+1)%q.length],l=Math.hypot(b0[0]-a0[0],b0[1]-a0[1]);if(l<.05)continue;
+    const out=[(b0[1]-a0[1])/l,0,-(b0[0]-a0[0])/l],da=dist(a0),db=dist(b0),pieces=[];
+    if(!shed&&da*db<0){const t=da/(da-db),m=[a0[0]+(b0[0]-a0[0])*t,a0[1]+(b0[1]-a0[1])*t];pieces.push([a0,m],[m,b0])}else pieces.push([a0,b0]);
+    for(const[a,b]of pieces){const ya=roofY(a),yb=roofY(b);quadUp(a,b,base,base,ya-.3,yb-.3,out,col);quadUp(a,b,ya-.3,yb-.3,ya,yb,out,FASCIA)}}
+  if(!shed&&h.type!=='scheune'&&hashP(c[0]+3,c[1])<.2){const p=[c[0]+ax[0]*(hashP(c[0],7)-.5)*len*.5+nrm[0]*.9,c[1]+ax[1]*(hashP(c[0],7)-.5)*len*.5+nrm[1]*.9];
+    if(inPoly(p[0],p[1],q)){const y0=roofY(p)-.6,y1=Math.max(roofY(p)+1.1,ridgeY+.5),s=.32,cs=[[-s,-s],[s,-s],[s,s],[-s,s]].map(([u,v])=>[p[0]+u,p[1]+v]);
+      for(let k=0;k<4;k++){const a=cs[k],b=cs[(k+1)%4];quadUp(a,b,y0,y0,y1,y1,[(a[0]+b[0])/2-p[0],0,(a[1]+b[1])/2-p[1]],CHIMNEY)}
+      tri([cs[0][0],y1,cs[0][1]],[cs[1][0],y1,cs[1][1]],[cs[2][0],y1,cs[2][1]],[0,1,0],SNOW);tri([cs[0][0],y1,cs[0][1]],[cs[2][0],y1,cs[2][1]],[cs[3][0],y1,cs[3][1]],[0,1,0],SNOW)}}
+  if(towerHouses.has(h)){const far=q.reduce((b,p)=>Math.hypot(p[0]-c[0],p[1]-c[1])>Math.hypot(b[0]-c[0],b[1]-c[1])?p:b,q[0]);
+    const W=dmax-dmin,r=Math.min(2.6,Math.max(1.8,W*.28)),k=Math.min(.75,Math.max(.3,1-r*1.1/Math.hypot(far[0]-c[0],far[1]-c[1])));
+    const tx=c[0]+(far[0]-c[0])*k,tz=c[1]+(far[1]-c[1])*k,round=hashP(tx,tz)<.5;
+    addTower(tx,tz,r,base,ridgeY+3+hashP(tz,tx)*4,r*(round?2.2:3),round?12:8,round?COPPER:SLATE)}
+}
+for(const h of HOUSES)roofHouse(h);
+{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(RB.pos,3));g.setAttribute('color',new THREE.Float32BufferAttribute(RB.col,3));g.computeVertexNormals();
+ const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true}));m.castShadow=m.receiveShadow=true;scene.add(m)}
 addBox({...CHURCH,rot:0,floors:5},mats.kirche);addBox({x:91,z:21,w:7,d:7,rot:0,floors:11},mats.kirche);
 {const w=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.6,1,16),new THREE.MeshLambertMaterial({color:0x6f7a80}));w.position.set(WELL.x,ground(WELL.x,WELL.z)+.5,WELL.z);w.castShadow=true;scene.add(w);const w2=w.clone();w2.scale.set(.7,3,.7);w2.position.set(PLAZA2.x,ground(PLAZA2.x,PLAZA2.z)+1.5,PLAZA2.z);scene.add(w2)}
 // Legende mit Zahlen
 const counts={};for(const h of HOUSES)counts[h.type]=(counts[h.type]||0)+1;counts.kirche=1;
-document.getElementById('legend').innerHTML=Object.keys(TYPES).map(k=>`<li><span class="sw" style="background:${TYPES[k].color}"></span>${TYPES[k].name}<span class="n">${counts[k]||0}</span></li>`).join('')+`<li><span class="sw" style="background:linear-gradient(135deg,#d9c3a0 50%,transparent 50%)"></span>davon schiefes Viereck<span class="n">${HOUSES.filter(h=>h.skew).length}</span></li>`;
+document.getElementById('legend').innerHTML=Object.keys(TYPES).map(k=>`<li><span class="sw" style="background:${TYPES[k].color}"></span>${TYPES[k].name}<span class="n">${counts[k]||0}</span></li>`).join('')+`<li><span class="sw" style="background:linear-gradient(135deg,#d9c3a0 50%,transparent 50%)"></span>davon schiefes Viereck<span class="n">${HOUSES.filter(h=>h.skew).length}</span></li><li><span class="sw" style="background:#3a3f47"></span>Türme mit Spitzhelm<span class="n">${TOWERS.length}</span></li>`;
 
 // ---------------------------------------------------------------- Kamera: drehen, zoomen, drei Ansichten
 const target=new THREE.Vector3(90,40,45);let yaw=0,pitch=1.45,dist=270,street=false;
