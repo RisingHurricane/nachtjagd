@@ -1,0 +1,216 @@
+<title>Dorfblock Studie</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Werkzeugseite: Plan füllt die Fläche, schmale Leiste mit Ansicht, Legende und Zahlen. */
+:root{
+  --bg:#eef0ec; --panel:#f8f9f6; --ink:#1f2622; --muted:#5f6b63; --line:#cfd6cf; --accent:#2f6b57;
+  --plaza:#c9b48a; --yard:#d9d3c3; --street:#b9b2a3; --lane:#cfc6b4;
+  --font-ui:"IBM Plex Sans",system-ui,sans-serif; --font-head:"Fraunces",Georgia,serif; --font-num:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#151a18;--panel:#1d2421;--ink:#e6ebe7;--muted:#9aa79f;--line:#2f3934;--accent:#7cc4a8;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#151a18;--panel:#1d2421;--ink:#e6ebe7;--muted:#9aa79f;--line:#2f3934;--accent:#7cc4a8;color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-ui);display:flex;flex-direction:column}
+header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:baseline;justify-content:space-between;padding-block:14px 10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line)}
+h1{font-family:var(--font-head);font-weight:600;font-size:clamp(20px,3vw,28px);margin:0;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:0;color:var(--muted);font-size:13px;max-width:62ch}
+.wrap{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 280px;min-height:0}
+@media (max-width:760px){.wrap{grid-template-columns:1fr;grid-template-rows:minmax(360px,60vh) auto}}
+#view{position:relative;min-width:0;min-height:0}
+canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+aside{background:var(--panel);border-left:1px solid var(--line);padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px;overflow:auto;min-width:0}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{flex:1;font:inherit;font-size:13px;padding:7px 8px;border:0;background:transparent;color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--panel)}
+.seg button:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h2{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:13px}
+li{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center}
+.sw{width:14px;height:14px;border-radius:3px;border:1px solid var(--line)}
+.n{font-family:var(--font-num);font-variant-numeric:tabular-nums;color:var(--muted)}
+.notes{font-size:13px;line-height:1.5;color:var(--ink);display:grid;gap:6px}
+.notes b{font-weight:600}
+.btn{font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--ink);cursor:pointer}
+#copied{font-size:12px;color:var(--accent)}
+.hint{position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--muted);background:var(--panel);padding:4px 8px;border-radius:4px;border:1px solid var(--line)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<header>
+  <h1>Dorfblock Studie · Block A</h1>
+  <p>Ein Block aus dem Dorfplan (nordöstlich der Kirche) im Detail: rechtwinklige Häuser entlang der Gassen, nur die Eckhäuser schließen die Winkel. Innenhof mit Tordurchfahrt.</p>
+</header>
+<div class="wrap">
+  <div id="view"><canvas id="c" aria-label="Dorfblock in 3D"></canvas><div class="hint">Ziehen: drehen · Rad: zoomen</div></div>
+  <aside>
+    <div>
+      <h2>Ansicht</h2>
+      <div class="seg" role="group" aria-label="Ansicht">
+        <button id="v-obl" aria-pressed="true">Schräg</button>
+        <button id="v-top" aria-pressed="false">Draufsicht</button>
+        <button id="v-street" aria-pressed="false">Gasse</button>
+      </div>
+    </div>
+    <div>
+      <h2>Bauten</h2>
+      <ul id="legend"></ul>
+    </div>
+    <div class="notes">
+      <h2>Wie der Block aufgebaut ist</h2>
+      <div><b>Hausreihen:</b> an jeder Blockseite eine Reihe Häuser gleicher Tiefe. Die Trennwände stehen senkrecht zur Gasse, deshalb sind alle Häuser einer Reihe echte Rechtecke.</div>
+      <div><b>Eckhäuser:</b> wo zwei Reihen im Winkel aufeinandertreffen, nimmt ein Eckhaus den Winkel auf. Es hat zwei Fassaden und zwei rechte Winkel, nur die Hofecke ist schräg.</div>
+      <div><b>Dächer:</b> Satteldächer. Schmale Häuser stehen giebelständig mit dem Giebel zur Gasse, breite traufständig. Eckhäuser richten ihr Dach an der längeren Fassade aus. Keine Walmdächer.</div>
+      <div><b>Hof:</b> innen ein Hof mit Baum, von der Gasse über eine Tordurchfahrt erreichbar.</div>
+      <div><b>Blockform:</b> kurze Blockkanten (unter 13 m) entfallen, die abgeschnittene Ecke wird zur kleinen Aufweitung der Gasse. So gibt es weniger Ecken und längere Reihen.</div>
+      <div><b>Umgebung:</b> Nachbarblöcke nur als grauer Umriss, die Kirche als Block.</div>
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const DATA={"block": [[135.94, 0.99], [118.61, 16.49], [106, 16.66], [106, -2.15], [117.49, -9.29], [129.72, -6.32]], "nb": [[[126.19, 35.03], [126.19, 39.55], [115.54, 44.88], [111.82, 43.55], [106.26, 19.48], [116.08, 19.35], [120.49, 22.92]], [[145.78, 29.76], [127.91, 38.69], [119.62, 21.05]], [[169.11, 20.18], [148.83, 21.7], [144.42, 2.15], [147.04, 0.97], [161.92, 1.75], [166.94, 5.03]], [[148.79, 21.53], [145.44, 26.87], [120.5, 18.57], [118.29, 16.78], [135.94, 0.99], [142.32, 1.4], [144.42, 2.15]]], "church": [[79.5, -8], [102.5, -8], [102.5, 26], [79.5, 26]], "plaza": [[74, 28], [108, 27], [111, 40], [106, 52], [78, 51], [72, 40]]};
+// ---------------------------------------------------------------- Werkzeuge
+const ground=(x,z)=>40+(x-90)*.018+(z-45)*.022+.45*Math.sin(x/45)*Math.cos(z/50);
+let seed=4711;const rnd=()=>((seed=(seed*1664525+1013904223)>>>0)/4294967296);const between=(a,b)=>a+(b-a)*rnd();
+const area=q=>{let s=0;for(let i=0;i<q.length;i++){const a=q[i],b=q[(i+1)%q.length];s+=a[0]*b[1]-b[0]*a[1]}return s/2};
+const lerp=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+const add=(a,v,k)=>[a[0]+v[0]*k,a[1]+v[1]*k];
+function convex(q){const cr=q.map((a,i)=>{const b=q[(i+1)%q.length],d=q[(i+2)%q.length];return(b[0]-a[0])*(d[1]-b[1])-(b[1]-a[1])*(d[0]-b[0])});return cr.every(v=>v>-.01)||cr.every(v=>v<.01)}
+// Konvexes Vieleck nach innen versetzen; .full: alle Kanten blieben erhalten (Ecke i gehört weiter zu Kante i)
+function inset(q,ds){
+  const sg=Math.sign(area(q));
+  let L=q.map((a,i)=>{const b=q[(i+1)%q.length],dx=b[0]-a[0],dz=b[1]-a[1],l=Math.hypot(dx,dz)||1,nx=-dz/l*sg,nz=dx/l*sg;return{p:[a[0]+nx*ds[i],a[1]+nz*ds[i]],d:[dx/l,dz/l]}});
+  const X=(A,B)=>{const den=A.d[0]*B.d[1]-A.d[1]*B.d[0];if(Math.abs(den)<1e-6)return null;const t=((B.p[0]-A.p[0])*B.d[1]-(B.p[1]-A.p[1])*B.d[0])/den;return[A.p[0]+A.d[0]*t,A.p[1]+A.d[1]*t]};
+  for(let guard=0;guard<40&&L.length>=3;guard++){
+    const V=L.map((_,i)=>X(L[(i+L.length-1)%L.length],L[i]));const bad=V.findIndex(v=>!v);if(bad>=0){L.splice(bad,1);continue}
+    let worst=-1,wl=1e9;for(let i=0;i<L.length;i++){const a=V[i],b=V[(i+1)%L.length],len=(b[0]-a[0])*L[i].d[0]+(b[1]-a[1])*L[i].d[1];if(len<wl){wl=len;worst=i}}
+    if(wl>.3){if(!convex(V)||Math.sign(area(V))!==sg)return null;V.full=L.length===q.length;return V}
+    L.splice(worst,1);
+  }
+  return null;
+}
+function clip(q,o,n){const out=[],f=p=>(p[0]-o[0])*n[0]+(p[1]-o[1])*n[1];for(let i=0;i<q.length;i++){const a=q[i],b=q[(i+1)%q.length],fa=f(a),fb=f(b);if(fa>=0)out.push(a);if((fa>=0)!==(fb>=0))out.push(lerp(a,b,fa/(fa-fb)))}return out}
+const ccw=q=>area(q)<0?q.slice().reverse():q;
+
+// ---------------------------------------------------------------- Block aufteilen
+// Ring aus Hausreihen gleicher Tiefe um den Hof. Innerhalb einer Reihe stehen die Trennwände senkrecht zur Gasse:
+// alle Reihenhäuser sind Rechtecke. Nur an den Blockecken liegt je ein Eckhaus mit der schrägen Hofecke.
+// Kurze Blockkanten (unter 13,5 m) entfallen: die abgeschnittene Ecke wird Teil der Gasse (kleine Aufweitung).
+// So bleiben wenige, lange Hausreihen und nur wenige Ecken.
+let inner=ccw(DATA.block);
+{const full=Math.abs(area(inner));
+ for(let guard=0;guard<10&&inner.length>4;guard++){
+   let k=-1,ml=13.5;inner.forEach((a,i)=>{const b=inner[(i+1)%inner.length],l=Math.hypot(b[0]-a[0],b[1]-a[1]);if(l<ml){ml=l;k=i}});if(k<0)break;
+   const cand=[k,(k+1)%inner.length].map(i=>inner.filter((_,j)=>j!==i)).sort((x,y)=>Math.abs(area(y))-Math.abs(area(x)))[0];
+   if(Math.abs(area(cand))<full*.82)break;inner=cand;}}
+let D=7.5,yard=null;
+for(;D>=6.5;D-=.5){const y=inset(inner,inner.map(()=>D));if(y&&y.full&&Math.abs(area(y))>35){yard=y;break}}
+const HOUSES=[];
+const E=inner.map((A,i)=>{const B=inner[(i+1)%inner.length],L=Math.hypot(B[0]-A[0],B[1]-A[1]),u=[(B[0]-A[0])/L,(B[1]-A[1])/L],n=[-u[1],u[0]];
+  const t=p=>(p[0]-A[0])*u[0]+(p[1]-A[1])*u[1];return{A,B,L,u,n,ty0:t(yard[i]),ty1:t(yard[(i+1)%inner.length])}});
+// längste Reihe bekommt die Tordurchfahrt in der Mitte
+const torEdge=E.reduce((b,e,i)=>e.ty1-e.ty0>E[b].ty1-E[b].ty0?i:b,0);
+E.forEach((e,i)=>{
+  const span=e.ty1-e.ty0;if(span<2)return;
+  const n=Math.max(1,Math.round(span/between(6.2,7.4))),cuts=[e.ty0];
+  for(let k=1;k<n;k++)cuts.push(e.ty0+span*(k+between(-.22,.22))/n);cuts.push(e.ty1);
+  for(let k=0;k<n;k++){
+    const a=add(e.A,e.u,cuts[k]),b=add(e.A,e.u,cuts[k+1]);
+    const tor=i===torEdge&&k===Math.floor(n/2);
+    HOUSES.push({q:[a,b,add(b,e.n,D),add(a,e.n,D)],front:0,kind:tor?'tor':'reihe',floors:tor?2.5:[2,2.5,3,3,3.5][Math.floor(rnd()*5)]});
+  }
+});
+// Eckhäuser: Fassade an beiden Gassen, Hofseiten senkrecht dazu
+inner.forEach((A,i)=>{
+  const e=E[i],p=E[(i+inner.length-1)%inner.length];
+  const P=add(A,e.u,e.ty0),Q=add(p.A,p.u,p.ty1),Y=yard[i];
+  const q=[Q,A,P,Y];if(Math.abs(area(q))<4)return;
+  const front=Math.hypot(A[0]-Q[0],A[1]-Q[1])>Math.hypot(P[0]-A[0],P[1]-A[1])?0:1;
+  HOUSES.push({q:ccw(q),frontPts:front===0?[Q,A]:[A,P],kind:'ecke',floors:[3,3.5,3.5][Math.floor(rnd()*3)]});
+});
+
+// ---------------------------------------------------------------- Darstellung
+const canvas=document.getElementById('c'),view=document.getElementById('view');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(45,1,.3,2000);
+scene.add(new THREE.HemisphereLight(0xffffff,0x8a8a7a,.72));
+const sun=new THREE.DirectionalLight(0xffffff,.75);const cx=inner.reduce((n,p)=>n+p[0],0)/inner.length,cz=inner.reduce((n,p)=>n+p[1],0)/inner.length,cy=ground(cx,cz);
+sun.position.set(cx+70,cy+85,cz-30);sun.target.position.set(cx,cy,cz);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-60,right:60,top:60,bottom:-60,near:10,far:300});scene.add(sun,sun.target);
+const B={pos:[],col:[]};
+const C=c=>new THREE.Color(c);
+const SNOW=C('#f2f5f7'),FASCIA=C('#4a3a2c'),WIN=C('#39444a'),DOOR=C('#5a3f2b'),SOFFIT=C('#8c7d6a'),CHIMNEY=C('#8a847c');
+const PLASTER=['#e3d3b5','#d9c09a','#cfd2c2','#e6c9b8','#d4c4a8','#c9b79a','#e9dfcc','#d8c9a3'].map(C);
+const _a=new THREE.Vector3(),_b=new THREE.Vector3(),_n=new THREE.Vector3();
+function tri(a,b,c,hint,col){_a.set(b[0]-a[0],b[1]-a[1],b[2]-a[2]);_b.set(c[0]-a[0],c[1]-a[1],c[2]-a[2]);_n.crossVectors(_a,_b);if(_n.x*hint[0]+_n.y*hint[1]+_n.z*hint[2]<0)[b,c]=[c,b];B.pos.push(...a,...b,...c);for(let i=0;i<3;i++)B.col.push(col.r,col.g,col.b)}
+function wall(a,b,ya0,yb0,ya1,yb1,out,col){tri([a[0],ya0,a[1]],[b[0],yb0,b[1]],[b[0],yb1,b[1]],out,col);tri([a[0],ya0,a[1]],[b[0],yb1,b[1]],[a[0],ya1,a[1]],out,col)}
+function rectOn(a,b,out,t,w,y0,y1,col){const l=Math.hypot(b[0]-a[0],b[1]-a[1]),u=[(b[0]-a[0])/l,(b[1]-a[1])/l],o=[out[0]*.05,out[2]*.05];
+  const p0=[a[0]+u[0]*(t-w/2)+o[0],a[1]+u[1]*(t-w/2)+o[1]],p1=[a[0]+u[0]*(t+w/2)+o[0],a[1]+u[1]*(t+w/2)+o[1]];wall(p0,p1,y0,y0,y1,y1,out,col)}
+const triangulate=q=>THREE.ShapeUtils.triangulateShape(q.map(p=>new THREE.Vector2(p[0],p[1])),[]);
+const counts={reihe:0,ecke:0,tor:0};
+HOUSES.forEach((h,hi)=>{
+  counts[h.kind]++;
+  const q=ccw(h.q),ys=q.map(([x,z])=>ground(x,z)),g=Math.max(...ys),base=Math.min(...ys)-.5,eave=g+h.floors*3.1+.2,col=PLASTER[hi%PLASTER.length];
+  // Dach: an der Gassenfassade ausgerichtet; schmale Häuser giebelständig, breite traufständig
+  const [fa,fb]=h.frontPts||[h.q[0],h.q[1]],fl=Math.hypot(fb[0]-fa[0],fb[1]-fa[1]),u=[(fb[0]-fa[0])/fl,(fb[1]-fa[1])/fl];
+  const cen=[q.reduce((n,p)=>n+p[0],0)/4,q.reduce((n,p)=>n+p[1],0)/4];let n=[-u[1],u[0]];if((cen[0]-fa[0])*n[0]+(cen[1]-fa[1])*n[1]<0)n=[-n[0],-n[1]];
+  const dep=Math.max(...q.map(p=>(p[0]-fa[0])*n[0]+(p[1]-fa[1])*n[1])),al=q.map(p=>(p[0]-fa[0])*u[0]+(p[1]-fa[1])*u[1]),tmin=Math.min(...al),tmax=Math.max(...al);
+  const giebel=h.kind!=='ecke'&&(tmax-tmin)<dep*.95;
+  const c=giebel?add(fa,u,(tmin+tmax)/2):add(fa,n,dep/2),nrm=giebel?u:n;
+  const dist=p=>(p[0]-c[0])*nrm[0]+(p[1]-c[1])*nrm[1],half=Math.max(...q.map(p=>Math.abs(dist(p)))),rise=Math.min(5.2,half*.95),s=rise/half,ridge=eave+rise;
+  const roofY=p=>ridge-s*Math.abs(dist(p));
+  for(const part of[clip(q,c,nrm),clip(q,c,[-nrm[0],-nrm[1]])])if(part.length>=3)for(const[i,j,k]of triangulate(part))tri([part[i][0],roofY(part[i])+.02,part[i][1]],[part[j][0],roofY(part[j])+.02,part[j][1]],[part[k][0],roofY(part[k])+.02,part[k][1]],[0,1,0],SNOW);
+  const low=h.kind==='tor'?g+3.6:base;
+  if(h.kind==='tor')for(const[i,j,k]of triangulate(q))tri([q[i][0],low,q[i][1]],[q[j][0],low,q[j][1]],[q[k][0],low,q[k][1]],[0,-1,0],SOFFIT);
+  for(let i=0;i<q.length;i++){
+    const a0=q[i],b0=q[(i+1)%q.length],l=Math.hypot(b0[0]-a0[0],b0[1]-a0[1]);if(l<.05)continue;
+    const out=[(b0[1]-a0[1])/l,0,-(b0[0]-a0[0])/l],da=dist(a0),db=dist(b0),pieces=da*db<0?(()=>{const m=lerp(a0,b0,da/(da-db));return[[a0,m],[m,b0]]})():[[a0,b0]];
+    for(const[a,b]of pieces){const ya=roofY(a),yb=roofY(b);wall(a,b,low,low,ya-.3,yb-.3,out,col);wall(a,b,ya-.3,yb-.3,ya,yb,out,FASCIA)}
+    // Fenster und Tür an Gassen- und Hoffassaden (nicht an Brandwänden zum Nachbarn)
+    const facing=[out[0],out[2]],toYard=(cx-(a0[0]+b0[0])/2)*facing[0]+(cz-(a0[1]+b0[1])/2)*facing[1]>0;
+    const shared=HOUSES.some(o=>o!==h&&o.q.some(p=>Math.hypot(p[0]-a0[0],p[1]-a0[1])<.05)&&o.q.some(p=>Math.hypot(p[0]-b0[0],p[1]-b0[1])<.05));
+    if(shared||l<2.2)continue;
+    const nw=Math.max(1,Math.floor(l/2.3)),floors=Math.floor(h.floors+.25);
+    for(let f=0;f<floors;f++)for(let k=0;k<nw;k++){
+      const t=(k+.5)*l/nw,y=g+f*3.1+1.4;if(h.kind==='tor'&&f===0)continue;
+      if(y+1>Math.min(roofY(lerp(a0,b0,t/l)),eave)-.2)continue;
+      if(f===0&&k===Math.floor(nw/2)&&!toYard)rectOn(a0,b0,out,t,1.15,g,g+2.3,DOOR);else rectOn(a0,b0,out,t,.95,y-.7,y+.65,WIN);
+    }
+  }
+  // Kamin
+  if(rnd()<.45){const p=add(add(cen,nrm,(rnd()<.5?-1:1)*half*.45),giebel?n:u,0);const y0=roofY(p)-.5,y1=Math.max(roofY(p)+.9,ridge+.3),r=.28;
+    const cs=[[-r,-r],[r,-r],[r,r],[-r,r]].map(([a,b])=>[p[0]+a,p[1]+b]);for(let k=0;k<4;k++){const a=cs[k],b=cs[(k+1)%4];wall(a,b,y0,y0,y1,y1,[(a[0]+b[0])/2-p[0],0,(a[1]+b[1])/2-p[1]],CHIMNEY)}
+    tri([cs[0][0],y1,cs[0][1]],[cs[1][0],y1,cs[1][1]],[cs[2][0],y1,cs[2][1]],[0,1,0],SNOW);tri([cs[0][0],y1,cs[0][1]],[cs[2][0],y1,cs[2][1]],[cs[3][0],y1,cs[3][1]],[0,1,0],SNOW)}
+});
+{const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(B.pos,3));geo.setAttribute('color',new THREE.Float32BufferAttribute(B.col,3));geo.computeVertexNormals();
+ const m=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({vertexColors:true}));m.castShadow=m.receiveShadow=true;scene.add(m)}
+// Gelände, Gassenpflaster, Hof, Umgebung
+function flat(q,color,y){const g=new THREE.ShapeGeometry(new THREE.Shape(q.map(([x,z])=>new THREE.Vector2(x,z))));const p=g.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getY(i);p.setXYZ(i,x,ground(x,z)+y,z)}g.computeVertexNormals();const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color,side:THREE.DoubleSide}));m.receiveShadow=true;scene.add(m)}
+{const g=new THREE.PlaneGeometry(260,260,65,65);g.rotateX(-Math.PI/2);g.translate(cx,0,cz);const p=g.attributes.position;for(let i=0;i<p.count;i++)p.setY(i,ground(p.getX(i),p.getZ(i))-.05);g.computeVertexNormals();const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:0xeef1ee}));m.receiveShadow=true;scene.add(m)}
+{const ring=[];for(let k=0;k<40;k++){const a=k/40*Math.PI*2;ring.push([cx+Math.cos(a)*48,cz+Math.sin(a)*48])}flat(ring,0xcfc6b4,.03)}
+flat(DATA.plaza,0xc9b48a,.06);flat(yard,0xb9ae96,.08);
+{const t=[(yard[0][0]+yard[2][0])/2,(yard[0][1]+yard[2][1])/2],y=ground(...t);const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.18,.25,2.2,8),new THREE.MeshLambertMaterial({color:0x5a4634}));trunk.position.set(t[0],y+1.1,t[1]);
+ const crown=new THREE.Mesh(new THREE.ConeGeometry(1.6,4.2,10),new THREE.MeshLambertMaterial({color:0x3f5a48}));crown.position.set(t[0],y+3.8,t[1]);trunk.castShadow=crown.castShadow=true;scene.add(trunk,crown)}
+function massing(q,h,color){q=ccw(q);const y0=Math.min(...q.map(([x,z])=>ground(x,z)))-.5,sh=new THREE.Shape(q.map(([x,z])=>new THREE.Vector2(x,z)));const g=new THREE.ExtrudeGeometry(sh,{depth:h,bevelEnabled:false});g.rotateX(Math.PI/2);g.translate(0,y0+h,0);
+  const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color}));m.castShadow=m.receiveShadow=true;scene.add(m)}
+for(const q of DATA.nb)flat(q,0xc3c7c6,.25);
+massing(DATA.church,15,0x9aa4ab);
+// Legende
+document.getElementById('legend').innerHTML=[['#d9c09a','Reihenhaus, rechteckig',counts.reihe],['#c9b79a','Eckhaus (zwei Fassaden)',counts.ecke],['#8c7d6a','Haus mit Tordurchfahrt',counts.tor],['#b9ae96','Innenhof',Math.round(Math.abs(area(yard)))+' m²'],['#c3c7c6','Nachbarblöcke (nur Umriss)','']]
+  .map(([c,t,n])=>`<li><span class="sw" style="background:${c}"></span>${t}<span class="n">${n}</span></li>`).join('');
+
+// ---------------------------------------------------------------- Kamera
+const target=new THREE.Vector3(cx,cy+4,cz);let yaw=2.1,pitch=.52,dist=58,street=false;
+const views={obl:{yaw:2.1,pitch:.52,dist:58},top:{yaw:0,pitch:1.48,dist:70}};
+const te=E[torEdge],tp=add(te.A,te.u,(te.ty0+te.ty1)/2),tout=[-te.n[0],-te.n[1]];
+function place(){if(street){const p=add(add(tp,tout,9),te.u,-5);camera.position.set(p[0],ground(...p)+1.7,p[1]);camera.lookAt(tp[0],ground(...tp)+4.5,tp[1]);return}
+  camera.position.set(target.x+dist*Math.cos(pitch)*Math.sin(yaw),target.y+dist*Math.sin(pitch),target.z+dist*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(target)}
+function setView(k){street=k==='street';if(!street)({yaw,pitch,dist}=views[k]);for(const id of['obl','top','street'])document.getElementById('v-'+id).setAttribute('aria-pressed',String(id===k));draw()}
+for(const k of['obl','top','street'])document.getElementById('v-'+k).onclick=()=>setView(k);
+let drag=null;canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId)});
+canvas.addEventListener('pointermove',e=>{if(!drag||street)return;yaw-=(e.clientX-drag.x)*.006;pitch=Math.max(.1,Math.min(1.5,pitch+(e.clientY-drag.y)*.005));drag={x:e.clientX,y:e.clientY};draw()});
+canvas.addEventListener('pointerup',()=>drag=null);
+canvas.addEventListener('wheel',e=>{if(street)return;e.preventDefault();dist=Math.max(20,Math.min(200,dist*(1+Math.sign(e.deltaY)*.1)));draw()},{passive:false});
+function draw(){const w=view.clientWidth,h=view.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();scene.background=new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--bg').trim());place();renderer.render(scene,camera)}
+new ResizeObserver(draw).observe(view);draw();
+</script>

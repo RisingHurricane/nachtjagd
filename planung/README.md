@@ -5,3 +5,5 @@
 Ansehen: Datei ist ein Seiteninhalt für Claude-Artefakte (ohne eigenes `<html>`-Gerüst) und lädt Three.js r128 von cdnjs. Lokal in eine leere HTML-Seite einbetten oder als Artefakt veröffentlichen. Veröffentlichte Fassung: https://claude.ai/artifact/2xu24MuJde9h6rTo89Xjrz (privat, nur für Light).
 
 Erst wenn Light das Layout freigibt, wird es ins Spiel übernommen ("Planungsdaten kopieren" liefert Straßen und Häuser als JSON).
+
+`dorfblock.html`: Detailstudie eines einzelnen Blocks aus dem Dorfplan (Block A nordöstlich der Kirche). Rechtwinklige Reihenhäuser entlang der Gassen mit Trennwänden senkrecht zur Gasse, Eckhäuser in den Winkeln, Satteldächer (giebel- oder traufständig), Fenster und Türen, Innenhof mit Tordurchfahrt. Nachbarblöcke nur als Umriss.
