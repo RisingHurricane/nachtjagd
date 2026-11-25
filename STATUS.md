@@ -16,7 +16,8 @@ Letzte Aktualisierung: 2026-11-25 (Claude, Entwurf 32 auf `claude/grafik-laden`)
 - Begehbare Häuser sind jetzt die 12 freistehenden Höfe am Rand (`world-layout.js`, `farmSites`); Drehung so gewählt, dass alle Eingänge frei liegen.
 - Straßen (`road-layout.js`): Burgstraße, Oststraße und Südweg folgen den geschwungenen Planstraßen, neue Untere Straße; alte Gassen und beide Dorftreppen entfallen. Brunnenblock an den Marktplatz verlegt, Ansicht „Dorftreppe“ heißt jetzt „Marktplatz“.
 - Tests angepasst (12 Hausplätze, 15 Routen, keine Dorftreppen). `npm test` 222 grün, Browserprüfungen 23 und 86 grün.
-- Offen: Dachvarianten (Satteldach mit Giebel, Krüppelwalm, Gauben, Kamine), Pflaster für Gassen und zweiten Platz, Brunnen am zweiten Platz, Minikarte mit Blockhäusern.
+- Dächer (Wunsch Light: keine Walmdächer): Satteldach mit Giebel und dunkler Traufkante, kleine Häuser Pultdach, Kamine auf etwa jedem dritten Haus, fünf Türme mit Spitzhelm (Schiefer oder Kupfer, teils erleuchtete Fenster) an Plätzen und Straßenecken. Türme haben eigene Kollision.
+- Offen: Gauben, Pflaster für Gassen und zweiten Platz, Brunnen am zweiten Platz, Minikarte mit Blockhäusern.
 
 ## Entwurf 31 · Nebelnacht, Gegner, neue Ziele
 
