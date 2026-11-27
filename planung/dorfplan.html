@@ -1,0 +1,420 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0;font:14px system-ui,sans-serif}</style></head><body>
+<title>Dorfplan Bergdorf</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Werkzeugseite: Plan füllt die Fläche, schmale Leiste mit Ansicht, Legende und Zahlen. */
+:root{
+  --bg:#eef0ec; --panel:#f8f9f6; --ink:#1f2622; --muted:#5f6b63; --line:#cfd6cf; --accent:#2f6b57;
+  --plaza:#c9b48a; --yard:#d9d3c3; --street:#b9b2a3; --lane:#cfc6b4;
+  --font-ui:"IBM Plex Sans",system-ui,sans-serif; --font-head:"Fraunces",Georgia,serif; --font-num:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#151a18;--panel:#1d2421;--ink:#e6ebe7;--muted:#9aa79f;--line:#2f3934;--accent:#7cc4a8;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#151a18;--panel:#1d2421;--ink:#e6ebe7;--muted:#9aa79f;--line:#2f3934;--accent:#7cc4a8;color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-ui);display:flex;flex-direction:column}
+header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:baseline;justify-content:space-between;padding-block:14px 10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line)}
+h1{font-family:var(--font-head);font-weight:600;font-size:clamp(20px,3vw,28px);margin:0;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:0;color:var(--muted);font-size:13px;max-width:62ch}
+.wrap{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 280px;min-height:0}
+@media (max-width:760px){.wrap{grid-template-columns:1fr;grid-template-rows:minmax(360px,60vh) auto}}
+#view{position:relative;min-width:0;min-height:0}
+canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+aside{background:var(--panel);border-left:1px solid var(--line);padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px;overflow:auto;min-width:0}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{flex:1;font:inherit;font-size:13px;padding:7px 8px;border:0;background:transparent;color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--panel)}
+.seg button:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h2{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:13px}
+li{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center}
+.sw{width:14px;height:14px;border-radius:3px;border:1px solid var(--line)}
+.n{font-family:var(--font-num);font-variant-numeric:tabular-nums;color:var(--muted)}
+.notes{font-size:13px;line-height:1.5;color:var(--ink);display:grid;gap:6px}
+.notes b{font-weight:600}
+.btn{font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--ink);cursor:pointer}
+#copied{font-size:12px;color:var(--accent)}
+.hint{position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--muted);background:var(--panel);padding:4px 8px;border-radius:4px;border:1px solid var(--line)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;600&display=swap">
+
+<header>
+  <h1>Dorfplan Bergdorf · Entwurf H</h1>
+  <p>Grobentwurf mit Quadern auf dem echten Dorfgelände: Marktplatz vor der Kirche, eine Hauptstraße von Tor zu Tor, dichter Kern mit Gassen, lockerer Rand.</p>
+</header>
+<div class="wrap">
+  <div id="view"><canvas id="c" aria-label="Dorfplan in 3D"></canvas><div class="hint">Ziehen: drehen · Rad: zoomen</div></div>
+  <aside>
+    <div>
+      <h2>Ansicht</h2>
+      <div class="seg" role="group" aria-label="Ansicht">
+        <button id="v-top" aria-pressed="true">Draufsicht</button>
+        <button id="v-obl" aria-pressed="false">Schräg</button>
+        <button id="v-street" aria-pressed="false">Straße</button>
+      </div>
+    </div>
+    <div>
+      <h2>Bauten</h2>
+      <ul id="legend"></ul>
+    </div>
+    <div>
+      <h2>Wege</h2>
+      <ul>
+        <li><span class="sw" style="background:var(--plaza)"></span>Marktplatz<span class="n">34 × 24 m</span></li>
+        <li><span class="sw" style="background:var(--street)"></span>Hauptstraße, Südstraße, Untere Straße<span class="n">5,5–6 m</span></li>
+        <li><span class="sw" style="background:var(--lane)"></span>Gassen<span class="n">3 m</span></li>
+      </ul>
+    </div>
+    <div class="notes">
+      <h2>Wie der Plan entsteht</h2>
+      <div><b>Unregelmäßige Blöcke:</b> das Zentrum ist in Zellen um verstreute Mittelpunkte geteilt (Voronoi). Die Grenzen zwischen den Zellen sind die Gassen; sie knicken an jeder Kreuzung anders ab und laufen nie parallel.</div>
+      <div><b>Hauptstraßen:</b> links und rechts der Straße liegen die Zellmittelpunkte paarweise gespiegelt, so folgt die Grenze genau der geschwungenen Straße.</div>
+      <div><b>Keine Spalten:</b> jeder Block ist vollständig bebaut, die Häuser teilen sich die Wände. Manche Grenzen sind keine Gasse, dort stoßen die Blöcke direkt aneinander und es entstehen Sackgassen.</div>
+      <div><b>Innenhöfe:</b> große Blöcke bekommen einen Hof; die Trennwände um ihn laufen strahlenförmig.</div>
+      <div><b>Zwei Plätze:</b> der Marktplatz vor der Kirche und ein kleiner Platz mit Brunnen südöstlich davon, an dem mehrere Gassen enden.</div>
+      <div><b>Höhe:</b> am Marktplatz 3–3½ Geschosse, nach außen abnehmend.</div>
+      <div><b>Dächer:</b> keine Walmdächer. Satteldach, ausgerichtet an der längsten Hauswand (meist die Straßenseite): dort läuft die Traufe waagerecht. Flache Häuser stehen traufständig, tiefe Häuser giebelständig mit dem Giebel zur Gasse. Sehr kleine Häuser haben ein Pultdach, etwa jedes dritte Haus einen Kamin.</div>
+      <div><b>Türme:</b> an den Plätzen und an Straßenecken einzelne Ecktürme, achteckig mit Schieferhelm oder rund mit Kupferhelm.</div>
+      <div><b>Rand:</b> außerhalb der Blöcke einzelne Höfe.</div>
+    </div>
+    <div>
+      <button class="btn" id="copy">Planungsdaten kopieren</button> <span id="copied" role="status"></span>
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ---------------------------------------------------------------- Dorfdaten (Spielkoordinaten, Meter)
+const OUTLINE=[[-5,51],[-5,39],[-15,15],[0,-14],[36,-30],[76,-26],[115,-18],[150,-28],[180,-10],[198,18],[185,39],[185,51],[198,76],[186,105],[150,124],[121,112],[109,112],[80,126],[42,118],[10,109],[-14,83]];
+const GATES=[[-5,45],[185,45],[115,112]];
+const ground=(x,z)=>40+(x-90)*.018+(z-45)*.022+.45*Math.sin(x/45)*Math.cos(z/50);
+const CHURCH={x:91,z:9,w:23,d:34};
+const WELL={x:96,z:40};
+// Wegenetz aus Voronoi-Zellen: jede Zelle ist ein Baublock, die Grenzen zwischen den Zellen sind Gassen.
+// Die Zellen sind unregelmäßig, deshalb laufen die Gassen nie parallel. Die Hauptstraßen entstehen, weil links und
+// rechts der Straße je ein Zellkern spiegelbildlich liegt: die Grenze zwischen beiden folgt genau der Straße.
+let seed=20261125;const rnd=()=>((seed=(seed*1664525+1013904223)>>>0)/4294967296);const between=(a,b)=>a+(b-a)*rnd();
+function inside(x,z){let c=false;for(let i=0,j=OUTLINE.length-1;i<OUTLINE.length;j=i++){const[a,b]=OUTLINE[i],[e,f]=OUTLINE[j];if((b>z)!==(f>z)&&x<(e-a)*(z-b)/(f-b)+a)c=!c}return c}
+function segDist(x,z,a,b){const dx=b[0]-a[0],dz=b[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz)));return Math.hypot(x-a[0]-t*dx,z-a[1]-t*dz)}
+function edgeDist(x,z){let m=1e9;for(let i=0,j=OUTLINE.length-1;i<OUTLINE.length;j=i++)m=Math.min(m,segDist(x,z,OUTLINE[i],OUTLINE[j]));return m}
+function inPoly(x,z,q){let c=false;for(let i=0,j=q.length-1;i<q.length;j=i++){const[a,b]=q[i],[e,f]=q[j];if((b>z)!==(f>z)&&x<(e-a)*(z-b)/(f-b)+a)c=!c}return c}
+const polyDist=(x,z,q)=>Math.min(...q.map((a,i)=>segDist(x,z,a,q[(i+1)%q.length])));
+const area=q=>{let s=0;for(let i=0;i<q.length;i++){const a=q[i],b=q[(i+1)%q.length];s+=a[0]*b[1]-b[0]*a[1]}return s/2};
+const lerp=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+function convex(q){const cr=q.map((a,i)=>{const b=q[(i+1)%q.length],d=q[(i+2)%q.length];return(b[0]-a[0])*(d[1]-b[1])-(b[1]-a[1])*(d[0]-b[0])});return cr.every(v=>v>-.01)||cr.every(v=>v<.01)}
+// Konvexes Vieleck um je Kante eigene Abstände nach innen versetzen (negativ: nach außen). Kanten, die dabei
+// verschwinden, fallen weg; .full sagt, ob alle Kanten erhalten blieben. null, wenn nichts übrig bleibt.
+function inset(q,ds){
+  const sg=Math.sign(area(q));
+  let L=q.map((a,i)=>{const b=q[(i+1)%q.length],dx=b[0]-a[0],dz=b[1]-a[1],l=Math.hypot(dx,dz)||1,nx=-dz/l*sg,nz=dx/l*sg;return{p:[a[0]+nx*ds[i],a[1]+nz*ds[i]],d:[dx/l,dz/l],i}});
+  const X=(A,B)=>{const den=A.d[0]*B.d[1]-A.d[1]*B.d[0];if(Math.abs(den)<1e-6)return null;const t=((B.p[0]-A.p[0])*B.d[1]-(B.p[1]-A.p[1])*B.d[0])/den;return[A.p[0]+A.d[0]*t,A.p[1]+A.d[1]*t]};
+  for(let guard=0;guard<60&&L.length>=3;guard++){
+    const V=L.map((_,i)=>X(L[(i+L.length-1)%L.length],L[i]));
+    const bad=V.findIndex(v=>!v);if(bad>=0){L.splice(bad,1);continue}
+    let worst=-1,wl=1e9;
+    for(let i=0;i<L.length;i++){const a=V[i],b=V[(i+1)%L.length],len=(b[0]-a[0])*L[i].d[0]+(b[1]-a[1])*L[i].d[1];if(len<wl){wl=len;worst=i}}
+    if(wl>.3){if(!convex(V)||Math.sign(area(V))!==sg||Math.abs(area(V))<2)return null;V.full=L.length===q.length;V.src=L.map(l=>l.i);return V}
+    L.splice(worst,1);
+  }
+  return null;
+}
+// Konvexes Vieleck an einer Geraden schneiden (behält die Seite mit (p-o)·n >= 0)
+function clip(q,o,n){const out=[],f=p=>(p[0]-o[0])*n[0]+(p[1]-o[1])*n[1];for(let i=0;i<q.length;i++){const a=q[i],b=q[(i+1)%q.length],fa=f(a),fb=f(b);if(fa>=0)out.push(a);if((fa>=0)!==(fb>=0))out.push(lerp(a,b,fa/(fa-fb)))}return out}
+// Wie clip, merkt sich aber für jede Kante, woher sie stammt (Nachbarzelle, Platz, Kirche)
+function clipT(q,t,o,n,tag){const oq=[],ot=[],f=p=>(p[0]-o[0])*n[0]+(p[1]-o[1])*n[1];
+  for(let i=0;i<q.length;i++){const a=q[i],b=q[(i+1)%q.length],fa=f(a),fb=f(b);
+    if(fa>=0){oq.push(a);ot.push(t[i]);if(fb<0){oq.push(lerp(a,b,fa/(fa-fb)));ot.push(tag)}}
+    else if(fb>=0){oq.push(lerp(a,b,fa/(fa-fb)));ot.push(t[i])}}
+  return[oq,ot]}
+
+// Plätze und Kirche: Hindernisse, an deren Rand die Blöcke abgeschnitten werden (w = Abstand der Häuser)
+const PLAZA_POLY=[[74,28],[108,27],[111,40],[106,52],[78,51],[72,40]];
+const PLAZA2={poly:[[127,59],[144,56],[153,66],[147,77],[131,75],[125,67]],x:140,z:67};
+const CHURCH_POLY=[[79.5,-8],[102.5,-8],[102.5,26],[79.5,26]];
+const OBST=[{q:PLAZA_POLY,w:0},{q:PLAZA2.poly,w:0},{q:CHURCH_POLY,w:3.5}];
+// Straßen: Mittellinien, leicht geschwungen
+const STREETS=[
+  {kind:'street',w:6,p:[[-5,45],[12,49],[28,44],[44,48],[58,41],[72,40]]},
+  {kind:'street',w:6,p:[[111,40],[124,44],[138,37],[154,41],[170,48],[185,45]]},
+  {kind:'street',w:5.5,p:[[104,52],[106,67],[113,86],[109,100],[115,112]]},
+  {kind:'street',w:5.5,p:[[106,67],[88,76],[70,79],[52,88],[34,85],[14,92]]}
+];
+// Bebaubarer Kern (konvex); außerhalb liegen Höfe und Gärten
+const CORE_POLY=[[8,60],[12,20],[26,-2],[50,-10],[80,-12],[108,-8],[140,-8],[162,0],[174,20],[176,60],[164,84],[138,96],[108,100],[72,100],[38,96],[16,84]];
+const SEEDS=[];
+const streetDist=(x,z)=>Math.min(...STREETS.flatMap(s=>s.p.slice(1).map((b,i)=>segDist(x,z,s.p[i],b))));
+const free=(x,z,r)=>inPoly(x,z,CORE_POLY)&&SEEDS.every(s=>Math.hypot(s.x-x,s.z-z)>=(r+s.r)/2)&&OBST.every(o=>!inPoly(x,z,o.q)&&polyDist(x,z,o.q)>5);
+// Zellkerne paarweise an den Straßen: nur Abstand zu Plätzen und 7 m zu anderen Kernen, damit die Straße durchgehend offen bleibt
+const okStreet=(x,z)=>inPoly(x,z,CORE_POLY)&&SEEDS.every(s=>Math.hypot(s.x-x,s.z-z)>=5.5)&&OBST.every(o=>!inPoly(x,z,o.q)&&polyDist(x,z,o.q)>4);
+const FAIL=[];
+STREETS.forEach((s,si)=>{
+  // gleichmäßig entlang der ganzen Straße, auch über die Knicke hinweg
+  const segs=s.p.slice(1).map((b,i)=>{const a=s.p[i],len=Math.hypot(b[0]-a[0],b[1]-a[1]);return{a,b,len}});
+  const total=segs.reduce((n,g)=>n+g.len,0);
+  for(let T=between(2,5);T<total;T+=between(10,12)){
+    let t=T,g=segs[0];for(g of segs){if(t<=g.len)break;t-=g.len}
+    const u=[(g.b[0]-g.a[0])/g.len,(g.b[1]-g.a[1])/g.len],n=[-u[1],u[0]],p=lerp(g.a,g.b,Math.min(1,t/g.len)),off=between(8,10);
+    const L=[p[0]+n[0]*off,p[1]+n[1]*off],R=[p[0]-n[0]*off,p[1]-n[1]*off];
+    if(okStreet(...L)&&okStreet(...R)){SEEDS.push({x:L[0],z:L[1],r:9,street:si,side:1},{x:R[0],z:R[1],r:9,street:si,side:-1})}else FAIL.push(si+':'+p.map(v=>v.toFixed(0)))
+  }
+});
+// übrige Zellkerne frei verteilt; wenige große Zellen bekommen einen Innenhof
+for(let k=0;k<4000;k++){
+  const x=between(5,180),z=between(-15,102),r=k<600?between(30,36):between(13,19);   // zuerst große Zellen mit Innenhof
+  if(streetDist(x,z)>11&&free(x,z,r))SEEDS.push({x,z,r});
+}
+// Geisterkerne außen herum begrenzen die Randzellen, damit der Rand unregelmäßig ausfranst
+{const cx=CORE_POLY.reduce((n,p)=>n+p[0],0)/CORE_POLY.length,cz=CORE_POLY.reduce((n,p)=>n+p[1],0)/CORE_POLY.length;
+ CORE_POLY.forEach((a,i)=>{const b=CORE_POLY[(i+1)%CORE_POLY.length],len=Math.hypot(b[0]-a[0],b[1]-a[1]);
+   for(let t=0;t<len;t+=between(11,15)){const p=lerp(a,b,t/len),dx=p[0]-cx,dz=p[1]-cz,l=Math.hypot(dx,dz),o=between(7,12);SEEDS.push({x:p[0]+dx/l*o,z:p[1]+dz/l*o,r:12,ghost:true})}})}
+// Zellen berechnen
+const CELLS=[];
+SEEDS.forEach((s,i)=>{
+  if(s.ghost)return;
+  let q=[[s.x-70,s.z-70],[s.x+70,s.z-70],[s.x+70,s.z+70],[s.x-70,s.z+70]],t=['box','box','box','box'];
+  SEEDS.forEach((o,j)=>{if(i===j||q.length<3||Math.hypot(o.x-s.x,o.z-s.z)>100)return;[q,t]=clipT(q,t,[(s.x+o.x)/2,(s.z+o.z)/2],[s.x-o.x,s.z-o.z],j)});
+  for(const ob of OBST){
+    if(q.length<3)break;
+    const sg=Math.sign(area(ob.q));let best=null,bd=-1e9;
+    ob.q.forEach((a,k)=>{const b=ob.q[(k+1)%ob.q.length],dx=b[0]-a[0],dz=b[1]-a[1],l=Math.hypot(dx,dz),n=[dz/l*sg,-dx/l*sg],d=(s.x-a[0])*n[0]+(s.z-a[1])*n[1];if(d>bd){bd=d;best={o:a,n}}});
+    if(bd<60&&q.some(([x,z])=>(x-best.o[0])*best.n[0]+(z-best.o[1])*best.n[1]<0))[q,t]=clipT(q,t,best.o,best.n,ob);
+  }
+  if(q.length>=3)CELLS.push({seed:s,i,q,t});
+});
+// Breite der Grenze zwischen zwei Zellen: Straße, Gasse oder 0 (die Häuser stoßen aneinander)
+const EW={};
+function widthBetween(i,j){const k=i<j?i+','+j:j+','+i;if(EW[k]!==undefined)return EW[k];const a=SEEDS[i],b=SEEDS[j];let w;
+  if(a.ghost||b.ghost)w=0;
+  else if(a.street!==undefined&&a.street===b.street&&a.side!==b.side)w=STREETS[a.street].w;
+  else if(a.street!==undefined&&a.street===b.street)w=rnd()<.7?0:between(2.6,3.4);   // Häuserzeile an der Straße meist geschlossen
+  else w=rnd()<.3?0:between(2.6,3.8);
+  return EW[k]=w}
+const edgeInset=(c,k)=>{const t=c.t[k];if(t==='box')return 0;if(typeof t==='number')return widthBetween(c.i,t)/2;return t.w};
+const HOUSES=[],YARDS=[];
+// Bauarten: Höhe in Geschossen, Grundmaße
+const TYPES={
+  buerger:{name:'Bürgerhaus, 3–3½ Geschosse',color:'#c8a27a'},
+  haus:{name:'Wohnhaus, 2–3 Geschosse',color:'#d9c3a0'},
+  klein:{name:'Kleines Haus, 1½–2 Geschosse',color:'#e6d9bf'},
+  schuppen:{name:'Schuppen, Werkstatt',color:'#9c8a72'},
+  scheune:{name:'Scheune',color:'#7f6a55'},
+  kirche:{name:'Kirche (bestehend)',color:'#8f9aa3'}
+};
+const PLAZA={x:91,z:39,w:34,d:24};
+function core(x,z){return Math.hypot(x-PLAZA.x,z-PLAZA.z)} // Abstand zum Platz
+function addHouse(poly){
+  // zu große Grundrisse quer zur längsten Ausdehnung teilen, mit leicht schräger Trennwand
+  if(Math.abs(area(poly))>95){
+    let best=0,ax=[1,0];for(let k=0;k<12;k++){const t=k*Math.PI/12,u=[Math.cos(t),Math.sin(t)],pr=poly.map(p=>p[0]*u[0]+p[1]*u[1]),e=Math.max(...pr)-Math.min(...pr);if(e>best){best=e;ax=u}}
+    const pr=poly.map(p=>p[0]*ax[0]+p[1]*ax[1]),m=(Math.max(...pr)+Math.min(...pr))/2+between(-1,1),t=between(-.18,.18),n=[ax[0]*Math.cos(t)-ax[1]*Math.sin(t),ax[0]*Math.sin(t)+ax[1]*Math.cos(t)],o=[ax[0]*m,ax[1]*m];
+    const A=clip(poly,o,n),B=clip(poly,o,[-n[0],-n[1]]);
+    if(A.length>=3&&B.length>=3&&Math.abs(area(A))>15&&Math.abs(area(B))>15){addHouse(A);addHouse(B);return}
+  }
+  const cx=poly.reduce((n,p)=>n+p[0],0)/poly.length,cz=poly.reduce((n,p)=>n+p[1],0)/poly.length,d=core(cx,cz);
+  let floors=d<45?between(3,3.5):d<75?between(2,3):between(1.5,2.2);if(rnd()<.2)floors-=.5;
+  const xs=poly.map(p=>p[0]),zs=poly.map(p=>p[1]);
+  // rechtwinklig, wenn alle Ecken nahezu 90° haben
+  const skew=poly.length!==4||poly.some((p,i)=>{const a=poly[(i+3)%4],b=poly[(i+1)%4],v1=[a[0]-p[0],a[1]-p[1]],v2=[b[0]-p[0],b[1]-p[1]];return Math.abs(v1[0]*v2[0]+v1[1]*v2[1])/(Math.hypot(...v1)*Math.hypot(...v2))>.08});
+  HOUSES.push({poly,x:cx,z:cz,w:Math.max(...xs)-Math.min(...xs),d:Math.max(...zs)-Math.min(...zs),rot:0,type:floors>=3?'buerger':floors>=2?'haus':'klein',floors,skew});
+}
+// Block bebauen: ringsum eine geschlossene Häuserzeile, innen ein Hof. Die Parzellen teilen sich die Wände;
+// an den Ecken laufen sie auf der Gehrungslinie zusammen, jede zweite Trennwand steht schräg.
+function buildBlock(c){
+  let inner=inset(c.q,c.q.map((_,k)=>edgeInset(c,k)));
+  if(!inner)return;     // zu klein: bleibt als kleiner gepflasterter Platz frei
+  // kurze Kanten (unter 4 m) entfernen: die Ecke wird abgeschnitten, das Stück gehört zur Gasse
+  let simple=inner.slice();
+  for(let guard=0;guard<20&&simple.length>4;guard++){
+    let k=-1,ml=4;simple.forEach((a,i)=>{const b=simple[(i+1)%simple.length],l=Math.hypot(b[0]-a[0],b[1]-a[1]);if(l<ml){ml=l;k=i}});
+    if(k<0)break;
+    const drop=[k,(k+1)%simple.length].map(i=>({i,a:Math.abs(area(simple.filter((_,j)=>j!==i)))})).sort((x,y)=>y.a-x.a)[0].i;
+    simple.splice(drop,1);
+  }
+  if(Math.abs(area(simple))>Math.abs(area(inner))*.85)inner=simple;
+  let yard=null;
+  for(let D=between(7,8.5);D>=6&&!yard;D-=.5){const y=inset(inner,inner.map(()=>D));if(y&&Math.abs(area(y))>40&&inset(y,y.map(()=>2.5)))yard=y}   // Hof mindestens 5 m breit
+  if(!yard){ // kleiner Block: quer zur längsten Kante in Streifen teilen, tiefe Streifen noch einmal längs (Rücken an Rücken)
+    let li=0,lm=0;inner.forEach((a,i)=>{const b=inner[(i+1)%inner.length],l=Math.hypot(b[0]-a[0],b[1]-a[1]);if(l>lm){lm=l;li=i}});
+    const a=inner[li],b=inner[(li+1)%inner.length],u=[(b[0]-a[0])/lm,(b[1]-a[1])/lm],n=Math.max(1,Math.round(lm/between(7,9)));
+    const rot=(v,t)=>[v[0]*Math.cos(t)-v[1]*Math.sin(t),v[0]*Math.sin(t)+v[1]*Math.cos(t)];
+    const cuts=[];for(let k=1;k<n;k++)cuts.push({o:lerp(a,b,(k+between(-.2,.2))/n),n:k%2?rot(u,between(.1,.2)*(rnd()<.5?-1:1)):u});
+    for(let k=0;k<n;k++){
+      let st=inner;if(k>0)st=clip(st,cuts[k-1].o,cuts[k-1].n);if(k<n-1)st=clip(st,cuts[k].o,[-cuts[k].n[0],-cuts[k].n[1]]);
+      if(st.length<3)continue;
+      const w=[-u[1],u[0]],proj=st.map(p=>p[0]*w[0]+p[1]*w[1]),depth=Math.max(...proj)-Math.min(...proj);
+      if(depth>15){const m=(Math.max(...proj)+Math.min(...proj))/2+between(-1.5,1.5),o=[w[0]*m,w[1]*m],nn=rot(w,between(-.12,.12));
+        for(const h of[clip(st,o,nn),clip(st,o,[-nn[0],-nn[1]])])if(h.length>=3)addHouse(h)}
+      else addHouse(st);
+    }
+    return;
+  }
+  // Häuserring um den Hof: Trennwände laufen strahlenförmig vom Hofmittelpunkt aus, dadurch stehen sie schräg
+  const ccw=q=>area(q)<0?q.slice().reverse():q;inner=ccw(inner);yard=ccw(yard);
+  const cen=[yard.reduce((n,p)=>n+p[0],0)/yard.length,yard.reduce((n,p)=>n+p[1],0)/yard.length];
+  const hit=(q,d)=>{for(let i=0;i<q.length;i++){const a=q[i],b=q[(i+1)%q.length],e=[b[0]-a[0],b[1]-a[1]],den=d[0]*e[1]-d[1]*e[0];if(Math.abs(den)<1e-9)continue;
+    const t=((a[0]-cen[0])*e[1]-(a[1]-cen[1])*e[0])/den,u=((a[0]-cen[0])*d[1]-(a[1]-cen[1])*d[0])/den;if(t>0&&u>=-1e-9&&u<=1+1e-9)return{p:[cen[0]+d[0]*t,cen[1]+d[1]*t],i}}return null};
+  const per=inner.reduce((n,a,i)=>n+Math.hypot(inner[(i+1)%inner.length][0]-a[0],inner[(i+1)%inner.length][1]-a[1]),0);
+  const n=Math.max(4,Math.round(per/between(8,10))),cuts=[];
+  for(let k=0;k<n;k++){let t=(k+between(-.2,.2))/n*per;for(let i=0;i<inner.length;i++){const a=inner[i],b=inner[(i+1)%inner.length],l=Math.hypot(b[0]-a[0],b[1]-a[1]);if(t<=l){const P=lerp(a,b,t/l);cuts.push([P[0]-cen[0],P[1]-cen[1]]);break}t-=l}}
+  const H=cuts.map(d=>({o:hit(inner,d),y:hit(yard,d)}));
+  if(H.some(h=>!h.o||!h.y)){YARDS.push(yard);return}
+  for(let k=0;k<H.length;k++){
+    const A=H[k],B=H[(k+1)%H.length],poly=[A.o.p];
+    for(let i=A.o.i;i!==B.o.i;i=(i+1)%inner.length)poly.push(inner[(i+1)%inner.length]);
+    poly.push(B.o.p,B.y.p);
+    for(let i=B.y.i;i!==A.y.i;i=(i-1+yard.length)%yard.length)poly.push(yard[i]);
+    poly.push(A.y.p);
+    addHouse(poly);
+  }
+  if(Math.abs(area(yard))<45)addHouse(yard);else YARDS.push(yard);
+}
+for(const c of CELLS)buildBlock(c);
+// Restspalten schließen: Hausecken, die näher als 2,4 m an einem fremden Haus liegen, rücken auf dessen Wand.
+// Gassen sind mindestens 2,6 m breit und bleiben deshalb unberührt.
+{
+  const near=(p,q)=>{let best=null,bd=1e9;for(let i=0;i<q.length;i++){const a=q[i],b=q[(i+1)%q.length],dx=b[0]-a[0],dz=b[1]-a[1],t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dz)/(dx*dx+dz*dz||1))),x=a[0]+t*dx,z=a[1]+t*dz,d=Math.hypot(p[0]-x,p[1]-z);if(d<bd){bd=d;best=[x,z]}}return{p:best,d:bd}};
+  const cross=(a,b,c,d)=>{const o=(p,q,r)=>(q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0]);return o(a,b,c)*o(a,b,d)<-1e-9&&o(c,d,a)*o(c,d,b)<-1e-9};
+  const simple=q=>{for(let i=0;i<q.length;i++)for(let j=i+2;j<q.length;j++){if(i===0&&j===q.length-1)continue;if(cross(q[i],q[(i+1)%q.length],q[j],q[(j+1)%q.length]))return false}return Math.abs(area(q))>4};
+  for(let round=0;round<3;round++)for(const A of HOUSES)for(const B of HOUSES){
+    if(A===B||Math.hypot(A.x-B.x,A.z-B.z)>40)continue;
+    const q=A.poly.map(p=>p.slice());let moved=false;
+    for(let i=0;i<q.length;i++){if(inPoly(q[i][0],q[i][1],B.poly))continue;const n=near(q[i],B.poly);if(n.d>.12&&n.d<2.4){q[i]=n.p;moved=true}}
+    const cx=q.reduce((n,p)=>n+p[0],0)/q.length,cz=q.reduce((n,p)=>n+p[1],0)/q.length,probe=q.map(([x,z])=>{const l=Math.hypot(cx-x,cz-z)||1;return[x+(cx-x)/l*.3,z+(cz-z)/l*.3]});
+    if(moved&&simple(q)&&!HOUSES.some(o=>o!==A&&probe.some(([x,z])=>inPoly(x,z,o.poly))))A.poly=q;
+  }
+}
+// Rand: Höfe mit Wohnhaus, Scheune und Schuppen, mit Abstand zu den Blöcken
+const CORE=CELLS.map(c=>c.q).concat(OBST.map(o=>o.q));
+const nearCore=(x,z,m)=>CORE.some(q=>inPoly(x,z,q)||q.some((a,i)=>segDist(x,z,a,q[(i+1)%q.length])<m));
+const corners=(h)=>{const c=Math.cos(h.rot),s=Math.sin(h.rot),o=[];for(const[a,b]of[[-1,-1],[1,-1],[1,1],[-1,1]]){const lx=a*h.w/2,lz=b*h.d/2;o.push([h.x+lx*c+lz*s,h.z-lx*s+lz*c])}return o};
+function rectDist(px,pz,r){const c=Math.cos(r.rot),s=Math.sin(r.rot),dx=px-r.x,dz=pz-r.z,lx=dx*c-dz*s,lz=dx*s+dz*c;const qx=Math.max(0,Math.abs(lx)-r.w/2),qz=Math.max(0,Math.abs(lz)-r.d/2);return Math.hypot(qx,qz)}
+const FARMS=[];
+function farmClear(h,pad,own){
+  const pts=corners(h).concat([[h.x,h.z]]);
+  for(const[x,z]of pts){if(!inside(x,z)||edgeDist(x,z)<2.5||nearCore(x,z,6))return false;for(const s of STREETS)for(let i=0;i<s.p.length-1;i++)if(segDist(x,z,s.p[i],s.p[i+1])<s.w/2+2)return false}
+  for(const o of FARMS){if(o===own)continue;for(const[x,z]of pts)if(rectDist(x,z,o)<pad)return false;for(const[x,z]of corners(o))if(rectDist(x,z,h)<pad)return false}
+  return true;
+}
+for(let k=0;k<900;k++){
+  const x=between(-15,198),z=between(-30,126);if(!inside(x,z))continue;
+  const rot=between(-.3,.3)+(rnd()<.5?0:Math.PI/2),house={x,z,w:between(7,9),d:between(8,10),rot,type:'haus',floors:between(1.5,2)};
+  if(!farmClear(house,5))continue;FARMS.push(house);
+  const bw=between(9,11),barn={x:x+Math.cos(rot)*(house.w+bw)/2,z:z-Math.sin(rot)*(house.w+bw)/2,w:bw,d:between(12,14),rot,type:'scheune',floors:1.6};
+  if(farmClear(barn,4,house))FARMS.push(barn);   // Scheune schließt direkt an das eigene Wohnhaus an
+}
+for(const f of FARMS){f.poly=corners(f);HOUSES.push(f)}
+// ---------------------------------------------------------------- Darstellung (Three.js r128)
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const canvas=document.getElementById('c'),view=document.getElementById('view');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(40,1,1,3000);
+scene.add(new THREE.HemisphereLight(0xffffff,0x8a8a7a,.75));
+const sun=new THREE.DirectionalLight(0xffffff,.7);sun.position.set(-120,220,140);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-160,right:160,top:160,bottom:-160,near:10,far:600});sun.target.position.set(90,40,45);scene.add(sun,sun.target);
+// Gelände: Dorffläche
+{const g=new THREE.PlaneGeometry(320,250,160,125);g.rotateX(-Math.PI/2);g.translate(90,0,45);const p=g.attributes.position;for(let i=0;i<p.count;i++)p.setY(i,ground(p.getX(i),p.getZ(i))-.05);g.computeVertexNormals();
+ const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:0xe9ede8}));m.receiveShadow=true;scene.add(m);}
+const flat=(x,z,w,d,color,y=.06,rot=0)=>{const g=new THREE.PlaneGeometry(w,d,Math.ceil(w/4),Math.ceil(d/4));g.rotateX(-Math.PI/2);const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color}));m.position.set(x,0,z);m.rotation.y=rot;m.updateMatrixWorld();const p=g.attributes.position,v=new THREE.Vector3();for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i).applyMatrix4(m.matrixWorld);p.setY(i,ground(v.x,v.z)+y)}g.computeVertexNormals();m.receiveShadow=true;scene.add(m);return m};
+// Flächen als Vielecke auf dem Gelände: Gassennetz (ganze Blöcke), Platz, Höfe
+function flatPoly(q,color,y){const g=new THREE.ShapeGeometry(new THREE.Shape(q.map(([x,z])=>new THREE.Vector2(x,z))));const p=g.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),z=p.getY(i);p.setXYZ(i,x,ground(x,z)+y,z)}g.computeVertexNormals();const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color,side:THREE.DoubleSide}));m.receiveShadow=true;scene.add(m)}
+for(const o of OBST){const e=inset(o.q,o.q.map(()=>-6));if(e)flatPoly(e,css('--lane'),.2)}
+for(const c of CELLS)flatPoly(c.q,css('--lane'),.25);
+for(const q of[PLAZA_POLY,PLAZA2.poly])flatPoly(q,css('--plaza'),.3);
+for(const y of YARDS)flatPoly(y,css('--yard'),.3);
+for(const s of STREETS)for(let i=0;i<s.p.length-1;i++){const a=s.p[i],b=s.p[i+1],len=Math.hypot(b[0]-a[0],b[1]-a[1]);flat((a[0]+b[0])/2,(a[1]+b[1])/2,s.w,len+s.w*.9,css(s.kind==='street'?'--street':'--lane'),s.kind==='street'?.35:.3,Math.atan2(b[0]-a[0],b[1]-a[1]))}
+// Mauer mit Toren
+{const mat=new THREE.MeshLambertMaterial({color:0x8d908c});for(let i=0,j=OUTLINE.length-1;i<OUTLINE.length;j=i++){const a=OUTLINE[j],b=OUTLINE[i],len=Math.hypot(b[0]-a[0],b[1]-a[1]),n=Math.ceil(len/2);for(let k=0;k<n;k++){const t=(k+.5)/n,x=a[0]+(b[0]-a[0])*t,z=a[1]+(b[1]-a[1])*t;if(GATES.some(([gx,gz])=>Math.hypot(gx-x,gz-z)<4))continue;const m=new THREE.Mesh(new THREE.BoxGeometry(len/n+.05,4,1.2),mat);m.position.set(x,ground(x,z)+1.6,z);m.rotation.y=-Math.atan2(b[1]-a[1],b[0]-a[0]);m.castShadow=m.receiveShadow=true;scene.add(m)}}}
+// Häuser als Quader, Höhe nach Geschossen (3 m je Geschoss)
+const box=new THREE.BoxGeometry(1,1,1),mats={};
+for(const k in TYPES)mats[k]=new THREE.MeshLambertMaterial({color:new THREE.Color(TYPES[k].color)});
+function addPoly(h,mat){const H=h.floors*3,y=Math.min(...h.poly.map(([x,z])=>ground(x,z)));const sh=new THREE.Shape(h.poly.map(([x,z])=>new THREE.Vector2(x,z)));const g=new THREE.ExtrudeGeometry(sh,{depth:H+.6,bevelEnabled:false});g.rotateX(Math.PI/2);g.translate(0,H+.6,0);const m=new THREE.Mesh(g,mat);m.position.y=y-.3;m.castShadow=m.receiveShadow=true;scene.add(m)}
+function addBox(h,mat){if(h.poly)return addPoly(h,mat);const H=h.floors*3,y=Math.min(...corners(h).map(([x,z])=>ground(x,z)));const m=new THREE.Mesh(box,mat);m.scale.set(h.w,H+.6,h.d);m.position.set(h.x,y+H/2-.3,h.z);m.rotation.y=h.rot;m.castShadow=m.receiveShadow=true;scene.add(m)}
+// Dächer (keine Walmdächer): Satteldach mit Giebel, kleine Häuser Pultdach, Kamine, einige Türme mit Spitzhelm.
+// Das Dach ist eine Höhenfunktion über dem Grundriss; die Wände laufen bis unter die Dachkante, Giebel entstehen von selbst.
+const RB={pos:[],col:[]},TOWERS=[];
+const hashP=(x,z)=>Math.abs(Math.sin(x*12.9898+z*78.233)*43758.5453)%1;
+const C=c=>new THREE.Color(c);
+const SNOW=C('#f1f4f6'),FASCIA=C('#4a3a2c'),CHIMNEY=C('#8a847c'),SLATE=C('#3a3f47'),COPPER=C('#5f8a7c'),TSTONE=C('#b9ad99');
+const _a=new THREE.Vector3(),_b=new THREE.Vector3(),_n=new THREE.Vector3();
+function tri(a,b,c,hint,col){_a.set(b[0]-a[0],b[1]-a[1],b[2]-a[2]);_b.set(c[0]-a[0],c[1]-a[1],c[2]-a[2]);_n.crossVectors(_a,_b);if(_n.x*hint[0]+_n.y*hint[1]+_n.z*hint[2]<0)[b,c]=[c,b];RB.pos.push(...a,...b,...c);for(let i=0;i<3;i++)RB.col.push(col.r,col.g,col.b)}
+function quadUp(a,b,ya0,yb0,ya1,yb1,out,col){tri([a[0],ya0,a[1]],[b[0],yb0,b[1]],[b[0],yb1,b[1]],out,col);tri([a[0],ya0,a[1]],[b[0],yb1,b[1]],[a[0],ya1,a[1]],out,col)}
+function axisOf(q){const cx=q.reduce((n,p)=>n+p[0],0)/q.length,cz=q.reduce((n,p)=>n+p[1],0)/q.length;let best=-1,ax=[1,0];
+  for(let k=0;k<18;k++){const t=k*Math.PI/18,u=[Math.cos(t),Math.sin(t)],pr=q.map(p=>(p[0]-cx)*u[0]+(p[1]-cz)*u[1]),e=Math.max(...pr)-Math.min(...pr);if(e>best){best=e;ax=u}}
+  const pa=q.map(p=>(p[0]-cx)*ax[0]+(p[1]-cz)*ax[1]),mid=(Math.max(...pa)+Math.min(...pa))/2;return{ax,c:[cx+ax[0]*mid,cz+ax[1]*mid],len:best}}
+const triangulate=q=>THREE.ShapeUtils.triangulateShape(q.map(p=>new THREE.Vector2(p[0],p[1])),[]);
+function addTower(cx,cz,r,base,top,spire,sides,roofCol){
+  const ring=[],ring2=[];for(let k=0;k<sides;k++){const a=k/sides*Math.PI*2+.3;ring.push([cx+Math.cos(a)*r,cz+Math.sin(a)*r]);ring2.push([cx+Math.cos(a)*r*1.18,cz+Math.sin(a)*r*1.18])}
+  for(let k=0;k<sides;k++){const a=ring[k],b=ring[(k+1)%sides],o=[(a[0]+b[0])/2-cx,0,(a[1]+b[1])/2-cz];quadUp(a,b,base,base,top,top,o,TSTONE);
+    const c=ring2[k],d=ring2[(k+1)%sides];tri([c[0],top,c[1]],[d[0],top,d[1]],[cx,top+spire,cz],[o[0],.6,o[2]],roofCol);
+    tri([a[0],top-.01,a[1]],[d[0],top-.01,d[1]],[c[0],top-.01,c[1]],[0,-1,0],FASCIA);tri([a[0],top-.01,a[1]],[b[0],top-.01,b[1]],[d[0],top-.01,d[1]],[0,-1,0],FASCIA)}
+  TOWERS.push({x:cx,z:cz});
+}
+const TOWER_SPOTS=[[72,27],[112,52],[127,58],[153,67],[42,60],[128,22],[60,92],[16,40],[168,30]];
+const towerHouses=new Set(TOWER_SPOTS.map(([x,z])=>HOUSES.filter(h=>h.type!=='scheune').reduce((b,h)=>{const d=Math.hypot(h.x-x,h.z-z);return!b||d<b.d?{h,d}:b},null).h));
+function roofHouse(h){
+  let q=h.poly||corners(h);if(area(q)<0)q=q.slice().reverse();
+  const ys=q.map(([x,z])=>ground(x,z)),base=Math.min(...ys)-.6,eave=Math.max(...ys)+h.floors*3+.3,col=C(TYPES[h.type].color);
+  // Ausrichtung an der längsten Wand (meist die Straßenseite): dort läuft die Traufe waagerecht.
+  let fi=0,fl=0;q.forEach((a,i)=>{const b=q[(i+1)%q.length],l=Math.hypot(b[0]-a[0],b[1]-a[1]);if(l>fl){fl=l;fi=i}});
+  const fa=q[fi],fb=q[(fi+1)%q.length],u=[(fb[0]-fa[0])/fl,(fb[1]-fa[1])/fl],cen=[q.reduce((n,p)=>n+p[0],0)/q.length,q.reduce((n,p)=>n+p[1],0)/q.length];
+  let n=[-u[1],u[0]];if((cen[0]-fa[0])*n[0]+(cen[1]-fa[1])*n[1]<0)n=[-n[0],-n[1]];
+  const dep=p=>(p[0]-fa[0])*n[0]+(p[1]-fa[1])*n[1],along=p=>(p[0]-fa[0])*u[0]+(p[1]-fa[1])*u[1];
+  const D=Math.max(...q.map(dep)),tmin=Math.min(...q.map(along)),tmax=Math.max(...q.map(along));
+  const shed=Math.abs(area(q))<34||q.length===3;
+  // traufständig (First parallel zur Straße) oder giebelständig (Giebel zur Straße), je nach Tiefe des Hauses
+  const gable=!shed&&D>(tmax-tmin)*1.15;
+  let c,nrm,ax,len;
+  if(shed){c=fa;nrm=n;ax=u;len=tmax-tmin}
+  else if(gable){const mid=(tmin+tmax)/2;c=[fa[0]+u[0]*mid,fa[1]+u[1]*mid];nrm=u;ax=n;len=D}
+  else{c=[fa[0]+n[0]*D/2,fa[1]+n[1]*D/2];nrm=n;ax=u;len=tmax-tmin}
+  const dist=p=>(p[0]-c[0])*nrm[0]+(p[1]-c[1])*nrm[1];
+  const ds=q.map(dist),dmin=Math.min(...ds),dmax=Math.max(...ds);
+  let roofY,parts,ridgeY;
+  if(shed){const s=.35;roofY=p=>eave+s*dist(p);ridgeY=eave+s*dmax;parts=[q]}
+  else{const half=Math.max(-dmin,dmax),rise=Math.min(4.5,half*(h.floors>=3?.8:.9)),s=rise/Math.max(half,.1);ridgeY=eave+rise;roofY=p=>ridgeY-s*Math.abs(dist(p));
+    parts=[clip(q,c,nrm),clip(q,c,[-nrm[0],-nrm[1]])].filter(p=>p.length>=3)}
+  for(const part of parts)for(const[i,j,k]of triangulate(part))tri([part[i][0],roofY(part[i]),part[i][1]],[part[j][0],roofY(part[j]),part[j][1]],[part[k][0],roofY(part[k]),part[k][1]],[0,1,0],SNOW);
+  for(let i=0;i<q.length;i++){const a0=q[i],b0=q[(i+1)%q.length],l=Math.hypot(b0[0]-a0[0],b0[1]-a0[1]);if(l<.05)continue;
+    const out=[(b0[1]-a0[1])/l,0,-(b0[0]-a0[0])/l],da=dist(a0),db=dist(b0),pieces=[];
+    if(!shed&&da*db<0){const t=da/(da-db),m=[a0[0]+(b0[0]-a0[0])*t,a0[1]+(b0[1]-a0[1])*t];pieces.push([a0,m],[m,b0])}else pieces.push([a0,b0]);
+    for(const[a,b]of pieces){const ya=roofY(a),yb=roofY(b);quadUp(a,b,base,base,ya-.3,yb-.3,out,col);quadUp(a,b,ya-.3,yb-.3,ya,yb,out,FASCIA)}}
+  if(!shed&&h.type!=='scheune'&&hashP(c[0]+3,c[1])<.2){const p=[c[0]+ax[0]*(hashP(c[0],7)-.5)*len*.5+nrm[0]*.9,c[1]+ax[1]*(hashP(c[0],7)-.5)*len*.5+nrm[1]*.9];
+    if(inPoly(p[0],p[1],q)){const y0=roofY(p)-.6,y1=Math.max(roofY(p)+1.1,ridgeY+.5),s=.32,cs=[[-s,-s],[s,-s],[s,s],[-s,s]].map(([u,v])=>[p[0]+u,p[1]+v]);
+      for(let k=0;k<4;k++){const a=cs[k],b=cs[(k+1)%4];quadUp(a,b,y0,y0,y1,y1,[(a[0]+b[0])/2-p[0],0,(a[1]+b[1])/2-p[1]],CHIMNEY)}
+      tri([cs[0][0],y1,cs[0][1]],[cs[1][0],y1,cs[1][1]],[cs[2][0],y1,cs[2][1]],[0,1,0],SNOW);tri([cs[0][0],y1,cs[0][1]],[cs[2][0],y1,cs[2][1]],[cs[3][0],y1,cs[3][1]],[0,1,0],SNOW)}}
+  if(towerHouses.has(h)){const far=q.reduce((b,p)=>Math.hypot(p[0]-c[0],p[1]-c[1])>Math.hypot(b[0]-c[0],b[1]-c[1])?p:b,q[0]);
+    const W=dmax-dmin,r=Math.min(2.6,Math.max(1.8,W*.28)),k=Math.min(.75,Math.max(.3,1-r*1.1/Math.hypot(far[0]-c[0],far[1]-c[1])));
+    const tx=c[0]+(far[0]-c[0])*k,tz=c[1]+(far[1]-c[1])*k,round=hashP(tx,tz)<.5;
+    addTower(tx,tz,r,base,ridgeY+3+hashP(tz,tx)*4,r*(round?2.2:3),round?12:8,round?COPPER:SLATE)}
+}
+for(const h of HOUSES)roofHouse(h);
+{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(RB.pos,3));g.setAttribute('color',new THREE.Float32BufferAttribute(RB.col,3));g.computeVertexNormals();
+ const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true}));m.castShadow=m.receiveShadow=true;scene.add(m)}
+addBox({...CHURCH,rot:0,floors:5},mats.kirche);addBox({x:91,z:21,w:7,d:7,rot:0,floors:11},mats.kirche);
+{const w=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.6,1,16),new THREE.MeshLambertMaterial({color:0x6f7a80}));w.position.set(WELL.x,ground(WELL.x,WELL.z)+.5,WELL.z);w.castShadow=true;scene.add(w);const w2=w.clone();w2.scale.set(.7,3,.7);w2.position.set(PLAZA2.x,ground(PLAZA2.x,PLAZA2.z)+1.5,PLAZA2.z);scene.add(w2)}
+// Legende mit Zahlen
+const counts={};for(const h of HOUSES)counts[h.type]=(counts[h.type]||0)+1;counts.kirche=1;
+document.getElementById('legend').innerHTML=Object.keys(TYPES).map(k=>`<li><span class="sw" style="background:${TYPES[k].color}"></span>${TYPES[k].name}<span class="n">${counts[k]||0}</span></li>`).join('')+`<li><span class="sw" style="background:linear-gradient(135deg,#d9c3a0 50%,transparent 50%)"></span>davon schiefes Viereck<span class="n">${HOUSES.filter(h=>h.skew).length}</span></li><li><span class="sw" style="background:#3a3f47"></span>Türme mit Spitzhelm<span class="n">${TOWERS.length}</span></li>`;
+
+// ---------------------------------------------------------------- Kamera: drehen, zoomen, drei Ansichten
+const target=new THREE.Vector3(90,40,45);let yaw=0,pitch=1.45,dist=270,street=false;
+const views={top:{yaw:0,pitch:1.45,dist:270},obl:{yaw:-.7,pitch:.62,dist:210},street:null};
+function place(){if(street){camera.position.set(30,ground(30,46)+1.7,46);camera.lookAt(74,ground(74,40)+3,40);return}
+ camera.position.set(target.x+dist*Math.cos(pitch)*Math.sin(yaw),target.y+dist*Math.sin(pitch),target.z+dist*Math.cos(pitch)*Math.cos(yaw));camera.lookAt(target)}
+function setView(k){street=k==='street';if(!street)({yaw,pitch,dist}=views[k]);for(const id of['top','obl','street'])document.getElementById('v-'+id).setAttribute('aria-pressed',String(id===k));draw()}
+document.getElementById('v-top').onclick=()=>setView('top');document.getElementById('v-obl').onclick=()=>setView('obl');document.getElementById('v-street').onclick=()=>setView('street');
+let drag=null;canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId)});
+canvas.addEventListener('pointermove',e=>{if(!drag||street)return;yaw-=(e.clientX-drag.x)*.006;pitch=Math.max(.15,Math.min(1.5,pitch+(e.clientY-drag.y)*.005));drag={x:e.clientX,y:e.clientY};draw()});
+canvas.addEventListener('pointerup',()=>drag=null);
+canvas.addEventListener('wheel',e=>{if(street)return;e.preventDefault();dist=Math.max(60,Math.min(420,dist*(1+Math.sign(e.deltaY)*.1)));draw()},{passive:false});
+function draw(){const w=view.clientWidth,h=view.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();scene.background=new THREE.Color(css('--bg'));place();renderer.render(scene,camera)}
+new ResizeObserver(draw).observe(view);matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);
+draw();
+
+// Planungsdaten zum Übernehmen ins Spiel
+document.getElementById('copy').onclick=()=>{const data=JSON.stringify({plaza:PLAZA,streets:STREETS,houses:HOUSES.map(h=>({poly:h.poly?h.poly.map(p=>p.map(v=>+v.toFixed(2))):undefined,x:+h.x.toFixed(1),z:+h.z.toFixed(1),w:+h.w.toFixed(1),d:+h.d.toFixed(1),rot:+h.rot.toFixed(3),type:h.type,floors:+h.floors.toFixed(1)}))});const out=document.getElementById('copied');
+ navigator.clipboard.writeText(data).then(()=>out.textContent='Kopiert',()=>{out.textContent='Kopieren nicht möglich'})};
+</script>
+
+</body></html>
