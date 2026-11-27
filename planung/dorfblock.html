@@ -61,7 +61,7 @@ li{display:grid;grid-template-columns:14px 1fr auto;gap:8px;align-items:center}
       <div><b>Eckhäuser:</b> wo zwei Reihen im Winkel aufeinandertreffen, nimmt ein Eckhaus den Winkel auf. Es hat zwei Fassaden und zwei rechte Winkel, nur die Hofecke ist schräg. Drei Spielarten im Wechsel:</div>
       <div><b>· Eckturm:</b> eckiger Turm genau an der Straßenecke, folgt beiden Fassaden, mit spitzem Turmhelm.</div>
       <div><b>· Mansarde:</b> Pariser Art, steile dunkle Zinkfläche mit Dachfenstern, darüber flach mit Schnee, helles Gesims.</div>
-      <div><b>· Dach um die Ecke:</b> das Satteldach läuft entlang beider Gassen und knickt an der Ecke mit Kehle und Grat um.</div>
+      <div><b>· Satteldach:</b> First parallel zur längeren Fassade, zur Nebengasse zeigt ein Giebel. Auch die Turmhäuser haben dieses einfache Dach.</div>
       <div><b>Dächer:</b> Satteldächer. Schmale Häuser stehen giebelständig mit dem Giebel zur Gasse, breite traufständig. Keine Walmdächer.</div>
       <div><b>Hof:</b> innen ein Hof mit Baum, von der Gasse über eine Tordurchfahrt erreichbar.</div>
       <div><b>Blockform:</b> kurze Blockkanten (unter 13 m) entfallen, die abgeschnittene Ecke wird zur kleinen Aufweitung der Gasse. So gibt es weniger Ecken und längere Reihen.</div>
@@ -125,8 +125,8 @@ E.forEach((e,i)=>{
   }
 });
 // Eckhäuser: Fassade an beiden Gassen, Hofseiten senkrecht dazu. Drei Spielarten im Wechsel:
-// Eckturm mit Turmhelm, Mansarddach (Pariser Art) oder ein Satteldach, das um die Ecke herumläuft.
-const CORNER_STYLES=['turm','mansarde','herum','turm','mansarde','herum'];
+// Eckturm mit Turmhelm, Mansarddach (Pariser Art) oder Satteldach mit Giebel zur Nebengasse.
+const CORNER_STYLES=['turm','mansarde','sattel','turm','mansarde','sattel'];
 inner.forEach((A,i)=>{
   const e=E[i],p=E[(i+inner.length-1)%inner.length];
   const P=add(A,e.u,e.ty0),Q=add(p.A,p.u,p.ty1),Y=yard[i];
@@ -151,7 +151,7 @@ function wall(a,b,ya0,yb0,ya1,yb1,out,col){tri([a[0],ya0,a[1]],[b[0],yb0,b[1]],[
 function rectOn(a,b,out,t,w,y0,y1,col){const l=Math.hypot(b[0]-a[0],b[1]-a[1]),u=[(b[0]-a[0])/l,(b[1]-a[1])/l],o=[out[0]*.05,out[2]*.05];
   const p0=[a[0]+u[0]*(t-w/2)+o[0],a[1]+u[1]*(t-w/2)+o[1]],p1=[a[0]+u[0]*(t+w/2)+o[0],a[1]+u[1]*(t+w/2)+o[1]];wall(p0,p1,y0,y0,y1,y1,out,col)}
 const triangulate=q=>THREE.ShapeUtils.triangulateShape(q.map(p=>new THREE.Vector2(p[0],p[1])),[]);
-const counts={reihe:0,ecke:0,tor:0,turm:0,mansarde:0,herum:0};
+const counts={reihe:0,ecke:0,tor:0,turm:0,mansarde:0,sattel:0};
 const TOWER=C('#c4b49a'),HELM=C('#3a3f47'),ZINC=C('#55606a'),CORNICE=C('#efe6d4');
 const clipF=(q,g)=>{const out=[];for(let i=0;i<q.length;i++){const a=q[i],b=q[(i+1)%q.length],fa=g(a),fb=g(b);if(fa>=0)out.push(a);if((fa>=0)!==(fb>=0))out.push(lerp(a,b,fa/(fa-fb)))}return out};
 const lin=(o,n)=>p=>(p[0]-o[0])*n[0]+(p[1]-o[1])*n[1];
@@ -228,10 +228,12 @@ HOUSES.forEach((h,hi)=>{
     chimneyAt(lerp(cen,q1[0],.5),top-.2,top+1.4);
     return;
   }
-  // um die Ecke laufendes Satteldach: zwei Flügel entlang beider Gassen, die sich an der Ecke durchdringen (Kehle und Grat)
-  const gA=p=>lin(h.Q,h.nQA)(p)-D/2,gB=p=>lin(h.A,h.nAP)(p)-D/2;
-  const rise=Math.min(4.6,D/2*1.05),s=rise/(D/2),ridge=eave+rise,f=p=>ridge-s*Math.min(Math.abs(gA(p)),Math.abs(gB(p)));
-  const kinks=[gA,gB,p=>gA(p)-gB(p),p=>gA(p)+gB(p)];
+  // Eckhaus mit Turm oder einfachem Satteldach: First parallel zur längeren Gassenfassade, an der anderen Gasse ein Giebel.
+  // (Ein um die Ecke laufendes Dach erzeugt bei stumpfen Ecken schräge Grate und Kehlen, die nicht nötig sind.)
+  const lQA=Math.hypot(h.A[0]-h.Q[0],h.A[1]-h.Q[1]),lAP=Math.hypot(h.P[0]-h.A[0],h.P[1]-h.A[1]);
+  const [fo,fn]=lQA>=lAP?[h.Q,h.nQA]:[h.A,h.nAP],dep=Math.max(...q.map(lin(fo,fn))),gR=p=>lin(fo,fn)(p)-dep/2;
+  const rise=Math.min(4.6,dep/2*1.05),s=rise/(dep/2),ridge=eave+rise,f=p=>ridge-s*Math.abs(gR(p));
+  const kinks=[gR];
   if(h.style==='turm'){
     // eckiger Eckturm, den Fassaden beider Gassen folgend, mit spitzem Turmhelm
     const uQ=[(h.Q[0]-h.A[0]),(h.Q[1]-h.A[1])],uP=[(h.P[0]-h.A[0]),(h.P[1]-h.A[1])],lQ=Math.hypot(...uQ),lP=Math.hypot(...uP);
@@ -260,7 +262,7 @@ function massing(q,h,color){q=ccw(q);const y0=Math.min(...q.map(([x,z])=>ground(
 for(const q of DATA.nb)flat(q,0xc3c7c6,.25);
 massing(DATA.church,15,0x9aa4ab);
 // Legende
-document.getElementById('legend').innerHTML=[['#d9c09a','Reihenhaus, rechteckig',counts.reihe],['#c4b49a','Eckhaus mit Eckturm',counts.turm],['#55606a','Eckhaus mit Mansarddach',counts.mansarde],['#c9b79a','Eckhaus, Dach um die Ecke',counts.herum],['#8c7d6a','Haus mit Tordurchfahrt',counts.tor],['#b9ae96','Innenhof',Math.round(Math.abs(area(yard)))+' m²'],['#c3c7c6','Nachbarblöcke (nur Umriss)','']]
+document.getElementById('legend').innerHTML=[['#d9c09a','Reihenhaus, rechteckig',counts.reihe],['#c4b49a','Eckhaus mit Eckturm',counts.turm],['#55606a','Eckhaus mit Mansarddach',counts.mansarde],['#c9b79a','Eckhaus mit Satteldach',counts.sattel],['#8c7d6a','Haus mit Tordurchfahrt',counts.tor],['#b9ae96','Innenhof',Math.round(Math.abs(area(yard)))+' m²'],['#c3c7c6','Nachbarblöcke (nur Umriss)','']]
   .map(([c,t,n])=>`<li><span class="sw" style="background:${c}"></span>${t}<span class="n">${n}</span></li>`).join('');
 
 // ---------------------------------------------------------------- Kamera

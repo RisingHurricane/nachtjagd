@@ -6,4 +6,4 @@ Ansehen: Datei ist ein Seiteninhalt für Claude-Artefakte (ohne eigenes `<html>`
 
 Erst wenn Light das Layout freigibt, wird es ins Spiel übernommen ("Planungsdaten kopieren" liefert Straßen und Häuser als JSON).
 
-`dorfblock.html`: Detailstudie eines einzelnen Blocks aus dem Dorfplan (Block A nordöstlich der Kirche). Rechtwinklige Reihenhäuser entlang der Gassen mit Trennwänden senkrecht zur Gasse, Eckhäuser in den Winkeln (Eckturm mit Turmhelm, Mansarddach oder Dach um die Ecke), Satteldächer (giebel- oder traufständig), Fenster und Türen, Innenhof mit Tordurchfahrt. Nachbarblöcke nur als Umriss.
+`dorfblock.html`: Detailstudie eines einzelnen Blocks aus dem Dorfplan (Block A nordöstlich der Kirche). Rechtwinklige Reihenhäuser entlang der Gassen mit Trennwänden senkrecht zur Gasse, Eckhäuser in den Winkeln (Eckturm mit Turmhelm, Mansarddach oder Satteldach mit Giebel zur Nebengasse), Satteldächer (giebel- oder traufständig), Fenster und Türen, Innenhof mit Tordurchfahrt. Nachbarblöcke nur als Umriss.
