@@ -2,6 +2,16 @@
 
 Letzte Aktualisierung: 2026-11-04 (Claude, Entwurf 31 auf `claude/grafik-laden`)
 
+## Dorf neu planen (Stand 2026-11-27, gilt vor allem anderen)
+
+- Regel von Light: das Dorf wird zuerst nur in den Planungsseiten entworfen, erst nach ausdrücklicher Freigabe kommt es ins Spiel.
+- `planung/dorfplan.html`: ganzes Dorf (Entwurf H, Voronoi-Blöcke, Gassen, zwei Plätze, Innenhöfe, Satteldächer, Ecktürme). Ansicht: https://risinghurricane.github.io/nachtjagd/planung/dorfplan.html
+- `planung/dorfblock.html`: Detailstudie Block A. Rechtwinklige Reihenhäuser mit Trennwänden senkrecht zur Gasse, Eckhäuser (Eckturm mit Turmhelm, Mansarddach, Satteldach mit Giebel zur Nebengasse), Innenhof mit Tordurchfahrt. Ansicht: https://risinghurricane.github.io/nachtjagd/planung/dorfblock.html
+- Lights Wünsche: keine Walmdächer; möglichst rechtwinklige Grundrisse, damit die Dächer einfach bleiben; keine schmalen Spalten zwischen Häusern (entweder Gasse, Durchgang oder nichts); Gassen nicht parallel; Hauptstraße geschwungen.
+- Nächster Schritt: Block A weiter verfeinern, danach dieselben Regeln auf alle Blöcke in `dorfplan.html` übertragen.
+- Ein vorgezogener Spieleinbau liegt auf Branch `claude/dorf-ins-spiel` und wird erst nach Freigabe verwendet.
+- Veröffentlichung der Planungsseiten: Datei nach `planung/` auf gh-pages kopieren (mit Dokumentkopf `<!doctype html>`, die Dateien im Repo sind Artefakt-Fragmente ohne Kopf).
+
 ## Nächste Schritte (Stand 2026-11-04, Wunsch von Light)
 
 - Arbeitsweise für Modelle: jedes Modell (Baum, Gegner, Haus, Fahrzeug) einzeln als Three.js-Modul entwerfen, in einer eigenen Vorschauseite prüfen (Muster: `public/models/preview.html`, `public/entwurf/haeuser.html`) und erst nach Lights Freigabe ins Spiel übernehmen. Vertrag wie bisher: Fuß bei y = 0, Blick nach +z, 1 Einheit = 1 m, Formen und Materialien teilen.
