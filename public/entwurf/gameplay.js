@@ -267,6 +267,14 @@ globalThis.NachtjagdPlay = {
     });
     canvas.addEventListener('pointermove',e=>{
       if(!active || current.phase!=='playing') return;
+      // Zweite Maustaste, während die erste gehalten wird: Browser melden das nur als pointermove (e.button ≥ 0).
+      // So geht Schießen beim Zielen (rechts halten, links klicken) und Zielen beim Dauerfeuer.
+      if(e.button>=0) {
+        aiming=!!(e.buttons&2);
+        if(document.pointerLockElement===canvas) firing=!!(e.buttons&1);
+        else if(e.button===0&&(e.buttons&1)) shotClick=true;
+        if(e.movementX===0&&e.movementY===0) return;
+      }
       let dx=0,dy=0;
       if(document.pointerLockElement===canvas) { dx=e.movementX; dy=e.movementY; }
       else if(drag) { dx=e.clientX-drag.x; dy=e.clientY-drag.y; drag.x=e.clientX; drag.y=e.clientY; drag.total+=Math.abs(dx)+Math.abs(dy); }
@@ -281,6 +289,18 @@ globalThis.NachtjagdPlay = {
       if(e.button===0) { if(drag && drag.total<5) shotClick=true; firing=false; drag=null; }
     });
     canvas.addEventListener('pointercancel',clearInput);
+    // Maustasten zusätzlich über mousedown/mouseup: diese Ereignisse kommen für jede Taste, auch wenn schon eine gedrückt ist
+    // (Pointer-Ereignisse melden die zweite Taste je nach Browser gar nicht).
+    canvas.addEventListener('mousedown',e=>{
+      if(!active || current.phase!=='playing') return;
+      if(e.button===2) aiming=true;
+      if(e.button===0&&e.buttons&2) { if(document.pointerLockElement===canvas) firing=true; else shotClick=true; }
+    });
+    addEventListener('mouseup',e=>{
+      if(!active) return;
+      if(e.button===2) aiming=false;
+      if(e.button===0&&document.pointerLockElement===canvas) firing=false;
+    });
     document.addEventListener('pointerlockchange',()=>{ if(active && document.pointerLockElement!==canvas) pause(); });
     const CONTROL_KEYS=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight','Space','KeyE','KeyG','KeyT','KeyV','KeyF','KeyC','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','KeyM','KeyN','Escape'];
     addEventListener('keydown',e=>{

@@ -246,6 +246,8 @@ Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` un
 
 ## Übergabe-Log
 
+- 2026-11-28 · Claude · Schießen beim Zielen: Browser melden eine zweite Maustaste (links, während rechts gehalten wird) nicht als pointerdown. `gameplay.js` wertet jetzt zusätzlich mousedown/mouseup und die Tastenmaske in pointermove aus. Im Browser geprüft: mit gehaltener rechter Taste löst die linke einen Schuss aus. Cache-Version 39.
+
 - 2026-11-28 · Claude · Geländewagen fährt wie Gehen (Wunsch Light): W/A/S/D relativ zur Blickrichtung, die Maus gibt die Richtung vor, der Wagen dreht sich zügig (2,6 rad/s) dorthin und fährt; S allein fährt rückwärts ohne zu drehen; Shift schneller (Straße 16, Gelände 11 m/s), Leertaste bremst. Kein Rutschen, kein Wenderadius, der Blick dreht nicht mehr mit dem Wagen. Alte Lenkphysik und ihre Tests ersetzt. 223 grün, Browser 23/166 grün. Cache-Version 38.
 
 - 2026-11-28 · Claude · Geländewagen rückwärts: am Hang wurde die kleine Anfahrgeschwindigkeit jedes Teilschritts auf null gesetzt, rückwärts bergauf kam der Wagen nie in Gang. Jetzt wird nur ohne Gas abgewürgt. Außerdem darf ein Wagen, der schon an einem Hindernis klemmt, sich bewegen, solange nicht mehr Prüfpunkte im Hindernis liegen als vorher. Test ergänzt, 224 grün, Browser 23/166 grün. Cache-Version 37.
