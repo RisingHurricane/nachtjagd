@@ -30,7 +30,7 @@ test('player movement normalizes diagonals, slides along a blocked wall, and pau
   assert.equal(game.snapshot().player.z, before.player.z);
 });
 
-test('shooting obeys cooldown, damages enemies, and reload transfers only needed rounds', () => {
+test('shooting obeys cooldown, damages enemies, and an empty magazine refills at once without reloading', () => {
   const { game } = make({ spawnEnemy: () => [0, 8] });
   game.start(); game.setLook(0, -0.0646); advance(game, 5.2); // Gegner ist aufgetaucht und kann getroffen werden; Zielpunkt Brust
   game.step(0.1, { fire: true });
@@ -42,8 +42,12 @@ test('shooting obeys cooldown, damages enemies, and reload transfers only needed
   assert.equal(game.snapshot().weapons[0].ammo, 11);
   advance(game, 0.3); game.step(0.1, { fire: true });
   assert.equal(game.snapshot().monsters.length, 0);
-  game.reload(); advance(game, 2.1);
-  s = game.snapshot(); assert.equal(s.weapons[0].ammo, 12); assert.equal(s.weapons[0].reserve, 34);
+  assert.equal(game.reload(), false, 'Nachladen gibt es nicht mehr');
+  // Magazin leer schießen: der nächste Schuss kommt ohne Pause aus dem Vorrat
+  for (let i = 0; i < 12; i++) { advance(game, 0.4); game.step(0.1, { fire: true }); }
+  s = game.snapshot(); assert.equal(s.weapons[0].ammo + s.weapons[0].reserve, 48 - 14);
+  assert.ok(s.weapons[0].reserve < 36, 'Vorrat wurde ohne Nachladen angebrochen');
+  assert.equal(s.weapons[0].reloading, 0);
 });
 
 test('world ray obstruction prevents damage and invalid dt or inputs are ignored', () => {

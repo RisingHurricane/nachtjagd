@@ -274,10 +274,10 @@ test('merchant sells supplies, blacksmith sells upgrades, and the world pauses w
   assert.equal(game.snapshot().phase, 'playing');
 });
 
-test('blacksmith upgrades change damage, magazine, reload time and health', () => {
+test('blacksmith upgrades change damage, ammo capacity, fire rate and health', () => {
   const { game } = make({ smith: { x: 0, z: 0 } }, { lei: 5000 }); game.start();
   game.interact();
-  assert.deepEqual([...game.shopList().map(i => i.name)], ['Mehr Schaden', 'Größere Magazine', 'Schnelleres Nachladen', 'Mehr Leben', 'Starke Linse', 'Silbergeschosse']);
+  assert.deepEqual([...game.shopList().map(i => i.name)], ['Mehr Schaden', 'Größere Munitionstaschen', 'Schnellerer Abzug', 'Mehr Leben', 'Starke Linse', 'Silbergeschosse']);
   for (const i of [0, 1, 2, 3]) assert.equal(game.buy(i), true);
   game.closeShop();
   const s = game.snapshot();
@@ -287,11 +287,9 @@ test('blacksmith upgrades change damage, magazine, reload time and health', () =
   const m = mon(game); aim(game, m.x, m.y + 1.2, m.z);
   const hp0 = m.hp; game.step(0.1, { fire: true });
   assert.ok(Math.abs(hp0 - mon(game).hp - 43.2) < 0.01, 'Schaden +20 %');
-  advance(game, 0.4);
-  game.reload(); advance(game, 1.5);
-  assert.equal(game.snapshot().weapons[0].ammo, 11, 'nach 1,5 s noch nicht fertig');
-  advance(game, 0.2);
-  assert.equal(game.snapshot().weapons[0].ammo, 14, 'Nachladen nach 1,68 s, Magazin fasst 14 Schuss');
+  // Schnellerer Abzug: 10 % kürzere Pause zwischen zwei Schüssen (0,36 s → 0,324 s)
+  advance(game, 0.33); const a0 = game.snapshot().weapons[0].ammo; game.step(0.01, { fire: true });
+  assert.equal(game.snapshot().weapons[0].ammo, a0 - 1, 'Schuss nach 0,34 s möglich');
 });
 
 test('shrine blesses once per wave: heal, 28 percent less damage, resets at the next wave', () => {
