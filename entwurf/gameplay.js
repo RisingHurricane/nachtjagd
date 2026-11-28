@@ -271,7 +271,7 @@ globalThis.NachtjagdPlay = {
       if(document.pointerLockElement===canvas) { dx=e.movementX; dy=e.movementY; }
       else if(drag) { dx=e.clientX-drag.x; dy=e.clientY-drag.y; drag.x=e.clientX; drag.y=e.clientY; drag.total+=Math.abs(dx)+Math.abs(dy); }
       else return;
-      // Im Jeep lenken nur A/D und die Pfeiltasten, die Maus schaut frei um (dreht mit dem Wagen mit).
+      // Im Geländewagen steuert der Blick die Fahrtrichtung (wie zu Fuß).
       game.setLook(current.player.yaw-dx*.003,current.player.pitch-dy*.003);
       current.player.yaw-=dx*.003; current.player.pitch=THREE.MathUtils.clamp(current.player.pitch-dy*.003,-1.5,1.5);
     });
@@ -483,7 +483,7 @@ globalThis.NachtjagdPlay = {
         else if((saveT+=dt)>8) { saveT=0; save.write(); }
       }
       if(current.phase==='playing') {
-        const ride=current.player.ride, steering=!!(ride&&ride.driver&&(ride.kind==='jeep'||ride.kind==='boat'||ride.kind==='cart'));
+        const ride=current.player.ride, steering=!!(ride&&ride.driver&&(ride.kind==='boat'||ride.kind==='cart'));   // Geländewagen: Pfeiltasten drehen den Blick wie zu Fuß
         const arrows=Number(keys.has('ArrowRight'))-Number(keys.has('ArrowLeft'));
         if(!steering && arrows) game.setLook(current.player.yaw-arrows*dt*2.1,current.player.pitch);
         current=game.step(dt,teamMenu||current.player.down?{}:{
@@ -513,7 +513,7 @@ globalThis.NachtjagdPlay = {
         const names=['Fahrer','Beifahrer','Hinten links','Hinten rechts'],seat=rv.kind==='gondola'?'Platz '+(ride.seat+1):rv.kind==='boat'?'Ruderer':names[ride.seat];
         const speed=Math.round(Math.abs(rv.sp)*3.6);
         let hints='C Platz wechseln · E Aussteigen';
-        if(ride.driver) hints={jeep:'W/S Gas und Rückwärts · A/D lenken · Maus umsehen · Leertaste bremsen · ',cart:'W/S vor und zurück · A/D Weiche · Leertaste bremsen · ',boat:'W/S rudern (Shift schneller) · A/D lenken · '}[rv.kind]+hints;
+        if(ride.driver) hints={jeep:'Fahren wie Gehen: Maus gibt die Richtung · W/A/S/D fahren · S allein rückwärts · Shift schneller · Leertaste bremsen · ',cart:'W/S vor und zurück · A/D Weiche · Leertaste bremsen · ',boat:'W/S rudern (Shift schneller) · A/D lenken · '}[rv.kind]+hints;
         else if(rv.kind==='gondola') hints=rv.dock===null?'Maus umsehen · Klick schießen · C Platz · Aussteigen an der Station':'E Aussteigen · C Platz · Abfahrt in '+Math.ceil(Math.max(0,(rv.dock===0?8-rv.phase:62-rv.phase)))+' s';
         else hints='Maus und Klick schießen · '+hints;
         vehicleBox.innerHTML=`<b>${rv.name} · ${seat}${rv.kind==='gondola'?'':' · '+speed+' km/h'}</b><br><small style="color:#9fc0cc">${hints}</small>`;

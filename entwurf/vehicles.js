@@ -116,65 +116,47 @@
     return n;
   }
 
-  // Lenkung und Fahrverhalten (arcadig, gut kontrollierbar):
-  // - Das Lenkrad folgt der Taste weich (Auslenken 2,6/s, Gegenlenken 6/s, Zurückstellen 4,5/s) statt zwischen Mitte und Anschlag zu springen.
-  // - Der Einschlag nimmt mit dem Tempo ab, damit schnelle Fahrt ruhig bleibt.
-  // - Querhaftung: Straße 1,25 g, Gelände 0,95 g. Wird sie überschritten, rutscht der Wagen über die Vorderräder und verliert Tempo,
-  //   statt einfach geradeaus weiterzufahren.
-  // - Im Gelände begrenzt der Widerstand das Tempo auf 13 m/s (47 km/h), auf der Straße bleibt es bei 22 m/s.
-  // - Stößt der Wagen an ein Hindernis, prallt er schwach zurück (Rückstoß, kein Stillstand) und gleitet beim Gegenlenken weg.
-  const ROAD_GRIP = 1.25, OFFROAD_GRIP = 0.95, OFFROAD_TOP = 13;
+  // Fahren wie Gehen (Wunsch von Light): W/S/A/D wirken relativ zur Blickrichtung wie zu Fuß. Der Wagen dreht sich zügig
+  // in die gewünschte Richtung und fährt dorthin; nur S allein fährt rückwärts, die Nase bleibt in Blickrichtung.
+  // Kein Rutschen, kein Wenderadius; Hindernisse halten den Wagen an, festgeklemmt kommt er wieder frei.
+  const ROAD_TOP = 16, FIELD_TOP = 11, TURN_RATE = 2.6;
   function driveJeep(v, dt, c, ctx) {
     const { world, floorAt } = ctx;
     if (dt <= 0) return;
-    const steps = Math.max(1, Math.ceil(dt / (1 / 120))), h = dt / steps, oldSpeed = v.sp;
+    const oldSpeed = v.sp, look = finite(c.lookYaw) ? c.lookYaw : v.yaw;
+    const f = c.f || 0, sd = c.s || 0;
+    const dx = Math.sin(look) * f - Math.cos(look) * sd, dz = Math.cos(look) * f + Math.sin(look) * sd, len = Math.hypot(dx, dz);
+    const top = (onRoad(world, v.x, v.z) ? ROAD_TOP : FIELD_TOP) * (c.sprint ? 1.3 : 1);
+    let targetYaw = v.yaw, targetSp = 0;
+    if (len > 0.1 && v.seats[0] !== null) {
+      if (f < -0.2 && Math.abs(sd) < 0.2) { targetYaw = look; targetSp = -top * 0.6; }
+      else { targetYaw = Math.atan2(dx, dz); targetSp = top * Math.min(1, len); }
+    }
+    if (c.brake) targetSp = 0;
+    const steps = Math.max(1, Math.ceil(dt / (1 / 60))), h = dt / steps;
+    let turned = 0;
     for (let i = 0; i < steps; i++) {
-      const road = onRoad(world, v.x, v.z), grip = (road ? ROAD_GRIP : OFFROAD_GRIP) * 9.81;
-      const maxSteer = 0.62 / (1 + Math.pow(Math.abs(v.sp) / 13, 1.5));
-      const want = clamp(c.steer, -1, 1), cur = v.sIn || 0;
-      const rate = want === 0 ? 4.5 : (cur !== 0 && Math.sign(want) !== Math.sign(cur) ? 6 : 2.6);
-      v.sIn = cur + clamp(want - cur, -rate * h, rate * h);
-      v.steer = lerp(v.steer || 0, v.sIn * maxSteer, 1 - Math.exp(-h * 18));
-      const s = Math.sin(v.yaw), co = Math.cos(v.yaw);
-      const grade = (floorAt(v.x + s * 1.25, v.z + co * 1.25, v.y) - floorAt(v.x - s * 1.25, v.z - co * 1.25, v.y)) / 2.5;
-      const forward = c.forward && !c.reverse, reverse = c.reverse && !c.forward;
-      const opposing = (forward && v.sp < -0.25) || (reverse && v.sp > 0.25);
-      let force = 0;
-      if (opposing) force = -Math.sign(v.sp) * 13;
-      else if (forward) force = 7.2 * (1 - Math.min(0.52, Math.abs(v.sp) / 34));
-      else if (reverse) force = -5.2 * (1 - Math.min(0.5, Math.abs(v.sp) / 14));
-      if (!road && v.sp > OFFROAD_TOP) force -= (v.sp - OFFROAD_TOP) * 2.2;
-      const serviceBrake = v.seats[0] === null || c.brake || (c.forward && c.reverse) || (!forward && !reverse && Math.abs(v.sp) < 0.05);
-      const brakes = serviceBrake ? 17 : opposing ? 0 : (forward || reverse) ? 0.22 : 1.25;
-      force -= 9.81 * Math.sin(Math.atan(grade)) * 0.5;
-      const prior = v.sp;
-      v.sp = clamp((v.sp + force * h) * Math.exp(-brakes * h), -7.5, 22);
-      if (opposing && prior * v.sp <= 0) v.sp = 0;
-      if (Math.abs(v.sp) < (serviceBrake ? 0.24 : 0.04) && (serviceBrake || !(forward || reverse))) v.sp = 0;   // mit Gas nicht abwürgen (Rückwärts bergauf)
-      const ideal = v.sp / JEEP.wheelBase * Math.tan(v.steer), maxYaw = grip / Math.max(Math.abs(v.sp), 3);
-      // Über der Haftgrenze: Untersteuern, die überschüssige Querbeschleunigung bremst den Wagen.
-      const slip = Math.max(0, Math.abs(ideal) - maxYaw);
-      if (slip > 0) v.sp *= Math.exp(-Math.min(slip, 1.5) * 0.7 * h);
-      v.slip = slip > 0.05;
-      v.yawRate = lerp(v.yawRate || 0, clamp(ideal, -maxYaw, maxYaw), 1 - Math.exp(-h * 12));
-      const yaw = v.yaw + v.yawRate * h;
+      const diff = angDiff(targetYaw, v.yaw), turn = clamp(diff, -TURN_RATE * h, TURN_RATE * h);
+      // stark verdrehte Wunschrichtung: erst drehen, dann Gas
+      const want = Math.abs(diff) > 1.3 ? targetSp * 0.25 : targetSp;
+      v.sp += clamp(want - v.sp, -(c.brake ? 26 : 16) * h, 6.5 * h);
+      if (Math.abs(v.sp) < 0.05 && want === 0) v.sp = 0;
+      const yaw = v.yaw + turn;
       const nx = v.x + Math.sin(yaw) * v.sp * h, nz = v.z + Math.cos(yaw) * v.sp * h;
       const surface = floorAt(nx, nz, v.y), run = Math.hypot(nx - v.x, nz - v.z);
-      // Kleine Kanten (Fahrbahnrand, Bordstein bis 25 cm) überfährt der Wagen; nur echte Stufen und Steilhänge halten ihn auf.
       const steep = Math.abs(surface - v.y) > 0.9 * run + 0.25;
-      // Klemmt der Wagen schon an einem Hindernis, darf er sich bewegen, solange nicht mehr Prüfpunkte im Hindernis liegen als vorher.
       const after = jeepBlocked(world, nx, nz, yaw, surface) ? jeepBlockCount(world, nx, nz, yaw, surface) : 0;
       const blockedNow = after > 0 && (() => { const before = jeepBlockCount(world, v.x, v.z, v.yaw, v.y); return before === 0 || after > before; })();
       if (!finite(surface) || Math.abs(surface - v.y) > 1 || steep || blockedNow) {
-        // Hindernis oder zu steil: nur drehen, wenn es dabei frei bleibt (Wegdrehen von Baum oder Wand), sonst Rückstoß.
         if (Math.abs(v.sp) > 2.5) v.bump = true;
-        const turnedFree = !jeepBlocked(world, v.x, v.z, yaw, v.y);
-        if (turnedFree && Math.abs(v.sp) > 0.5) v.yaw = yaw;
-        v.sp = -Math.sign(v.sp) * Math.min(1.6, Math.abs(v.sp) * 0.18); v.yawRate *= 0.35;
-        break;
+        // nur drehen, wenn das ohne Vorwärtsbewegung frei bleibt
+        if (!jeepBlocked(world, v.x, v.z, yaw, v.y)) { v.yaw = yaw; turned += turn; }
+        v.sp = 0; break;
       }
-      v.yaw = yaw; v.x = nx; v.z = nz; v.y = surface;
+      v.yaw = yaw; v.x = nx; v.z = nz; v.y = surface; turned += turn;
     }
+    v.yawRate = turned / dt; v.slip = false;
+    v.steer = lerp(v.steer || 0, clamp(angDiff(targetYaw, v.yaw), -0.6, 0.6) * (v.sp < -0.3 ? -1 : 1), 1 - Math.exp(-dt * 10));
     settleJeep(v, dt, clamp((v.sp - oldSpeed) / dt, -14, 8), ctx);
   }
 
@@ -296,7 +278,7 @@
   function controls(input, driver) {
     if (!driver) return { forward: false, reverse: false, steer: 0, brake: true, sprint: false };
     const f = clamp(input.forward || 0, -1, 1), s = clamp(input.side || 0, -1, 1), turn = clamp(input.turn || 0, -0.8, 0.8);
-    return { forward: f > 0.2, reverse: f < -0.2, steer: Math.abs(s) > 0.1 ? -s : turn / 0.8, brake: !!(input.brake || input.jump), sprint: !!input.sprint };
+    return { forward: f > 0.2, reverse: f < -0.2, steer: Math.abs(s) > 0.1 ? -s : turn / 0.8, brake: !!(input.brake || input.jump), sprint: !!input.sprint, f, s, lookYaw: input.lookYaw };
   }
   function step(fleet, dt, ctx, inputOf) {
     for (const v of fleet.vehicles) {
