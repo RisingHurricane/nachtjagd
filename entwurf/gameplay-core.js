@@ -84,18 +84,18 @@
   const RELIC_LINES = {
     heart: 'Nahkampftreffer werden alle 20 Sekunden halbiert', compass: 'Die Richtung zum nächsten fehlenden Mondsiegel erscheint im HUD',
     lamp: 'Dein Lichtkegel wird heller und breiter', crown: 'Höchstes Leben +40, sofort voll geheilt',
-    circle: 'Ein Lichtstrahl steigt aus dem Steinkreis · Schüsse treffen Unheilige um 25 % härter', pearl: 'Nachladen 25 % schneller'
+    circle: 'Ein Lichtstrahl steigt aus dem Steinkreis · Schüsse treffen Unheilige um 25 % härter', pearl: 'Schüsse 15 % schneller'
   };
 
   // Händler (h) verkauft Vorräte, der Schmied (s) schmiedet Verbesserungen.
   const SHOP = [
     { v: 'h', name: 'Verbandskasten', desc: 'Stellt alle Lebenspunkte wieder her', cost: () => 90, can: g => g.player.hp < g.player.maxHp, buy: g => { g.player.hp = g.player.maxHp; } },
-    { v: 'h', name: 'Munition', desc: 'Füllt alle Waffen auf', cost: () => 110, can: g => g.weapons.some(w => w.owned && w.reserve < w.max), buy: g => { for (const w of g.weapons) if (w.owned) w.reserve = w.max; } },
+    { v: 'h', name: 'Munition', desc: 'Füllt alle Waffen auf', cost: () => 110, can: g => g.weapons.some(w => w.owned && w.reserve < Math.round(w.max * (1 + 0.25 * g.up.mag))), buy: g => { for (const w of g.weapons) if (w.owned) w.reserve = Math.round(w.max * (1 + 0.25 * g.up.mag)); } },
     { v: 'h', name: 'Granaten × 3', desc: 'Flächenschaden', cost: () => 80, can: g => g.player.gren < 9, buy: g => { g.player.gren = Math.min(9, g.player.gren + 3); } },
     { v: 'h', name: 'Molotow × 3', desc: 'Flammenteppich, brennt 7 Sekunden', cost: () => 90, can: g => g.player.molo < 9, buy: g => { g.player.molo = Math.min(9, g.player.molo + 3); } },
     { v: 's', name: 'Mehr Schaden', desc: '+20 % Waffenschaden (Stufe / 3)', cost: g => 150 + g.up.dmg * 110, can: g => g.up.dmg < 3, buy: g => { g.up.dmg++; } },
-    { v: 's', name: 'Größere Magazine', desc: 'Mehr Schuss pro Ladung (Stufe / 3)', cost: g => 140 + g.up.mag * 90, can: g => g.up.mag < 3, buy: g => { g.up.mag++; } },
-    { v: 's', name: 'Schnelleres Nachladen', desc: '20 % kürzer (Stufe / 2)', cost: g => 130 + g.up.rel * 120, can: g => g.up.rel < 2, buy: g => { g.up.rel++; } },
+    { v: 's', name: 'Größere Munitionstaschen', desc: '25 % mehr Vorrat je Waffe (Stufe / 3)', cost: g => 140 + g.up.mag * 90, can: g => g.up.mag < 3, buy: g => { g.up.mag++; } },
+    { v: 's', name: 'Schnellerer Abzug', desc: '10 % schneller schießen (Stufe / 2)', cost: g => 130 + g.up.rel * 120, can: g => g.up.rel < 2, buy: g => { g.up.rel++; } },
     { v: 's', name: 'Mehr Leben', desc: 'Maximale Gesundheit +25 (Stufe / 4)', cost: g => 200 + g.up.hp * 120, can: g => g.up.hp < 4, buy: g => { g.up.hp++; g.player.maxHp += 25; g.player.hp += 25; } },
     { v: 's', name: 'Starke Linse', desc: 'Taschenlampe heller, größere Reichweite (Stufe / 3)', cost: g => 120 + g.up.lamp * 100, can: g => g.up.lamp < 3, buy: g => { g.up.lamp++; } },
     { v: 's', name: 'Silbergeschosse', desc: '+35 % Schaden gegen Wölfe, Lykaner, Hexen, Fledermäuse (Stufe / 2)', cost: g => 170 + g.up.silver * 140, can: g => g.up.silver < 2, buy: g => { g.up.silver++; } }
@@ -213,7 +213,7 @@
     let nextItemId = 1;
     const magOf = w => w.mag + state.up.mag * (w.mag >= 6 ? 2 : 1);
     const dmgK = () => 1 + 0.2 * state.up.dmg;
-    const addReserve = (mult = 1) => { for (const w of state.weapons) if (w.owned) w.reserve = Math.min(w.max, w.reserve + Math.ceil(w.pick * mult)); };
+    const addReserve = (mult = 1) => { for (const w of state.weapons) if (w.owned) w.reserve = Math.min(Math.round(w.max * (1 + 0.25 * state.up.mag)), w.reserve + Math.ceil(w.pick * mult)); };
 
     // ------------------------------------------------------------------ Hilfen für Sicht und Raum
     function los(x0, y0, z0, x1, y1, z1) {
@@ -311,11 +311,11 @@
       const w = {
         villager: Math.max(2.5, 9 - n * 1.1), lycan: n >= 2 ? 1.4 + n * 0.6 : 0, wolf: n >= 3 ? 1.2 + n * 0.3 : 0, hag: n >= 4 ? 1.2 + n * 0.3 : 0,
         samca: n >= 5 && live('samca') < 1 + Math.floor((n - 5) / 3) ? 0.5 : 0, spitter: n >= 3 ? 0.8 + n * 0.22 : 0, bloater: n >= 4 ? 0.7 + n * 0.18 : 0,
-        brute: n >= 6 && live('brute') < 1 + Math.floor((n - 6) / 4) ? 0.45 : 0, reaper: n >= 4 && live('reaper') < 1 + Math.floor((n - 4) / 3) ? 0.55 + n * 0.14 : 0, bat: n >= 3 ? 0.3 + n * 0.06 : 0
+        brute: n >= 6 && live('brute') < 1 + Math.floor((n - 6) / 4) ? 0.45 : 0, reaper: n >= 4 && live('reaper') < 1 + Math.floor((n - 4) / 3) ? 0.55 + n * 0.14 : 0, bat: n >= 3 && live('bat') < (md === 'bats' ? 7 : 4) ? 0.3 + n * 0.05 : 0
       };
       if (md === 'fog') { w.hag = w.hag * 2.5 + (n >= 3 ? 2 : 0); w.villager *= 0.7; }
       if (md === 'blood') { w.lycan *= 2; w.samca *= 2.5; w.wolf *= 1.6; w.brute *= 2; }
-      if (md === 'bats') { w.bat = w.bat * 3 + 1.5; w.reaper = w.reaper * 2.2 + (n >= 3 ? 0.8 : 0); w.villager *= 0.6; }
+      if (md === 'bats') { w.bat = w.bat * 1.8 + (w.bat > 0 ? 0.6 : 0); w.reaper = w.reaper * 1.3 + (n >= 3 ? 0.3 : 0); w.villager *= 0.8; }   // Fledermaus-Sturm entschärft (Welle 6 war kaum zu schaffen)
       let sum = 0; for (const k in w) sum += w[k];
       let r = random() * sum;
       for (const k in w) { r -= w[k]; if (r <= 0 && w[k] > 0) return k; }
@@ -562,8 +562,12 @@
     function shoot(input) {
       const w = state.weapons[state.current];
       if (cooldown > 0 || swapTimer > 0 || w.reloading > 0 || state.melee.t > 0 || P.frozen || (P.ride && P.ride.driver && P.ride.kind === 'jeep')) return;
-      if (!w.ammo) { reload(); return; }
-      w.ammo--; cooldown = w.rate;
+      // Kein Nachladen (Wunsch von Light): ist das Magazin leer, kommt der nächste Schuss sofort aus dem Vorrat.
+      if (!w.ammo) {
+        if (w.reserve <= 0) { emit('notice', { text: 'Keine Munition' }); cooldown = 0.6; return; }
+        const n = Math.min(magOf(w), w.reserve); w.ammo += n; w.reserve -= n;
+      }
+      w.ammo--; cooldown = w.rate * (1 - 0.1 * state.up.rel) * (state.relics.pearl ? 0.85 : 1);
       const cp = Math.cos(P.pitch), forward = { x: Math.sin(P.yaw) * cp, y: Math.sin(P.pitch), z: Math.cos(P.yaw) * cp };
       const moving = Math.hypot(P.vx, P.vz) > 1.5 ? 1.5 : 1, airborne = P.onGround ? 1 : 2;
       let hitAny = false;
@@ -583,12 +587,9 @@
         }
       }
       emit('shot', { weapon: w.name, ammo: w.ammo, hit: hitAny });
-      if (!w.ammo && w.reserve > 0) autoReloadT = 0.32;
     }
     function reload() {
-      const w = state.weapons[state.current];
-      if (state.phase !== 'playing' || P.frozen || w.reloading > 0 || w.ammo >= magOf(w) || w.reserve <= 0 || swapTimer > 0) return false;
-      w.reloading = w.reload * (1 - 0.2 * state.up.rel) * (state.relics.pearl ? 0.75 : 1); emit('notice', { text: 'Nachladen' }); return true;
+      return false; // Nachladen gibt es nicht mehr; Aufruf bleibt für ältere Bedienungen harmlos
     }
     // Axt: kurzer Schlag nach vorn, trifft nur, was im Blick und in Reichweite ist.
     function melee() {
@@ -968,8 +969,7 @@
         }[t.type];
       }
       const w = state.weapons[state.current];
-      if (w.reloading > 0) return 'Nachladen …';
-      if (w.ammo === 0 && w.reserve > 0) return '[R] Nachladen';
+      if (w.ammo + w.reserve === 0) return 'Keine Munition · Vorräte suchen oder beim Händler kaufen';
       if (w.ammo === 0) return 'Keine Munition';
       return '';
     }

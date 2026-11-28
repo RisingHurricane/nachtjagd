@@ -113,7 +113,7 @@ globalThis.NachtjagdInterface = (() => {
       const displayDt=hudClock; hudClock=0;
       latest=s;const p=s.player,w=s.weapons[s.current],target=targetFor(s,selected),done=s.quest.objectives.filter(o=>o.found).length;
       q('hud-health').textContent=Math.ceil(p.hp);q('hud-healthbar').style.width=Math.max(0,p.hp/p.maxHp*100)+'%';hud.classList.toggle('low-health',p.hp<30);
-      q('hud-ammo').textContent=String(w.ammo).padStart(2,'0');q('hud-reserve').textContent='/ '+w.reserve;q('hud-weapon').textContent=w.name;
+      q('hud-ammo').textContent=String(w.ammo+w.reserve).padStart(2,'0');q('hud-reserve').textContent='SCHUSS';q('hud-weapon').textContent=w.name;
       q('hud-reload').hidden=w.reloading<=0;q('hud-reload-progress').value=1-w.reloading/w.reload;
       q('hud-wave').textContent='WELLE '+s.waves.n;q('hud-points').textContent=s.stats.score+' PUNKTE';
       q('hud-supplies').textContent=`${s.stats.lei} Lei   ·   G ${p.gren}   ·   T ${p.molo}`;

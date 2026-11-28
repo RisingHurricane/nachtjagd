@@ -282,7 +282,7 @@ globalThis.NachtjagdPlay = {
     });
     canvas.addEventListener('pointercancel',clearInput);
     document.addEventListener('pointerlockchange',()=>{ if(active && document.pointerLockElement!==canvas) pause(); });
-    const CONTROL_KEYS=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight','Space','KeyR','KeyE','KeyG','KeyT','KeyV','KeyF','KeyC','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','KeyM','KeyN','Escape'];
+    const CONTROL_KEYS=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight','Space','KeyE','KeyG','KeyT','KeyV','KeyF','KeyC','Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','KeyM','KeyN','Escape'];
     addEventListener('keydown',e=>{
       if(!active || e.target.matches('input,textarea,select')) return;
       if(CONTROL_KEYS.includes(e.code)) e.preventDefault();
@@ -298,7 +298,6 @@ globalThis.NachtjagdPlay = {
       if(current.phase!=='playing'||teamMenu) return;
       keys.add(e.code);
       if(e.repeat) return;
-      if(e.code==='KeyR') game.reload();
       // Eine Aktion je Tastendruck; der Eingabehandler selbst führt keine Weltabfragen aus.
       if(e.code==='KeyE') pendingInteract=true;
       if(e.code==='KeyG') game.throwGrenade();
@@ -599,14 +598,14 @@ globalThis.NachtjagdPlay = {
       feed.hidden=!feedLines.length; feed.innerHTML=feedLines.map(l=>l.text.replace(/[<&]/g,c=>c==='<'?'&lt;':'&amp;')).join('<br>');
       // Anzeige
       const w=current.weapons[current.current],mag=w.mag+current.up.mag*(w.mag>=6?2:1);
-      score.textContent=`Leben ${Math.ceil(p.hp)}/${p.maxHp} · ${w.name} ${w.ammo}/${w.reserve}${w.reloading>0?' · Nachladen …':''} · Welle ${current.waves.n}${current.waves.mod!=='normal'?' ('+({blood:'Blutmond',fog:'Nebel',bats:'Fledermäuse'}[current.waves.mod])+')':''} · ${current.stats.score} Punkte`;
+      score.textContent=`Leben ${Math.ceil(p.hp)}/${p.maxHp} · ${w.name} ${w.ammo+w.reserve} Schuss · Welle ${current.waves.n}${current.waves.mod!=='normal'?' ('+({blood:'Blutmond',fog:'Nebel',bats:'Fledermäuse'}[current.waves.mod])+')':''} · ${current.stats.score} Punkte`;
       extra.textContent=`Lei ${current.stats.lei} · Granaten ${p.gren} [G] · Molotow ${p.molo} [T] · Axt [V] · Sprung [Leertaste] · Lampe [F]  ·  ${current.weather.name}${p.bless>0?'  ·  Segen '+Math.ceil(p.bless)+' s':''}${p.slowT>0?'  ·  Säure':''}`;
       const relic=game.relicStatus(); if(relic) extra.textContent+='\n'+relic;
       extra.style.whiteSpace='pre-line';
       const remaining=current.quest.objectives.filter(o=>!o.found);
       objective.textContent=current.quest.stage==='final'?`Bis zum Morgengrauen: ${Math.ceil(current.waves.finalT)} s`:current.quest.stage==='bell'?'Läute die Glocke im Kirchenvorraum':`Mondsiegel ${3-remaining.length}/3 · ${remaining.map(o=>`${o.name} ${Math.round(Math.hypot(p.x-o.x,p.z-o.z))} m`).join(' · ')}`;
       const prompt=game.prompt();
-      hint.textContent=prompt||'WASD · Shift laufen · Leertaste springen · Klick schießen · R nachladen · 1–3 Waffen · G Granate · T Molotow · V Axt · M Karte · N Musik · Esc Pause';
+      hint.textContent=prompt||'WASD · Shift laufen · Leertaste springen · Klick schießen · 1–3 Waffen · G Granate · T Molotow · V Axt · M Karte · N Musik · Esc Pause';
       const report=document.querySelector('#game-tests');
       if(report) report.textContent=JSON.stringify({phase:current.phase,player:p,wave:current.waves.n,monsters:current.monsters.length,ammo:w.ammo,mag,checks:world.checks},null,2);
     }
