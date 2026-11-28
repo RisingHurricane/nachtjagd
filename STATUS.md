@@ -246,6 +246,8 @@ Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` un
 
 ## Übergabe-Log
 
+- 2026-11-28 · Claude · Spielstand nach Wunsch von Light: die erreichte Welle bleibt auch nach einer Niederlage gespeichert (volles Leben, Start im Dorf). Im Niederlage-Fenster heißt der Knopf „Welle N erneut versuchen“, im Hauptmenü „Weiterspielen“. Erst der Sieg löscht den Stand, „Eine Nacht beginnen“ startet neu. Cache-Version 35.
+
 - 2026-11-28 · Claude · Spielstand für das Solospiel: `gameplay-core.js` hat `saveState()` und die Option `resume` (jeder Wert wird geprüft und begrenzt; Position in einer Wand wird verworfen). `gameplay.js` speichert alle 8 s, beim Pausieren, beim Verlassen und beim Schließen der Seite unter `nachtjagd-spielstand-1` im Browser; nach Niederlage oder Sieg wird der Stand gelöscht. Hauptmenü zeigt dann „Weiterspielen · Welle N · Siegel · Punkte“. Gespeichert: geschaffte Wellen, Siegel, Glocke/Endphase, Relikte, Verbesserungen, Munition, Granaten, Leben, Lei, Punkte, Position. Gegner nicht. „Eine Nacht beginnen“ startet neu und löscht den Stand. Teamspiel speichert nicht. Test ergänzt, `npm test` 223 grün, Browserprüfungen 23/166 grün. Cache-Version 34.
 
 - 2026-11-25 · Claude · Dorfplan weiter nur als Entwurf (Light: erst fertig planen, dann ins Spiel). Entwurf H in `planung/dorfplan.html`: Satteldächer mit Giebel, Pultdächer, Kamine, neun Ecktürme, keine Walmdächer. Ein vorgezogener Spieleinbau liegt aufbewahrt auf Branch `claude/dorf-ins-spiel` (Blockhaus-Modul `village-blocks.js`, Plan-Export, Straßen); auf `claude/grafik-laden` und gh-pages wieder zurückgenommen.
