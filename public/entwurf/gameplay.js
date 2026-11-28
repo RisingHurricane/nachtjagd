@@ -201,21 +201,42 @@ globalThis.NachtjagdPlay = {
         '<div style="margin-top:8px;font-size:12px;color:#9fc0cc">Zahl drücken oder klicken zum Kaufen · E oder Esc schließt</div>';
     }
     shopBox.addEventListener('click',e=>{ const row=e.target.closest('[data-buy]'); if(row&&game) { game.buy(Number(row.dataset.buy)); current=game.snapshot(); renderShop(); } });
-    function start() {
+    // Spielstand (nur Solospiel): alle paar Sekunden im Browser gespeichert, gelöscht bei Niederlage oder Sieg.
+    const SAVE_KEY='nachtjagd-spielstand-1';
+    const save={
+      read(){ try { const d=JSON.parse(storage?.getItem(SAVE_KEY)||'null'); return d&&d.v===1?d:null; } catch(e) { return null; } },
+      write(){ if(!game||room||!active||!['playing','paused','shop'].includes(current.phase)) return; try { storage?.setItem(SAVE_KEY,JSON.stringify({...game.saveState(),savedAt:Date.now()})); } catch(e) { /* ohne Speicher */ } refreshContinue(); },
+      clear(){ try { storage?.removeItem(SAVE_KEY); } catch(e) { /* ohne Speicher */ } refreshContinue(); }
+    };
+    let saveT=0;
+    // Knopf „Weiterspielen“ im Hauptmenü, sichtbar sobald ein Spielstand existiert
+    const continueBtn=document.createElement('button');continueBtn.id='menu-continue';continueBtn.type='button';continueBtn.hidden=true;
+    document.querySelector('#menu-play')?.before(continueBtn);
+    function refreshContinue(){
+      const d=save.read();continueBtn.hidden=!d;
+      if(d) continueBtn.textContent=`Weiterspielen · Welle ${d.wave+1} · ${d.found.filter(Boolean).length}/3 Siegel · ${d.stats.score} Punkte`;
+    }
+    continueBtn.addEventListener('click',()=>{ if(document.querySelector('#menu-play')?.disabled) return; const d=save.read(); if(d) start(d); });
+    refreshContinue();
+    addEventListener('pagehide',()=>save.write());
+    function start(resume=null) {
+      if(!(resume&&resume.v===1)) resume=null;
+      if(!resume&&!room) save.clear();
       ui.started(); onStart();
       clearInput(); viewY=null; world.resetNavigation?.(); teamMenu=false;
       if(room?.role==='host') teamEpoch++;
       const slot=room?.role==='guest'?(parseInt(room.id.slice(1),10)||1):0;
-      game=NachtjagdGame.create({world,...options,coop:room?{role:room.role}:null,spawnShift:slot?[Math.cos(slot*2.1)*2.2,Math.sin(slot*2.1)*2.2]:null}); current=game.start(); active=true;
+      game=NachtjagdGame.create({world,...options,resume:room?null:resume,coop:room?{role:room.role}:null,spawnShift:slot?[Math.cos(slot*2.1)*2.2,Math.sin(slot*2.1)*2.2]:null}); current=game.start(); active=true;
       document.body.classList.add('playing'); hud.hidden=false; setVisible(true); music.start();
-      camera.fov=74; camera.updateProjectionMatrix(); game.setLook(Math.PI,0); current=game.snapshot();
-      feedLines.length=0; say('Finde die drei Mondsiegel bei Kirche, Mine und Burg.',8); torchOn=true;
+      camera.fov=74; camera.updateProjectionMatrix(); game.setLook(game.resumed?current.player.yaw:Math.PI,0); current=game.snapshot();
+      feedLines.length=0; say(game.resumed?`Spielstand geladen · weiter ab Welle ${current.waves.n+1}`:'Finde die drei Mondsiegel bei Kirche, Mine und Burg.',8); torchOn=true; saveT=0;
       if(room) { say(room.role==='host'?`Teamspiel · Raum ${room.code} · bis zu vier Spieler`:`Teamspiel · Raum ${room.code} · Host ${room.hostName}`,8); clearMates(); }
       for(const m of actorMeshes.values()) actors.remove(m); for(const mesh of actorMeshes.values()) mesh.userData.mat.dispose(); actorMeshes.clear();
       vehicleLayer.clear(); vehicleLayer.setStatic(NachtjagdVehicleModels.buildStatic(THREE,{world,layout:game.layout()}));
       update(0); showPanel(); lockPointer();
     }
     function leave() {
+      save.write();
       if(room) { room.close(); room=null; team=[]; clearMates(); teamUi.reset(); }
       ui.left(); active=false; music.stop(); music.update(null,10); clearInput(); releasePointer(); hud.hidden=panel.hidden=shopBox.hidden=true;
       setVisible(false); restoreEnv();
@@ -224,7 +245,7 @@ globalThis.NachtjagdPlay = {
     function pause() {
       // Im Teamspiel läuft die Nacht für alle weiter: nur das Fenster öffnet sich.
       if(active && room && current.phase==='playing') { teamMenu=true; clearInput(); releasePointer(); showPanel(); return; }
-      if(active && current.phase==='playing') { current=game.pause(); showPanel(); }
+      if(active && current.phase==='playing') { current=game.pause(); showPanel(); save.write(); }
     }
     action.addEventListener('click',()=>{
       if(teamMenu) { teamMenu=false; clearInput(); showPanel(); lockPointer(); return; }
@@ -450,6 +471,11 @@ globalThis.NachtjagdPlay = {
         if(current.phase==='shop') { showPanel(); renderShop(); releasePointer(); }
       }
       clock+=dt; music.setPaused(current.phase==='paused'||current.phase==='shop'); music.update(current,dt);
+      // Spielstand: alle 8 Sekunden speichern; nach Niederlage oder Sieg gibt es nichts fortzusetzen
+      if(active&&!room) {
+        if(current.phase==='dead'||current.phase==='won') { if(!continueBtn.hidden||saveT>=0) { save.clear(); saveT=-1; } }
+        else if((saveT+=dt)>8) { saveT=0; save.write(); }
+      }
       if(current.phase==='playing') {
         const ride=current.player.ride, steering=!!(ride&&ride.driver&&(ride.kind==='jeep'||ride.kind==='boat'||ride.kind==='cart'));
         const arrows=Number(keys.has('ArrowRight'))-Number(keys.has('ArrowLeft'));

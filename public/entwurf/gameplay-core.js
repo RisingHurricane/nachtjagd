@@ -151,10 +151,58 @@
     state.quest.objectives = (world.objectives || []).map(o => ({ ...o, found: false }));
     state.quest.bell = world.bell ? { ...world.bell } : null;
     state.weather = weatherAt(0, state.weatherSeed);
+    // Spielstand fortsetzen (aus dem Browserspeicher, daher jeden Wert prüfen): abgeschlossene Wellen, Siegel, Relikte,
+    // Verbesserungen, Munition, Punkte und die Stelle, an der der Spieler stand. Gegner werden nicht gespeichert.
+    function applyResume(r) {
+      if (!r || typeof r !== 'object' || r.v !== 1) return false;
+      const int = (v, a, b, d) => Number.isInteger(v) ? clamp(v, a, b) : d;
+      const num = (v, a, b, d) => finite(v) ? clamp(v, a, b) : d;
+      state.waves.n = int(r.wave, 0, 500, 0);
+      if (r.stats && typeof r.stats === 'object') for (const k of ['kills', 'head', 'score', 'lei', 'notes']) state.stats[k] = int(r.stats[k], 0, 1e9, state.stats[k]);
+      if (r.relics && typeof r.relics === 'object') for (const k of ['heart', 'compass', 'lamp', 'crown', 'circle', 'pearl']) state.relics[k] = r.relics[k] === true;
+      if (r.up && typeof r.up === 'object') for (const k of Object.keys(state.up)) state.up[k] = int(r.up[k], 0, 20, 0);
+      if (Array.isArray(r.weapons)) r.weapons.slice(0, state.weapons.length).forEach((w, i) => {
+        if (!w || typeof w !== 'object') return;
+        state.weapons[i].ammo = int(w.ammo, 0, 999, state.weapons[i].ammo); state.weapons[i].reserve = int(w.reserve, 0, 9999, state.weapons[i].reserve);
+      });
+      state.current = int(r.current, 0, state.weapons.length - 1, 0);
+      if (Array.isArray(r.found)) state.quest.objectives.forEach((o, i) => { if (r.found[i] === true) { o.found = true; state.quest.got.push(o.id); } });
+      const allFound = state.quest.objectives.length > 0 && state.quest.objectives.every(o => o.found);
+      if (allFound) state.quest.stage = r.stage === 'final' ? 'final' : 'bell';
+      if (state.quest.stage === 'final') {
+        state.waves.state = 'final'; state.waves.mod = 'blood'; state.waves.spawnT = 1; state.waves.finalT = num(r.finalT, 5, 100, 100);
+      }
+      if (Array.isArray(r.loots)) for (const i of r.loots) if (Number.isInteger(i) && state.loots[i]) state.loots[i].taken = true;
+      const p = r.player;
+      if (p && typeof p === 'object') {
+        P.maxHp = num(p.maxHp, 100, 400, 100); P.hp = num(p.hp, 1, P.maxHp, P.maxHp);
+        P.gren = int(p.gren, 0, 20, P.gren); P.molo = int(p.molo, 0, 20, P.molo);
+        if (finite(p.x) && finite(p.z) && Math.abs(p.x) < 2000 && Math.abs(p.z) < 2000) {
+          const y = world.floor(p.x, p.z, 1e4);
+          if (finite(y) && !world.blocked(p.x, p.z, y)) { P.x = p.x; P.z = p.z; P.y = y; }
+        }
+        if (finite(p.yaw)) P.yaw = p.yaw;
+      }
+      return true;
+    }
+    // Kompakter Spielstand zum Speichern; eine laufende Welle zählt noch nicht als geschafft.
+    function saveState() {
+      const w = state.waves;
+      return {
+        v: 1, wave: w.state === 'active' ? Math.max(0, w.n - 1) : w.n, stage: state.quest.stage, finalT: w.finalT,
+        found: state.quest.objectives.map(o => !!o.found),
+        stats: { ...state.stats }, up: { ...state.up },
+        relics: { heart: state.relics.heart, compass: state.relics.compass, lamp: state.relics.lamp, crown: state.relics.crown, circle: state.relics.circle, pearl: state.relics.pearl },
+        weapons: state.weapons.map(x => ({ ammo: x.ammo, reserve: x.reserve })), current: state.current,
+        loots: state.loots.map((l, i) => l.taken && (l.special || l.relicId) ? i : -1).filter(i => i >= 0),
+        player: { x: Math.round(P.x * 10) / 10, z: Math.round(P.z * 10) / 10, yaw: Math.round(P.yaw * 100) / 100, hp: Math.ceil(P.hp), maxHp: P.maxHp, gren: P.gren, molo: P.molo }
+      };
+    }
     let cooldown = 0, swapTimer = 0, nextId = 1, autoReloadT = 0, nadeCool = 0;
     const events = [];
     const emit = (type, data = {}) => events.push({ type, ...data });
     const P = state.player;
+    const resumed = applyResume(options.resume);
     // Teamspiel: role 'host' rechnet Gegner, Wellen und Ziele für alle Spieler; 'guest' zeigt die Gegner des Hosts als
     // Puppen und meldet eigene Treffer, Siegel und aufgehobene Vorräte. Ohne coop bleibt alles beim Solospiel.
     const coop = options.coop && (options.coop.role === 'host' || options.coop.role === 'guest') ? options.coop.role : null;
@@ -1328,7 +1376,7 @@
       start() { if (state.phase === 'ready') { state.phase = 'playing'; emit('state', { phase: 'playing' }); } return snapshot(); },
       pause() { if (state.phase === 'playing') { state.phase = 'paused'; emit('state', { phase: 'paused' }); } return snapshot(); },
       resume() { if (state.phase === 'paused') { state.phase = 'playing'; emit('state', { phase: 'playing' }); } return snapshot(); },
-      setLook, step, reload, selectWeapon, interact, snapshot, drainEvents,
+      setLook, step, reload, selectWeapon, interact, snapshot, drainEvents, saveState, resumed,
       setMates, remoteHit, remoteInteract, remoteTake, hostState, applyHost, applyHurt, addLei,
       melee, throwGrenade: () => throwNade(false), throwMolotov: () => throwNade(true),
       buy, closeShop, shopList, prompt, relicStatus, changeSeat,

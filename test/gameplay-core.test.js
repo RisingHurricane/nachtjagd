@@ -150,3 +150,33 @@ test('monsters climb a ramp toward a player standing on higher ground', () => {
   game.start(); advance(game, 4.6); advance(game, 12);
   assert.ok(game.snapshot().player.hp < 100);
 });
+
+test('Spielstand: speichern und fortsetzen übernimmt Fortschritt, ungültige Werte werden begrenzt', () => {
+  const objectives = [{ id: 'a', name: 'A', x: 50, z: 0 }, { id: 'b', name: 'B', x: -50, z: 0 }, { id: 'c', name: 'C', x: 0, z: 50 }];
+  const context = { Math, globalThis: null }; context.globalThis = context;
+  vm.runInNewContext(source, context);
+  const world = { spawn: [0, 0], floor: () => 0, blocked: (x) => x > 100, spawnEnemy: () => null, objectives };
+  const first = context.NachtjagdGame.create({ random: () => 0.5, world });
+  first.start(); advance(first, 6);
+  const save = JSON.parse(JSON.stringify(first.saveState()));
+  assert.equal(save.v, 1);
+  assert.equal(save.wave, 0, 'laufende Welle zählt noch nicht');
+  save.wave = 4; save.found = [true, false, true]; save.stats.score = 1234; save.relics.lamp = true;
+  save.player = { x: 12, z: -7, yaw: 1.2, hp: 55, maxHp: 120, gren: 99, molo: 1 };
+  const next = context.NachtjagdGame.create({ random: () => 0.5, world, resume: save });
+  assert.equal(next.resumed, true);
+  const s = next.start();
+  assert.equal(s.waves.n, 4);
+  assert.deepEqual(JSON.parse(JSON.stringify(s.quest.objectives.map(o => o.found))), [true, false, true]);
+  assert.equal(s.quest.stage, 'seals');
+  assert.equal(s.stats.score, 1234);
+  assert.equal(s.relics.lamp, true);
+  assert.equal(s.player.x, 12); assert.equal(s.player.z, -7); assert.equal(s.player.hp, 55);
+  assert.equal(s.player.gren, 20, 'Granaten werden begrenzt');
+  // Position in einer Wand wird verworfen, kaputte Daten starten normal
+  const blockedSave = { ...save, player: { ...save.player, x: 150 } };
+  assert.equal(context.NachtjagdGame.create({ random: () => 0.5, world, resume: blockedSave }).start().player.x, 0);
+  const broken = context.NachtjagdGame.create({ random: () => 0.5, world, resume: { v: 1, wave: 'x', stats: 5, found: 'ja' } });
+  assert.equal(broken.start().waves.n, 0);
+  assert.equal(context.NachtjagdGame.create({ random: () => 0.5, world, resume: { v: 2 } }).resumed, false);
+});
