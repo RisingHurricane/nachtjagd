@@ -1124,14 +1124,13 @@
       ramContacts.set(v.id, now);
     }
     function updateVehicles(dt, input) {
-      const ridden = rideOf(), yawBefore = ridden ? ridden.yaw : 0;
-      VEH.step(fleet, dt, vctx, v => v.seats[0] === 'p' ? input : {});
+      const ridden = rideOf();
+      VEH.step(fleet, dt, vctx, v => v.seats[0] === 'p' ? { ...input, lookYaw: P.yaw } : {});
       for (const v of fleet.vehicles) {
         if (v.bump) { v.bump = false; emit('vehicle', { action: 'bump', id: v.id, kind: v.kind }); }
         ramMonsters(v);
       }
       if (ridden) {
-        if (ridden.kind === 'jeep' && P.ride.driver) P.yaw += angDiff(ridden.yaw, yawBefore);
         attachRider(ridden);
       }
     }

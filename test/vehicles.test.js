@@ -58,21 +58,26 @@ test('jeep: board as driver, accelerate along the heading, steer, brake and leav
   assert.equal(s.vehicles[0].seats[0], null);
 });
 
-test('jeep: steering right turns the heading right and the driver view follows', () => {
+test('jeep fährt wie zu Fuß: W/A/S/D relativ zum Blick, der Blick bleibt frei', () => {
   const { game } = make({ jeeps: [{ x: 0, z: 0, yaw: 0 }] }); game.start();
-  game.interact();
+  game.interact(); game.setLook(0, 0);
   advance(game, 1.5, { forward: 1 });
   const before = veh(game).yaw, lookBefore = game.snapshot().player.yaw;
   advance(game, 2, { forward: 1, side: 1 });
-  const after = veh(game), look = game.snapshot().player.yaw;
-  assert.ok(after.yaw < before - 0.2, 'rechts lenken verkleinert yaw');
-  assert.ok(after.x < -1, 'Wagen weicht nach rechts (−x) aus');
-  near(look - lookBefore, after.yaw - before, 0.05, 'Blick dreht mit');
-  // Maus lenkt, wenn keine Taste gedrückt ist (positiv = links)
+  const after = veh(game);
+  assert.ok(after.yaw < before - 0.4, 'W+D dreht den Wagen nach rechts vorn');
+  assert.ok(after.x < -1, 'Wagen fährt nach rechts (−x)');
+  near(game.snapshot().player.yaw, lookBefore, 1e-9, 'Blick dreht nicht mit');
+  // Blickrichtung lenkt: der Wagen dreht sich zum Blick und fährt dorthin
   const { game: g2 } = make({ jeeps: [{ x: 0, z: 0, yaw: 0 }] }); g2.start(); g2.interact();
-  advance(g2, 1.5, { forward: 1 });
-  const y0 = veh(g2).yaw; advance(g2, 1.5, { forward: 1, turn: 0.6 });
-  assert.ok(veh(g2).yaw > y0 + 0.1, 'Maus nach links lenkt links');
+  g2.setLook(1.2, 0); advance(g2, 3, { forward: 1 });
+  near(veh(g2).yaw, 1.2, 0.05, 'Wagen folgt dem Blick');
+  assert.ok(veh(g2).x > 3, 'fährt in Blickrichtung');
+  // Nur S: rückwärts, die Nase bleibt in Blickrichtung
+  const { game: g3 } = make({ jeeps: [{ x: 0, z: 0, yaw: 0 }] }); g3.start(); g3.interact(); g3.setLook(0, 0);
+  advance(g3, 2, { forward: -1 });
+  assert.ok(veh(g3).sp < -2 && veh(g3).z < -2, 'fährt rückwärts');
+  near(veh(g3).yaw, 0, 1e-6, 'ohne zu drehen');
 });
 
 test('jeep stops at walls, steep steps and the end of passable ground', () => {
@@ -92,7 +97,7 @@ test('jeep rams monsters: slow hits hurt, fast hits kill, one hit per contact', 
   const run = (seconds) => {
     const { game } = make({ jeeps: [{ x: 0, z: 0, yaw: 0 }] }); game.start();
     game.spawn('villager', 0, 40, true);
-    game.interact();
+    game.interact(); game.setLook(0, 0);
     advance(game, seconds, { forward: 1 });
     return game;
   };
@@ -102,7 +107,7 @@ test('jeep rams monsters: slow hits hurt, fast hits kill, one hit per contact', 
   assert.equal(game.snapshot().stats.kills, 1, 'schneller Wagen tötet');
   // Langsam: ein Treffer unter 8 m/s lässt den Gegner leben
   const { game: slow } = make({ jeeps: [{ x: 0, z: 0, yaw: 0 }] }); slow.start();
-  slow.spawn('brute', 0, 12, true); slow.interact();
+  slow.spawn('brute', 0, 5, true); slow.interact(); slow.setLook(0, 0);
   advance(slow, 1.9, { forward: 1 });
   const rams = events(slow, 'ram');
   if (rams.length) { assert.ok(rams[0].speed < 8); const m = slow.snapshot().monsters[0]; assert.ok(m && m.hp < 380); }
@@ -265,26 +270,13 @@ test('snapshot with vehicles stays plain JSON and exposes eye height per vehicle
   assert.equal(game.snapshot().player.eye, 0.95);
 });
 
-test('jeep: Lenkeinschlag baut sich weich auf und schrumpft mit dem Tempo', () => {
-  const { game } = make({ jeeps: [{ x: 0, z: 0, yaw: 0 }] }); game.start(); game.interact();
-  advance(game, 3, { forward: 1 });
-  const y0 = veh(game).yaw;
-  advance(game, 0.1, { forward: 1, side: 1 });
-  const early = Math.abs(veh(game).yaw - y0);
-  advance(game, 1.5, { forward: 1, side: 1 });
-  const later = Math.abs(veh(game).yaw - y0);
-  assert.ok(early < 0.12, 'kurzer Tastendruck dreht kaum: ' + early);
-  assert.ok(later > early * 3, 'dauerhafter Einschlag dreht deutlich mehr');
-});
-
-test('jeep: Vollgas-Kurve ist begrenzt (Untersteuern) und bremst den Wagen', () => {
-  const { game } = make({ jeeps: [{ x: 0, z: 0, yaw: 0 }] }); game.start(); game.interact();
-  advance(game, 6, { forward: 1 });
-  const fast = veh(game).sp;
-  advance(game, 2, { forward: 1, side: 1 });
-  const v = veh(game);
-  assert.ok(v.sp < fast, 'Kurve kostet Tempo');
-  assert.ok(Math.abs(v.yaw) < 2.5, 'dreht nicht auf der Stelle');
+test('jeep: dreht sich zügig, aber nicht schlagartig in die Wunschrichtung', () => {
+  const { game } = make({ jeeps: [{ x: 0, z: 0, yaw: 0 }] }); game.start(); game.interact(); game.setLook(0, 0);
+  advance(game, 0.1, { side: -1 });
+  const early = Math.abs(veh(game).yaw);
+  advance(game, 1, { side: -1 });
+  assert.ok(early > 0 && early < 0.3, 'kurzer Tastendruck dreht wenig: ' + early);
+  near(veh(game).yaw, Math.PI / 2, 0.05, 'nach einer Sekunde zeigt der Wagen nach links');
 });
 
 test('jeep: Wand streift den Wagen seitlich statt ihn auf Null zu stoppen', () => {
