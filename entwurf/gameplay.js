@@ -188,8 +188,9 @@ globalThis.NachtjagdPlay = {
       shopBox.hidden=phase!=='shop';
       panel.hidden=(phase==='playing'&&!teamMenu)||phase==='shop'||ui.mapOpen;
       title.textContent=teamMenu&&phase==='playing'?'Teamspiel läuft weiter':phase==='paused'?'Nachtjagd pausiert':phase==='won'?'Morgengrauen':phase==='dead'?(room?'Das Team ist überrannt':'Überrannt'):'Nachtjagd';
-      message.textContent=teamMenu&&phase==='playing'?`Raum ${room.code} · Die Nacht geht weiter, auch während dieses Fenster offen ist.`:phase==='paused'?'Die Spielwelt wartet auf dich.':phase==='won'?'Drei Siegel gefunden und die letzte Nacht überstanden.':`Welle ${current.waves.n} · ${current.stats.kills} Gegner besiegt · ${current.stats.score} Punkte`;
-      action.textContent=teamMenu&&phase==='playing'||phase==='paused'?'Weiterspielen':room?.role==='guest'?'Warte auf den Host …':'Erneut spielen';
+      message.textContent=teamMenu&&phase==='playing'?`Raum ${room.code} · Die Nacht geht weiter, auch während dieses Fenster offen ist.`:phase==='paused'?'Die Spielwelt wartet auf dich.':phase==='won'?'Drei Siegel gefunden und die letzte Nacht überstanden.':`Welle ${current.waves.n} · ${current.stats.kills} Gegner besiegt · ${current.stats.score} Punkte`+(phase==='dead'&&!room?' · Siegel, Punkte und die erreichte Welle bleiben gespeichert.':'');
+      const retry=phase==='dead'&&!room?save.read():null;
+      action.textContent=teamMenu&&phase==='playing'||phase==='paused'?'Weiterspielen':room?.role==='guest'?'Warte auf den Host …':retry?`Welle ${retry.wave+1} erneut versuchen`:'Erneut spielen';
       action.disabled=!!(room?.role==='guest'&&!(teamMenu&&phase==='playing'));
       if(phase!=='playing'&&phase!=='shop') { clearInput(); releasePointer(); }
       if(phase==='shop') clearInput();
@@ -201,11 +202,12 @@ globalThis.NachtjagdPlay = {
         '<div style="margin-top:8px;font-size:12px;color:#9fc0cc">Zahl drücken oder klicken zum Kaufen · E oder Esc schließt</div>';
     }
     shopBox.addEventListener('click',e=>{ const row=e.target.closest('[data-buy]'); if(row&&game) { game.buy(Number(row.dataset.buy)); current=game.snapshot(); renderShop(); } });
-    // Spielstand (nur Solospiel): alle paar Sekunden im Browser gespeichert, gelöscht bei Niederlage oder Sieg.
+    // Spielstand (nur Solospiel): alle paar Sekunden im Browser gespeichert. Nach einer Niederlage bleibt die erreichte Welle
+    // gespeichert (mit vollem Leben am Dorfstart), erst der Sieg im Morgengrauen löscht den Stand.
     const SAVE_KEY='nachtjagd-spielstand-1';
     const save={
       read(){ try { const d=JSON.parse(storage?.getItem(SAVE_KEY)||'null'); return d&&d.v===1?d:null; } catch(e) { return null; } },
-      write(){ if(!game||room||!active||!['playing','paused','shop'].includes(current.phase)) return; try { storage?.setItem(SAVE_KEY,JSON.stringify({...game.saveState(),savedAt:Date.now()})); } catch(e) { /* ohne Speicher */ } refreshContinue(); },
+      write(data=null){ if(!game||room||!active||(!data&&!['playing','paused','shop'].includes(current.phase))) return; try { storage?.setItem(SAVE_KEY,JSON.stringify({...(data||game.saveState()),savedAt:Date.now()})); } catch(e) { /* ohne Speicher */ } refreshContinue(); },
       clear(){ try { storage?.removeItem(SAVE_KEY); } catch(e) { /* ohne Speicher */ } refreshContinue(); }
     };
     let saveT=0;
@@ -250,6 +252,7 @@ globalThis.NachtjagdPlay = {
     action.addEventListener('click',()=>{
       if(teamMenu) { teamMenu=false; clearInput(); showPanel(); lockPointer(); return; }
       if(current?.phase==='paused') { clearInput(); current=game.resume(); showPanel(); lockPointer(); }
+      else if(current?.phase==='dead'&&!room&&save.read()) start(save.read());
       else if(room?.role!=='guest') start();
     });
     exit.addEventListener('click',leave);
@@ -473,7 +476,11 @@ globalThis.NachtjagdPlay = {
       clock+=dt; music.setPaused(current.phase==='paused'||current.phase==='shop'); music.update(current,dt);
       // Spielstand: alle 8 Sekunden speichern; nach Niederlage oder Sieg gibt es nichts fortzusetzen
       if(active&&!room) {
-        if(current.phase==='dead'||current.phase==='won') { if(!continueBtn.hidden||saveT>=0) { save.clear(); saveT=-1; } }
+        if(current.phase==='won') { if(saveT>=0) { save.clear(); saveT=-1; } }
+        else if(current.phase==='dead') {
+          // Niederlage: die angefangene Welle wird gespeichert und kann neu versucht werden, mit vollem Leben am Dorfstart
+          if(saveT>=0) { const d=game.saveState(); d.player={hp:d.player.maxHp,maxHp:d.player.maxHp,gren:d.player.gren,molo:d.player.molo}; save.write(d); saveT=-1; showPanel(); }
+        }
         else if((saveT+=dt)>8) { saveT=0; save.write(); }
       }
       if(current.phase==='playing') {
