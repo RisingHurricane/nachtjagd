@@ -246,6 +246,8 @@ Der folgende frühere Stand beschreibt den separaten Prototyp unter `public/` un
 
 ## Übergabe-Log
 
+- 2026-11-28 · Claude · Geländewagen rückwärts: am Hang wurde die kleine Anfahrgeschwindigkeit jedes Teilschritts auf null gesetzt, rückwärts bergauf kam der Wagen nie in Gang. Jetzt wird nur ohne Gas abgewürgt. Außerdem darf ein Wagen, der schon an einem Hindernis klemmt, sich bewegen, solange nicht mehr Prüfpunkte im Hindernis liegen als vorher. Test ergänzt, 224 grün, Browser 23/166 grün. Cache-Version 37.
+
 - 2026-11-28 · Claude · Wunsch Light: kein Nachladen mehr. Leeres Magazin wird beim nächsten Schuss sofort aus dem Vorrat gefüllt, Anzeige zeigt den Gesamtvorrat („Schuss“), Taste R und Hinweise entfernt. Schmied: „Schnellerer Abzug“ (10 % kürzere Schusspause je Stufe) statt schnelleres Nachladen, „Größere Munitionstaschen“ (+25 % Vorrat je Stufe) statt größerer Magazine; Seeperle: Schüsse 15 % schneller. Fledermaus-Sturm (Welle 6, 10, …) entschärft: geringerer Anteil, höchstens 7 Fledermäuse gleichzeitig (sonst 4), weniger Schnitter. Tests angepasst, 223 grün, Browser 23/166 grün. Cache-Version 36.
 
 - 2026-11-28 · Claude · Spielstand nach Wunsch von Light: die erreichte Welle bleibt auch nach einer Niederlage gespeichert (volles Leben, Start im Dorf). Im Niederlage-Fenster heißt der Knopf „Welle N erneut versuchen“, im Hauptmenü „Weiterspielen“. Erst der Sieg löscht den Stand, „Eine Nacht beginnen“ startet neu. Cache-Version 35.

@@ -296,3 +296,15 @@ test('jeep: Wand streift den Wagen seitlich statt ihn auf Null zu stoppen', () =
   advance(game, 2, { forward: 0 });
   assert.ok(Number.isFinite(veh(game).x) && veh(game).z < 40);
 });
+
+test('Geländewagen fährt auch rückwärts bergauf an und kommt von einem Hindernis wieder los', () => {
+  // Hang: Boden steigt nach hinten (−z) um 25 % an
+  const { game } = make({ jeeps: [{ x: 0, z: 0, yaw: 0 }], floor: (x, z) => Math.max(0, -z) * 0.25 }); game.start(); game.interact();
+  const z0 = veh(game).z;
+  advance(game, 2, { forward: -1 });
+  assert.ok(veh(game).z < z0 - 1, `rückwärts bergauf bewegt sich der Wagen (${veh(game).z})`);
+  // Klemmt das Heck schon in einer Wand, darf der Wagen vorwärts davon wegfahren
+  const { game: g2 } = make({ jeeps: [{ x: 0, z: 0, yaw: 0 }], blocked: (x, z) => z < -1.5 }); g2.start(); g2.interact();
+  advance(g2, 1.5, { forward: 1 });
+  assert.ok(veh(g2).z > 1, `vom Hindernis weg (${veh(g2).z})`);
+});

@@ -101,12 +101,19 @@
   const onRoad = (world, x, z) => typeof world.onRoad === 'function' ? !!world.onRoad(x, z) : false;
 
   // Fußabdruck des Wagens (Mitte, vier Ecken, Bug und Heck) gegen Hindernisse prüfen.
+  const FOOT = [[0, 0], [0, 2.0], [0, -2.0], [0.95, 1.9], [-0.95, 1.9], [0.95, -1.9], [-0.95, -1.9]];
   function jeepBlocked(world, x, z, yaw, y) {
-    for (const [lx, lz] of [[0, 0], [0, 2.0], [0, -2.0], [0.95, 1.9], [-0.95, 1.9], [0.95, -1.9], [-0.95, -1.9]]) {
+    for (const [lx, lz] of FOOT) {
       const p = toWorld(x, z, yaw, lx, lz);
       if (world.blocked(p[0], p[1], y)) return true;
     }
     return false;
+  }
+  // Wie viele Prüfpunkte im Hindernis liegen; erlaubt das Herausfahren, wenn der Wagen schon an etwas klemmt.
+  function jeepBlockCount(world, x, z, yaw, y) {
+    let n = 0;
+    for (const [lx, lz] of FOOT) { const p = toWorld(x, z, yaw, lx, lz); if (world.blocked(p[0], p[1], y)) n++; }
+    return n;
   }
 
   // Lenkung und Fahrverhalten (arcadig, gut kontrollierbar):
@@ -143,7 +150,7 @@
       const prior = v.sp;
       v.sp = clamp((v.sp + force * h) * Math.exp(-brakes * h), -7.5, 22);
       if (opposing && prior * v.sp <= 0) v.sp = 0;
-      if (Math.abs(v.sp) < (serviceBrake ? 0.24 : 0.04)) v.sp = 0;
+      if (Math.abs(v.sp) < (serviceBrake ? 0.24 : 0.04) && (serviceBrake || !(forward || reverse))) v.sp = 0;   // mit Gas nicht abwürgen (Rückwärts bergauf)
       const ideal = v.sp / JEEP.wheelBase * Math.tan(v.steer), maxYaw = grip / Math.max(Math.abs(v.sp), 3);
       // Über der Haftgrenze: Untersteuern, die überschüssige Querbeschleunigung bremst den Wagen.
       const slip = Math.max(0, Math.abs(ideal) - maxYaw);
@@ -155,7 +162,10 @@
       const surface = floorAt(nx, nz, v.y), run = Math.hypot(nx - v.x, nz - v.z);
       // Kleine Kanten (Fahrbahnrand, Bordstein bis 25 cm) überfährt der Wagen; nur echte Stufen und Steilhänge halten ihn auf.
       const steep = Math.abs(surface - v.y) > 0.9 * run + 0.25;
-      if (!finite(surface) || Math.abs(surface - v.y) > 1 || steep || jeepBlocked(world, nx, nz, yaw, surface)) {
+      // Klemmt der Wagen schon an einem Hindernis, darf er sich bewegen, solange nicht mehr Prüfpunkte im Hindernis liegen als vorher.
+      const after = jeepBlocked(world, nx, nz, yaw, surface) ? jeepBlockCount(world, nx, nz, yaw, surface) : 0;
+      const blockedNow = after > 0 && (() => { const before = jeepBlockCount(world, v.x, v.z, v.yaw, v.y); return before === 0 || after > before; })();
+      if (!finite(surface) || Math.abs(surface - v.y) > 1 || steep || blockedNow) {
         // Hindernis oder zu steil: nur drehen, wenn es dabei frei bleibt (Wegdrehen von Baum oder Wand), sonst Rückstoß.
         if (Math.abs(v.sp) > 2.5) v.bump = true;
         const turnedFree = !jeepBlocked(world, v.x, v.z, yaw, v.y);
